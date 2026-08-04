@@ -17,6 +17,29 @@ Nếu embedding candidate không đạt retrieval target hoặc provider policy 
 
 Compliance gate: mọi OpenRouter live test trước explicit Yelp approval chỉ dùng synthetic reviews/questions. Không gửi raw, redacted hoặc summarized Yelp review text vì bundled Terms hạn chế third-party sharing. Real-data embedding cũng bị chặn theo cùng policy.
 
+### 1.1 Disposition của RAG recommendation
+
+Đã review toàn bộ [`docs/reviewlens_rag_recommendation.md`](../../reviewlens_rag_recommendation.md) trước M1. Tài liệu là design advisory; PRD, ADR, security policy và evaluation gate vẫn có precedence.
+
+Chấp nhận vào P0 baseline:
+
+- Review ngắn mặc định một deterministic chunk; review dài mới sentence-split với overlap và giữ offset/citation mapping.
+- Contextual metadata header, strict filter extraction, evidence separation, no-evidence refusal, contradiction handling và claim-level citation.
+- ChromaDB chỉ trả `chunk_id + score`; application fetch lại evidence authoritative từ Snowflake `AI.RAG_DOCUMENT` và re-check authorization.
+- RAG chỉ trả insight định tính; count/ranking/trend thuộc Text-to-SQL.
+
+Giữ ở dạng evaluation-gated/P1:
+
+- BM25 hybrid retrieval, Reciprocal Rank Fusion và FlashRank `ms-marco-MiniLM-L-12-v2` là optimization candidates. Không thêm vào MVP mặc định trước khi vector + metadata-filter baseline được đo Recall@8/latency và chứng minh chưa đạt gate.
+- Nếu promote, phải thêm implementation work items, dependency/footprint test và regression comparison thay vì thay retrieval âm thầm.
+
+Corrections bắt buộc khi implement:
+
+- `text[:1000]` chỉ giới hạn độ dài, không phải redaction. `serving_safe_text` phải đến từ versioned DLP/policy projection và test restricted-field leakage.
+- LLM-extracted filter không được dùng trực tiếp; server resolve business name → allowed `business_id`, validate field/operator/value và enforce authorization.
+- Không hard-code embedding dimension hoặc pricing từ recommendation. M5 phải đọc catalog/response, pin dimension/config và snapshot price/provider policy.
+- Thiết kế và load test theo bounded portfolio corpus; không giả định BM25 in-memory hoặc embedding toàn bộ khoảng 7 triệu reviews.
+
 ## 2. Version keys
 
 ```text

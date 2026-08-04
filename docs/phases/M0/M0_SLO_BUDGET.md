@@ -26,6 +26,8 @@ R2 hiện có free allowance 10 GB-month cho Standard và không tính direct eg
 
 Snowflake expiry và credit thực tế phải được ghi từ account trước M1. Resource monitor chỉ kiểm soát warehouse credit; storage/serverless usage phải theo dõi riêng.
 
+Account facts xác nhận ngày `2026-08-04`: Snowflake Standard Edition trên AWS Singapore (`AWS_AP_SOUTHEAST_1`), trial balance hiển thị `US$400`, hết hạn `2026-09-03`. Khoản balance không thay hard guardrail 10 credits/tháng cho đến khi owner explicit điều chỉnh; ưu tiên đo synthetic M1/M2 vertical slice trước expiry.
+
 ## 3. SLO baseline
 
 | SLO | Target MVP | Measurement |
@@ -50,4 +52,3 @@ SLO là baseline để đo và tune, không phải tuyên bố production SLA. C
 - ChromaDB unavailable: RAG báo unavailable, không fallback sang ungrounded LLM answer.
 - Snowflake suspended/expired: app báo data backend unavailable; không dùng mock data như dữ liệu thật.
 - R2 unavailable: không ingest batch mới; active Snowflake release tiếp tục phục vụ.
-

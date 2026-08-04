@@ -1,0 +1,4 @@
+interface:
+  display_name: "ReviewLens Dev Workflow"
+  short_description: "Implement and track ReviewLens phases consistently"
+  default_prompt: "Use $reviewlens-dev-workflow to continue the current ReviewLens implementation phase, run appropriate tests, and update project status."

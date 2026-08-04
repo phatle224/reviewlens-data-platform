@@ -1,5 +1,7 @@
 # Phase delivery convention
 
+Trạng thái tổng thể và phase hiện tại được tóm tắt tại [`docs/PROJECT_STATUS.md`](../PROJECT_STATUS.md). Đây là file đầu tiên cần cập nhật khi kết thúc mỗi coding session; checklist và test cases bên dưới vẫn là nguồn evidence chi tiết.
+
 Mỗi phase `M0`…`M8` phải có tối thiểu hai artifact:
 
 - `Mx_CHECKLIST.md`: trạng thái từng work item, evidence, blocker và exit gate.
@@ -26,3 +28,10 @@ Test strategy ưu tiên hiện tại:
 5. Negative security tests chạy bằng đúng service identity.
 6. Cost/latency được kiểm thử như release gate, không chỉ quan sát sau deploy.
 
+## Quy trình kết thúc coding session
+
+1. Cập nhật work item đã chạm và evidence trong `Mx_CHECKLIST.md`.
+2. Ghi test command/result thực tế trong `Mx_TEST_CASES.md`; test chưa chạy không được ghi `PASS`.
+3. Cập nhật `docs/PROJECT_STATUS.md`: phase, kết quả gần nhất, test, blocker/risk, cost, input cần từ owner và 3–5 việc tiếp theo.
+4. Chỉ sửa implementation plan khi task/sequencing thay đổi; chỉ sửa PRD khi requirement/scope thay đổi; tạo ADR cho quyết định kiến trúc quan trọng.
+5. Chạy `python .agents/skills/reviewlens-dev-workflow/scripts/validate_project_status.py --root .` trước khi kết thúc phiên.

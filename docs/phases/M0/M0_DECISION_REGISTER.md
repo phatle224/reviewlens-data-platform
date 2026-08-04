@@ -13,14 +13,14 @@
 | Restaurant population | Exact normalized token `Restaurants` | [Product/data baseline](./M0_PRODUCT_DATA_BASELINE.md) | Taxonomy inclusion rule |
 | AI workload | 2,000-review pilot; 10,000-review portfolio cap | [Product/data baseline](./M0_PRODUCT_DATA_BASELINE.md) | Budget/sample policy |
 | Yelp Terms | Real data giữ local; cloud/LLM transfer và public data/metrics denied đến khi eligibility/Yelp approval rõ ràng | [Security/privacy](./M0_SECURITY_PRIVACY.md) | New written permission hoặc qualified review |
+| M1 cloud topology | Snowflake Standard trên AWS Singapore + private R2 Standard bucket tại APAC qua S3-compatible stage | [User inputs](./M0_USER_INPUTS.md), [ADR-001](../../ADR/ADR-001-r2-object-storage.md) | Đổi Snowflake region/cloud, R2 location/jurisdiction hoặc stage protocol |
+| RAG recommendation | Đã review; P0 safeguards được chấp nhận, hybrid/reranking giữ evaluation-gated/P1 | [AI evaluation](./M0_AI_EVALUATION_PLAN.md), [recommendation](../../reviewlens_rag_recommendation.md) | Promote optimization vào MVP hoặc đổi retrieval/model contract |
 
-## Inputs còn phải xác minh
+## M1 entry input status
 
-Không ghi secret trong tài liệu. Chỉ cần các giá trị không nhạy cảm sau để đóng M0:
+Không ghi secret trong tài liệu. Trạng thái hiện tại:
 
-1. Snowflake account cloud/region/edition, expiry date và remaining credit hiển thị trong account.
-2. Cloudflare R2 account đã bật hay chưa; bucket name và location/jurisdiction mong muốn.
-3. Portfolio chỉ local/private hay cần public URL.
-4. Monthly budget mong muốn; default hiện tại là tối đa 5 USD OpenRouter và 10 Snowflake credits/tháng trong giai đoạn build.
-5. Chấp nhận model candidates và AI sample cap trong evaluation plan hay muốn đổi.
-6. Xác nhận project này thuộc ongoing academic course/qualified academic use hay bạn có Yelp written approval. Nếu không, M1+ chỉ dùng synthetic data trên R2/Snowflake/OpenRouter và real Yelp data chỉ được profile local trong phạm vi Terms cho phép.
+1. `RESOLVED`: Snowflake account facts và R2 bucket topology.
+2. `RESOLVED_RESTRICTIVE`: project không thuộc chương trình academic chính thức và không có Yelp approval; synthetic-only gate cho managed cloud/external AI/public demo được giữ nguyên.
+3. `OPEN_NON_BLOCKING`: public URL strategy, explicit budget acceptance và model candidate acceptance.
+4. `OPEN_BEFORE_REAL_LOCAL_USE`: Yelp dataset access/effective date để tính license expiry/cleanup.
