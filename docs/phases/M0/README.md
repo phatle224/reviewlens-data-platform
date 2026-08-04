@@ -6,7 +6,7 @@
 | [M0 test cases](./M0_TEST_CASES.md) | Test matrix, expected result, current result và M1 automation mapping |
 | [Decision register](./M0_DECISION_REGISTER.md) | Accepted decisions và user inputs còn cần xác minh |
 | [Source profile](./M0_SOURCE_PROFILE.md) | Local archive fingerprint, source set và snapshot semantics |
-| [Product/data baseline](./M0_PRODUCT_DATA_BASELINE.md) | Portfolio scope, restaurant taxonomy, SCD/time và metrics |
+| [Product/data baseline](./M0_PRODUCT_DATA_BASELINE.md) | Portfolio scope, Olist order/review eligibility, history/time và e-commerce metrics |
 | [Security/privacy](./M0_SECURITY_PRIVACY.md) | Classification, transfer, retention và threat controls |
 | [SLO/budget](./M0_SLO_BUDGET.md) | Capacity, cost caps, SLO và degradation behavior |
 | [AI evaluation](./M0_AI_EVALUATION_PLAN.md) | Model candidates, versions, golden sets và release gates |

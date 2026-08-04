@@ -70,21 +70,46 @@ def test_dotenv_credentials_are_loaded_and_process_values_win(tmp_path: Path) ->
     assert settings.app.auth_token.get_secret_value() == "from-dotenv"
 
 
-def test_real_yelp_cannot_enable_managed_providers(tmp_path: Path) -> None:
+def test_olist_mode_supports_private_managed_data_platform(tmp_path: Path) -> None:
     profile = (
         Path("config/config.toml")
         .read_text(encoding="utf-8")
-        .replace('data_mode = "synthetic"', 'data_mode = "real_local"')
+        .replace('data_mode = "synthetic"', 'data_mode = "olist"')
     )
     config_path = tmp_path / "config.toml"
     config_path.write_text(profile, encoding="utf-8")
-    with pytest.raises(ValidationError, match="real Yelp data is local-only"):
-        load_settings(environ={}, config_path=config_path, env_file=tmp_path / ".env")
+    settings = load_settings(environ={}, config_path=config_path, env_file=tmp_path / ".env")
+    assert settings.data_mode is DataMode.OLIST
+    assert settings.r2.enabled
+    assert settings.snowflake.enabled
 
 
-def test_license_window_is_final_input() -> None:
+def test_olist_license_contract_is_non_commercial_and_attributed() -> None:
     settings = load_settings(environ={})
     assert settings.data_mode is DataMode.SYNTHETIC
-    assert settings.license.accessed_at.isoformat() == "2026-08-04"
-    assert settings.license.license_expires_at.isoformat() == "2027-08-04"
+    assert settings.license.dataset == "brazilian-ecommerce"
+    assert settings.license.provider == "Olist"
+    assert settings.license.accessed_at.isoformat() == "2026-08-05"
+    assert settings.license.license_id == "CC-BY-NC-SA-4.0"
+    assert not settings.license.commercial_use_allowed
+    assert settings.license.attribution_required
+    assert settings.license.share_alike_required
     assert settings.openrouter.hard_budget_usd == 5.0
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "message"),
+    [
+        ("commercial_use_allowed = false", "commercial_use_allowed = true", "non-commercial"),
+        ('license_id = "CC-BY-NC-SA-4.0"', 'license_id = "MIT"', "CC BY-NC-SA 4.0"),
+        ("attribution_required = true", "attribution_required = false", "attribution"),
+    ],
+)
+def test_olist_license_rejects_weakened_obligations(
+    tmp_path: Path, old: str, new: str, message: str
+) -> None:
+    profile = Path("config/config.toml").read_text(encoding="utf-8").replace(old, new)
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(profile, encoding="utf-8")
+    with pytest.raises(ValidationError, match=message):
+        load_settings(environ={}, config_path=config_path, env_file=tmp_path / ".env")

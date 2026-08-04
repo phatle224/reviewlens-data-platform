@@ -3,9 +3,15 @@ deployment_mode = "local_demo"
 data_mode = "synthetic"
 
 [license]
-accessed_at = "2026-08-04"
-license_expires_at = "2027-08-04"
-term_months = 12
+dataset = "brazilian-ecommerce"
+provider = "Olist"
+source_url = "https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce"
+accessed_at = "2026-08-05"
+license_id = "CC-BY-NC-SA-4.0"
+license_url = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+commercial_use_allowed = false
+attribution_required = true
+share_alike_required = true
 status = "active"
 
 [r2]

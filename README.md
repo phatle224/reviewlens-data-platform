@@ -1,13 +1,14 @@
 # ReviewLens Data Platform
 
-ReviewLens is a synthetic-first portfolio data platform for restaurant intelligence. The target architecture uses Cloudflare R2, Snowflake, dbt, Airflow, OpenRouter, ChromaDB and Streamlit while keeping provider access behind typed Python adapters.
+ReviewLens is an Olist-powered portfolio data platform for e-commerce review and delivery intelligence. The target architecture uses Cloudflare R2, Snowflake, dbt, Airflow, OpenRouter, ChromaDB and Streamlit while keeping provider access behind typed Python adapters.
 
 The project is currently in **M1 — Foundation**. It runs as one local demo environment; no staging, production or public URL is provisioned.
 
 ## Data and security boundary
 
-- Real Yelp Open Dataset files, review text, embeddings and derived data are never committed or published.
-- Until the compliance gate is explicitly reopened, managed cloud, external AI, CI and portfolio evidence use synthetic fixtures only.
+- The primary source is the Olist Brazilian E-Commerce Public Dataset: nine relational CSV files under CC BY-NC-SA 4.0.
+- Olist CSVs, review text, embeddings and row-level derived artifacts are never committed or published. Local raw files belong in an ignored source directory such as `archive/`.
+- R2 and Snowflake may process the private Olist snapshot after source-manifest and privacy gates pass. External AI still requires a minimized, approved review projection; CI and public portfolio evidence use synthetic fixtures only.
 - `config/config.toml` contains non-sensitive configuration. Credentials belong only in the ignored local `.env` file.
 - R2 remains private and Snowflake is the only warehouse; there is no DuckDB fallback.
 
@@ -36,7 +37,7 @@ uv run reviewlens-config
 Generate deterministic synthetic source fixtures:
 
 ```powershell
-uv run reviewlens-fixtures --output tests/fixtures/synthetic/yelp/v1
+uv run reviewlens-fixtures --output tests/fixtures/synthetic/olist/v1
 ```
 
 ## Quality checks
@@ -57,7 +58,9 @@ Live tests are opt-in and may only use synthetic payloads. See the active [M1 te
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
 - [M1 checklist](docs/phases/M1/M1_CHECKLIST.md)
 - [Architecture decisions](docs/ADR/)
+- [Dataset attribution and obligations](docs/DATA_ATTRIBUTION.md)
+- [Olist source manifest](docs/data/OLIST_SOURCE_MANIFEST.md)
 
 ## Attribution
 
-This independent educational portfolio project is not sponsored or endorsed by Yelp. Any local use of the Yelp Open Dataset must follow the applicable Dataset Terms of Use and the project compliance boundary above.
+This independent, non-commercial educational portfolio project uses the [Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce), licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). Olist does not sponsor or endorse this project. See [DATA_ATTRIBUTION.md](docs/DATA_ATTRIBUTION.md) for the complete notice.

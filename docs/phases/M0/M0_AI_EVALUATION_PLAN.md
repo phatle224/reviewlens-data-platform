@@ -15,7 +15,7 @@ Model catalog và pricing thay đổi theo thời gian. Trước M4/M5, pipeline
 
 Nếu embedding candidate không đạt retrieval target hoặc provider policy không phù hợp, fallback được evaluation là `openai/text-embedding-3-small`; đổi model tạo `embedding_version` và ChromaDB collection mới.
 
-Compliance gate: mọi OpenRouter live test trước explicit Yelp approval chỉ dùng synthetic reviews/questions. Không gửi raw, redacted hoặc summarized Yelp review text vì bundled Terms hạn chế third-party sharing. Real-data embedding cũng bị chặn theo cùng policy.
+Compliance gate: M1 OpenRouter tests use synthetic comments/questions. A real Olist comment is eligible only after the versioned DLP/minimization projection passes, the selected model/provider policy is recorded and budget is available. Raw customer, seller, order and payment identifiers are never prompt fields.
 
 ### 1.1 Disposition của RAG recommendation
 
@@ -36,7 +36,7 @@ Giữ ở dạng evaluation-gated/P1:
 Corrections bắt buộc khi implement:
 
 - `text[:1000]` chỉ giới hạn độ dài, không phải redaction. `serving_safe_text` phải đến từ versioned DLP/policy projection và test restricted-field leakage.
-- LLM-extracted filter không được dùng trực tiếp; server resolve business name → allowed `business_id`, validate field/operator/value và enforce authorization.
+- LLM-extracted filter không được dùng trực tiếp; server resolves product/category/seller/geography terms to allowlisted IDs/values, validates field/operator/value and enforces authorization.
 - Không hard-code embedding dimension hoặc pricing từ recommendation. M5 phải đọc catalog/response, pin dimension/config và snapshot price/provider policy.
 - Thiết kế và load test theo bounded portfolio corpus; không giả định BM25 in-memory hoặc embedding toàn bộ khoảng 7 triệu reviews.
 
@@ -53,7 +53,7 @@ sql_policy_version = hash(prompt_version + semantic_catalog_version + AST_policy
 
 | Set | Minimum MVP | Sampling |
 |---|---:|---|
-| Enrichment golden | 200 human-reviewed rows ban đầu; mục tiêu 500 | Stratified stars/aspect/length/city |
+| Enrichment golden | 200 human-reviewed rows ban đầu; mục tiêu 500 | Stratified score/aspect/length/category/delivery outcome |
 | Retrieval golden | 50 questions ban đầu; mục tiêu 100 | Answerable/no-evidence/filter/conflict |
 | RAG security | ≥40 cases | Prompt injection, malicious review, citation spoofing |
 | SQL semantic | ≥50 questions | KPI/filter/time/ranking/ambiguity |

@@ -1,76 +1,77 @@
-# M0 Product and Data Baseline
+# M0 Product and Data Baseline — Olist
 
-| Thuộc tính | Quyết định |
+## Portfolio scope
+
+| Decision | Baseline |
 |---|---|
-| Product type | Solo portfolio project, single-tenant |
-| Default exposure | Local/private; public portfolio chỉ dùng code/architecture/synthetic demo cho đến khi có Yelp approval phù hợp |
-| Primary language | English cho data, UI, prompt và evaluation; tài liệu delivery có thể dùng tiếng Việt |
-| Warehouse | Snowflake-only từ dev đến portfolio demo |
-| Delivery strategy | Business + review vertical slice trước; mở rộng đủ 5 JSON datasets sau D1 |
-| AI scope | Deterministic stratified subset, không enrich toàn bộ gần 7 triệu review ở MVP |
+| Product domain | E-commerce review, order and delivery intelligence |
+| Primary personas | Portfolio viewer, analyst, operator/owner |
+| Demo exposure | Local/private; GitHub contains code, synthetic fixtures and safe evidence only |
+| Delivery strategy | Synthetic nine-table slice first; private Olist snapshot ingestion in M2 |
+| Warehouse | Snowflake only |
+| Data lake | Private Cloudflare R2 |
 
-## 1. MVP population
+## Analytical population v1
 
-### Restaurant scope v1
+Every order receives `analysis_scope_status`, `analysis_scope_reason` and
+`analysis_scope_version='olist_order_scope_v1'`.
 
-Normalize `categories` thành case-insensitive trimmed tokens.
-
-| Điều kiện | `restaurant_scope_status` | Lý do |
+| Condition | Status | Use |
 |---|---|---|
-| Có exact token `Restaurants` | `IN_SCOPE` | Yelp parent category xác nhận restaurant |
-| Categories non-null nhưng không có `Restaurants` | `OUT_OF_SCOPE` | Không đưa business ngoài restaurant vào product KPI/RAG |
-| Categories null/empty/unparseable | `UNKNOWN` | Không đủ bằng chứng để include |
+| Delivered order with valid customer and at least one valid item | `IN_SCOPE` | Core delivery, payment and review analytics |
+| Cancelled or unavailable order | `OUT_OF_SCOPE_DELIVERY` | Operational counts only; excluded from delivery SLA metrics |
+| Missing required parent/invalid key | `QUARANTINED` | Audit and repair only |
+| Status not recognized by contract | `UNKNOWN` | Visible in DQ coverage, not silently included |
 
-Hybrid business có `Restaurants` cùng category khác vẫn `IN_SCOPE`. `Food` một mình không đủ vì có thể là grocery, market hoặc specialty retail. Rule được version bằng `restaurant_scope_version='restaurant_scope_v1'`.
+Review AI eligibility is narrower: a valid in-scope review must have a score,
+pass DLP/policy projection and belong to an active candidate release. Empty
+comment text may contribute to score KPIs but cannot be embedded or summarized.
 
-### AI sampling v1
+## Data history and time
 
-- D3 đầu tiên: tối đa 2,000 reviews, stratified theo stars, city và review length.
-- Portfolio MVP: tối đa 10,000 reviews trừ khi budget gate được nâng.
-- Fixed seed và lưu `sample_definition_version` để evaluation/replay tái lập được.
-- Chỉ review của `IN_SCOPE` business, qua DLP policy và có valid Silver record mới đủ điều kiện.
-
-## 2. Data modeling decisions
-
-| Domain | Strategy |
+| Entity | Rule |
 |---|---|
-| Bronze | Immutable append, raw `VARIANT` + source metadata |
-| Business | SCD Type 2 theo `business_id + record_hash`; current row deterministic |
-| User | SCD Type 2 nhưng Gold/RAG chỉ giữ pseudonymous ID và field cần thiết |
-| Review | Immutable version history theo `review_id + source_record_hash`; correction tạo version mới |
-| Check-in | Explode timestamp list ở Silver với deterministic event key |
-| Tip | Deterministic hash từ canonical business/user/date/text làm source key nếu source không có ID |
-| Attributes | Long-form derived table từ `business.attributes`; version theo business record |
-| Deletion | Tombstone chỉ từ complete snapshot hoặc approved correction list; legal purge là controlled exception |
+| Customer/product/seller | Snapshot history; SCD2 only when a later snapshot changes descriptive fields |
+| Order | Immutable business event plus deterministic correction history |
+| Order item/payment/review | Preserve source rows; deterministic dedup by declared compound key/source hash |
+| Geolocation | Conform ZIP prefix through versioned centroid/quality rule |
+| Timestamps | Preserve raw `TIMESTAMP_NTZ`; derive Brazilian local calendar fields through a versioned policy |
 
-## 3. Time policy
+Absence is deletion only for a confirmed complete later snapshot and an accepted
+source rule. Legal/privacy deletion is a controlled tombstone exception that is
+reapplied during restore or rebuild.
 
-- Không giả định source timestamp naive là UTC.
-- Raw string luôn được giữ.
-- Parsed naive timestamp dùng Snowflake `TIMESTAMP_NTZ` và `timezone_assumption`.
-- Reporting date dùng documented reporting timezone; default MVP là source calendar date khi không thể suy ra timezone.
-- Mọi metric time-based phải nêu grain, timezone và late-arrival rule.
+## Metric dictionary v1
 
-## 4. Metric dictionary v1
+| Metric | Grain/filter | Definition/guardrail |
+|---|---|---|
+| Orders | release/date/status | distinct `order_id`; never count item rows as orders |
+| Delivered orders | release/date | distinct orders with delivered status |
+| Gross merchandise value | order/item | sum item `price`; label as dataset GMV proxy, not Olist accounting revenue |
+| Freight value | order/item | sum `freight_value`; preserve currency context from dataset documentation |
+| Payment value | order/payment | sum payment rows; report reconciliation delta versus item + freight |
+| Average review score | release/filter | average valid `review_score` 1–5 with sample size |
+| Review response latency | review | answer timestamp minus creation timestamp; invalid negative durations quarantined |
+| Delivery lead time | delivered order | delivered-to-customer minus purchase timestamp |
+| Delivery delay | delivered order | delivered-to-customer minus estimated-delivery date; define on-time as `<= 0` days |
+| On-time delivery rate | eligible delivered orders | on-time / orders with both actual and estimated dates |
+| Cancellation rate | orders | cancelled / all valid orders in selected cohort |
+| Repeat-customer rate | customer unique ID | unique customers with more than one order / unique customers |
+| Sentiment distribution | enriched review/version | label count / valid enriched reviews; always display AI coverage |
+| Negative aspect rate | aspect/version | negative aspect records / reviews with a valid aspect result |
 
-| Metric | Grain | Công thức baseline | Guardrail |
-|---|---|---|---|
-| Active businesses | Date/release/filter | Count distinct in-scope `business_id` với `is_open=1` | Hiển thị population version |
-| Review count | Date/business/filter | Count valid in-scope reviews | Không dùng AI coverage làm denominator |
-| Average stars | Business/release | Average review `stars` | Hiển thị `review_count` |
-| Weighted rating | Business/release | Bayesian weighted mean; prior và minimum count config | Không xếp hạng sample quá nhỏ |
-| Sentiment distribution | Business/aspect/release | Valid enriched count theo label / valid enriched total | Luôn hiển thị AI coverage |
-| Negative aspect rate | Business/aspect/release | Negative aspect rows / reviews có valid aspect label | Không chia cho toàn bộ reviews |
-| Check-in count | Business/date | Count exploded check-in events | Deduplicate event key |
-| AI coverage | Release/filter | Valid enriched eligible reviews / eligible reviews | Error/reused count tách riêng |
+Product/category/seller attribution from reviews must display its allocation
+policy. A multi-item order review cannot be copied to every product then summed
+as if the rows were independent.
 
-Weighted-rating prior, minimum sample threshold và dashboard comparison window sẽ được tune bằng fixture ở M3; không hard-code trong UI.
+## AI taxonomy v1
 
-## 5. Product acceptance baseline
+- Sentiment: `positive`, `neutral`, `negative`, `mixed`.
+- Aspects: `product_quality`, `delivery`, `packaging`, `customer_service`,
+  `price_value`, `product_description`, `payment`, `other`.
+- Topics: controlled multi-label taxonomy versioned separately.
+- Outputs: sentiment, aspect sentiment, topics, short summary, highlights,
+  confidence and schema/model/prompt versions.
 
-- Dashboard, RAG và Text-to-SQL luôn pin một `data_release_id`.
-- RAG dùng review làm evidence định tính; count/ranking/trend phải đi Text-to-SQL.
-- RAG phải từ chối khi không đủ evidence và mọi factual claim phải resolve về serving-safe excerpt.
-- SQL chỉ `SELECT`, một statement, curated Gold views, tối đa 1,000 rows và timeout 30 giây.
-- Local/private demo có thể dùng local access boundary; trước mọi public deployment phải bật authenticated access và chạy security test suite.
-- Không public raw Yelp rows, review excerpts, screenshots có identifiable Yelp Data hoặc dataset-derived metrics khi chưa có approval theo bundled Terms.
+The portfolio pilot enriches at most 2,000 stratified comments initially and
+10,000 comments total without a budget revision.

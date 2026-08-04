@@ -160,9 +160,14 @@ class SnowflakeClient:
         finally:
             cursor.close()
 
-    def execute_all(self, statements: Iterable[str]) -> None:
+    def execute_all(
+        self,
+        statements: Iterable[str],
+        *,
+        operation: str = "Snowflake statement",
+    ) -> None:
         for statement in statements:
-            self.execute(statement, operation="Snowflake foundation statement")
+            self.execute(statement, operation=operation)
 
     def query_all(
         self,
@@ -180,8 +185,13 @@ class SnowflakeClient:
             cursor.close()
 
     def apply_foundation(self, ddl_path: Path) -> None:
+        self.apply_sql_file(ddl_path, operation="Snowflake foundation statement")
+
+    def apply_sql_file(self, ddl_path: Path, *, operation: str) -> None:
+        """Execute a committed, secret-free SQL artifact statement by statement."""
+
         statements = split_sql_statements(ddl_path.read_text(encoding="utf-8"))
-        self.execute_all(statements)
+        self.execute_all(statements, operation=operation)
 
     def create_or_replace_r2_stage(
         self,

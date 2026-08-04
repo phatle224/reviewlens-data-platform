@@ -19,7 +19,7 @@ uv run mypy src tests
 uv run pytest --cov=reviewlens --cov-report=term-missing
 ```
 
-Never commit `.env`, provider credentials, private keys, Yelp source files, real review text, embeddings, vector data or derived Yelp artifacts.
+Never commit `.env`, provider credentials, private keys, Olist source CSVs, real review text, embeddings, vector data or row-level derived Olist artifacts. The Olist license requires attribution, non-commercial use and ShareAlike; changes affecting data or public artifacts must preserve `docs/DATA_ATTRIBUTION.md`.
 
 ## Pull request evidence
 

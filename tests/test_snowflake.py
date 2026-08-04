@@ -63,6 +63,10 @@ def test_foundation_sql_contract_matches_single_local_config() -> None:
     assert "ON 100 PERCENT DO SUSPEND_IMMEDIATE" in normalized
     for schema in ("BRONZE", "SILVER", "AI", "GOLD", "AUDIT", "QUARANTINE"):
         assert f"CREATE SCHEMA IF NOT EXISTS REVIEWLENS.{schema}" in normalized
+    assert "CREATE FILE FORMAT IF NOT EXISTS REVIEWLENS.BRONZE.OLIST_CSV_FORMAT" in normalized
+    assert "TYPE = CSV" in normalized
+    assert "SKIP_HEADER = 1" in normalized
+    assert "FIELD_OPTIONALLY_ENCLOSED_BY = '\"'" in normalized
 
 
 def test_foundation_sql_is_secret_free_and_splittable() -> None:
@@ -71,9 +75,9 @@ def test_foundation_sql_is_secret_free_and_splittable() -> None:
     assert "AWS_SECRET_KEY" not in source
     assert "r2.cloudflarestorage.com" not in source
     statements = split_sql_statements(source)
-    assert len(statements) == 13
+    assert len(statements) == 14
     assert all("--" not in statement for statement in statements)
-    assert any("warehouse; synthetic cloud data only" in statement for statement in statements)
+    assert any("warehouse; approved private data only" in statement for statement in statements)
 
 
 def test_sql_splitter_preserves_quotes_and_escaped_quotes() -> None:
@@ -123,7 +127,7 @@ def test_adapter_executes_foundation_and_returns_fake_query_results() -> None:
     result = client.query_all("SELECT 'synthetic-result'")
     client.close()
 
-    assert len(fake.statements) == 14
+    assert len(fake.statements) == 15
     assert result == [("synthetic-result",)]
     assert fake.closed
 

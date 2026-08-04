@@ -29,7 +29,7 @@ CREATE WAREHOUSE IF NOT EXISTS REVIEWLENS_WH
     AUTO_RESUME = TRUE
     INITIALLY_SUSPENDED = TRUE
     RESOURCE_MONITOR = REVIEWLENS_MONTHLY_MONITOR
-    COMMENT = 'ReviewLens local portfolio warehouse; synthetic cloud data only';
+    COMMENT = 'ReviewLens local portfolio warehouse; approved private data only';
 
 ALTER WAREHOUSE REVIEWLENS_WH SET
   WAREHOUSE_SIZE = XSMALL
@@ -38,7 +38,7 @@ ALTER WAREHOUSE REVIEWLENS_WH SET
   RESOURCE_MONITOR = REVIEWLENS_MONTHLY_MONITOR;
 
 CREATE DATABASE IF NOT EXISTS REVIEWLENS
-  COMMENT = 'ReviewLens local portfolio database; synthetic cloud data only';
+  COMMENT = 'ReviewLens local portfolio database; approved private data only';
 
 CREATE SCHEMA IF NOT EXISTS REVIEWLENS.BRONZE;
 CREATE SCHEMA IF NOT EXISTS REVIEWLENS.SILVER;
@@ -52,3 +52,11 @@ CREATE FILE FORMAT IF NOT EXISTS REVIEWLENS.BRONZE.JSONL_FORMAT
   STRIP_OUTER_ARRAY = FALSE
   COMMENT = 'JSONL/JSON format used by ReviewLens synthetic stage smoke tests';
 
+CREATE FILE FORMAT IF NOT EXISTS REVIEWLENS.BRONZE.OLIST_CSV_FORMAT
+  TYPE = CSV
+  SKIP_HEADER = 1
+  FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+  EMPTY_FIELD_AS_NULL = TRUE
+  NULL_IF = ('', 'NA')
+  ENCODING = 'UTF8'
+  COMMENT = 'CSV contract for the nine Olist Brazilian e-commerce source files';

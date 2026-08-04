@@ -1,65 +1,86 @@
-# M0 Security, Privacy and Retention Baseline
+# M0 Security, Privacy and Compliance Baseline
 
-## 1. Terms decision và deployment assumption
+## 1. Source-license boundary
 
-Engineering review đã đọc cả documentation/Terms PDF last updated 2023-07-07 và `Dataset_User_Agreement.pdf` 2021 đi kèm source. Dùng bản 2023 mới hơn làm controlling baseline. Kết luận an toàn:
+The Olist source is licensed under CC BY-NC-SA 4.0. ReviewLens therefore MUST:
 
-- Chỉ dùng cho academic project theo định nghĩa của agreement; general commercial use không được phép.
-- Không public display/distribute Yelp Data, đặc biệt review/user-generated content.
-- Không chia sẻ/make available Data cho third party. Vì vậy gửi raw/redacted/derived review content tới OpenRouter được coi là `DENY` cho đến khi Yelp hoặc review phù hợp cho phép rõ ràng.
-- Cùng restrictive interpretation áp dụng cho upload real Yelp Data lên managed R2/Snowflake. M1 connectivity dùng synthetic object/table cho đến khi eligibility/approval được xác nhận.
-- Public presentation/publication của findings liên quan Data/Yelp brand cần Yelp review/approval theo agreement.
-- Agreement nêu term 12 tháng từ effective access date và yêu cầu xóa mọi copy khi termination/expiry; ngày access phải được user xác nhận và theo dõi bằng `license_expires_at`.
+- attribute Olist, the dataset title, source and license;
+- remain non-commercial for every Olist-backed demo/artifact;
+- apply the same or a compatible license to any distributed data adaptation;
+- state material transformations and avoid claims of Olist endorsement.
 
-Đây là compliance engineering interpretation, không phải tư vấn pháp lý. Khi mơ hồ, system fail closed và dùng synthetic data.
+The license has no 12-month expiry. It also does not waive privacy, publicity or
+third-party provider rules. `docs/DATA_ATTRIBUTION.md` is a release artifact,
+not optional prose.
 
-MVP là portfolio local/private của một developer. Public repository chỉ chứa code, contracts, synthetic fixtures và kiến trúc; không chứa Yelp Data hoặc derived metrics. Không có anonymous public endpoint, multi-tenancy hoặc real customer data.
+## 2. Exposure boundary
 
-Nếu Streamlit/API được đưa lên Internet, trạng thái release tự động chuyển thành `PUBLIC_CANDIDATE` và bị chặn cho đến khi có authentication, authorization, rate limit, secret backend, DLP test, dependency scan và external Terms review.
+The MVP is a local/private portfolio demo. Raw CSVs, review comments, row-level
+warehouse exports, embeddings and Chroma collections remain outside Git and are
+not published. Private R2 and Snowflake processing is allowed only after the
+source manifest and DLP checks pass. OpenRouter receives only an approved,
+minimized review projection; CI and public screenshots use synthetic, aggregate
+or redacted evidence.
 
-## 2. Data classification
+## 3. Data classification and allowed use
 
-| Data | Class | Cho vào Gold | Cho OpenRouter | Cho ChromaDB | Log |
+| Data | Class | Snowflake analytics | OpenRouter | ChromaDB | Logs/public evidence |
 |---|---|---|---|---|---|
-| Business public attributes | Internal/public-source | Selected fields | Khi cần context | Filter metadata | IDs/counts |
-| Review text | Restricted UGC | Private/local serving-safe excerpt only | `DENY` cho real Yelp text nếu chưa có Yelp approval | Real Yelp-derived vector `DENY` nếu storage/processing tạo third-party sharing; synthetic allowed | Không raw |
-| User ID | Pseudonymous | Hash only | Không cần | Không cần | Hash nếu cần |
-| User name/friends | Restricted | No | No | No | No |
-| Query/prompt | Restricted telemetry | No raw mart | Cần cho request | No | Hash/redacted summary |
-| LLM output | Internal AI artifact | Validated fields | N/A | Summary chỉ hỗ trợ retrieval | Metadata, không full payload mặc định |
-| Credentials/tokens | Secret | No | Auth header only | Service boundary only | Never |
+| Order/product/payment values | Internal source data | Private, approved columns | No | Filter metadata only if needed | Aggregate only |
+| Customer/seller IDs | Pseudonymous | Hashed/minimized serving layer | No | No raw ID; stable policy ID only | Never raw |
+| City/state/ZIP prefix | Quasi-identifier | Coarsened/approved | Only if retrieval needs it | Approved filter metadata | Aggregate; suppress small groups |
+| Review score | Internal source data | Yes | Context only when required | Approved filter metadata | Aggregate |
+| Review title/comment | Restricted UGC/untrusted | Private; serving-safe projection | Only after DLP/minimization | Redacted serving-safe text only | No raw excerpt by default |
+| Query/prompt | Restricted telemetry | No raw mart | Needed for request | No | Hash/redacted summary |
+| LLM output | Internal AI artifact | Validated fields only | N/A | Approved summary/chunk only | Aggregate/curated |
+| Credentials/tokens | Secret | Never | Auth header only | Service boundary only | Never |
 
-## 3. Provider and secret rules
+## 4. DLP and AI-transfer gate
 
-- R2 dùng bucket-scoped Object Read & Write token cho ingestion; Snowflake stage credential không được dùng cho app/browser.
-- `OPENROUTER_API_KEY` chỉ ở environment/secret backend; code chỉ kiểm tra presence, không print value.
-- ChromaDB writer và reader boundary tách logic; collection candidate không được route tới serving.
-- Snowflake service users không dùng `ACCOUNTADMIN`; secondary roles disabled cho Text-to-SQL session.
-- Secret rotation/revocation runbook phải có trước public demo.
+Before a real review comment is sent to OpenRouter or embedded:
 
-## 4. Retention baseline
+1. select only review/order evidence needed by the use case;
+2. detect and redact emails, phone numbers, URLs, payment-like strings, direct
+   identifiers and high-risk free-text patterns;
+3. drop unnecessary customer/seller/order identifiers from prompt text;
+4. tag `policy_version`, content hash and DLP decision;
+5. reject failed/ambiguous rows to quarantine rather than bypass the gate;
+6. validate provider/model data policy and budget at runtime.
 
-| Artifact | Default | Ghi chú |
+Prompt injection text is data, never an instruction. Prompts delimit evidence,
+disable tools and require structured output.
+
+## 5. Provider and secret rules
+
+- R2 stays private; credentials are bucket-scoped and never exposed to browsers.
+- Snowflake service users do not use `ACCOUNTADMIN`; Text-to-SQL disables
+  secondary roles and uses an isolated warehouse/read-only role.
+- `.env` and private keys remain outside Git; errors/logs redact seeded secrets.
+- Chroma writer/reader boundaries and candidate/active collections are separate.
+- Service identity rotation/revocation runbooks precede any shared demo.
+
+## 6. Retention baseline
+
+| Artifact | Default | Notes |
 |---|---|---|
-| Local source archive | Tối đa license term; ngoài Git | Xóa ngay khi termination/expiry hoặc Terms yêu cầu |
-| R2 `source/` | 90 ngày nhưng không vượt `license_expires_at` | Private; không public URL |
-| R2 raw/manifest/quarantine | 30 ngày | Quarantine restricted access |
-| Snowflake Bronze/Silver/Gold | Trong thời gian project/account active | Cleanup script và release retention bắt buộc |
-| OpenRouter request/response body | Không lưu raw theo mặc định | Chỉ hash, token, latency, model, status |
-| AI error payload | 14 ngày, encrypted/restricted | Redact trước lưu |
-| ChromaDB candidate collections | Xóa sau 7 ngày nếu không active | Giữ active + một rollback version |
-| App/query audit | 30 ngày local | Không lưu raw question nếu không cần |
+| Local source CSVs | Owner-controlled, outside Git; review every 90 days | Delete when project ends or risk/terms change |
+| R2 `source/` | 90 days | Private; lifecycle enabled; manifest retained longer |
+| R2 raw/quarantine | 30 days | Quarantine access restricted |
+| Snowflake candidate schemas | 14 days after rejection | Active + one rollback release retained |
+| OpenRouter request/response body | Do not persist raw by default | Ledger stores hashes/tokens/model/status |
+| AI error payload | 14 days maximum | Redact and restrict |
+| Chroma candidate collections | 7 days after rejection | Never delete active collection implicitly |
+| App/query audit | 30 days local | Avoid raw questions when possible |
 
-Các mốc trên là engineering default, không thay thế Terms/legal requirement. Real Yelp data external transfer và public data/metric display vẫn `BLOCKED` cho đến explicit Yelp approval hoặc qualified independent review.
+## 7. Threat priorities
 
-## 5. Threat priorities
-
-| Threat | Control bắt buộc |
+| Threat | Mandatory control |
 |---|---|
-| Prompt injection trong review | Delimit untrusted content, no tools, structured output, injection corpus |
-| SQL exfiltration/write | AST parse, allowlist, read-only role, timeout/row cap, no external functions |
-| Candidate data leak | Versioned collection/schema, active pointer, negative tests |
-| Secret leak | Secret scan, redacting logger, no `.env` commit |
-| Public R2 exposure | Private bucket policy and denied anonymous probe |
-| Cost runaway | Snowflake monitor/auto-suspend, OpenRouter caps, bounded sample/concurrency |
-| Restore deleted/revoked data | Tombstone/denylist reapplied during restore and rebuild |
+| Prompt injection in reviews | Delimit untrusted content, no tools, structured schema, adversarial corpus |
+| SQL write/exfiltration/cost abuse | AST allowlist, read-only role, timeout, row cap, isolated warehouse |
+| Candidate or cross-release leakage | Pinned physical refs, active pointer, negative tests |
+| Raw-data/Git leak | `.gitignore`, tracked/untracked scans, synthetic public evidence |
+| Secret leak | `.env` boundary, secret scan, sanitized provider errors |
+| Public R2 exposure | Disabled public access and anonymous-denial probe |
+| License breach | Attribution/non-commercial/ShareAlike release check |
+| Restore deleted/restricted data | Tombstone/denylist reapplication during rebuild |

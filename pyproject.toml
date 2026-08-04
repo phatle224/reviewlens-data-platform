@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "reviewlens-data-platform"
 version = "0.1.0"
-description = "Synthetic-first foundation for the ReviewLens data platform."
+description = "Olist-powered e-commerce review intelligence data platform."
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
@@ -61,6 +61,7 @@ ignore = ["S101"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S105", "S106"]
 "tests/live/test_snowflake_live.py" = ["S608"]
+"tests/live/test_snowflake_rbac_live.py" = ["S608"]
 
 [tool.mypy]
 python_version = "3.13"

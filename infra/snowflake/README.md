@@ -8,7 +8,9 @@ portfolio runtime. It creates:
 - `REVIEWLENS_WH` at `XSMALL`, with 60-second auto-suspend and auto-resume;
 - a 10-credit monthly resource monitor with notifications at 50/80% and an
   immediate suspend at 100%;
-- JSON file format `REVIEWLENS.BRONZE.JSONL_FORMAT`.
+- JSON file format `REVIEWLENS.BRONZE.JSONL_FORMAT` for synthetic smoke tests;
+- Olist CSV file format `REVIEWLENS.BRONZE.OLIST_CSV_FORMAT` for the nine-file
+  Brazilian e-commerce source contract.
 
 The R2 external stage is deliberately not stored as rendered SQL. The Python
 adapter builds `REVIEWLENS.BRONZE.R2_STAGE` in memory from local environment
@@ -31,8 +33,45 @@ $env:REVIEWLENS_RUN_LIVE_SNOWFLAKE='1'
 
 The live test uploads one small synthetic JSON object, applies the foundation,
 verifies R2 stage `LIST` and `COPY INTO`, deletes the object, and suspends the
-warehouse in cleanup. It does not use Yelp data or OpenRouter.
+warehouse in cleanup. It does not use Olist source data or OpenRouter. The real
+Olist upload and nine-table load are M2 concerns and require the source manifest,
+privacy scan and explicit operator action.
 
-Role creation and least-privilege grants are intentionally deferred to
-`IMP-M1-007`. Until then, bootstrap requires an owner-operated account role.
+`002_roles.sql` creates the least-privilege custom role hierarchy under
+`SYSADMIN`. It also creates `REVIEWLENS_SQL_WH`, an isolated XSMALL/60-second
+warehouse attached to the same resource monitor. The role boundaries are:
 
+| Role | Broad baseline | Object-specific grants added later |
+|---|---|---|
+| `INGEST_ROLE` | Stage/file-format usage; insert-only Bronze/Quarantine | Bronze target tables |
+| `TRANSFORMER_ROLE` | Read Bronze; create/read/write Silver | dbt-owned Silver objects |
+| `AI_ENRICH_ROLE` | Silver/AI/Audit containers | Approved review view and AI/audit targets |
+| `VECTOR_INDEXER_ROLE` | AI container | Approved release RAG document view |
+| `GOLD_BUILDER_ROLE` | Create Gold objects; Silver/AI containers | Approved release inputs |
+| `ANALYST_ROLE` | Gold container | Published Gold views |
+| `TEXT_TO_SQL_ROLE` | Gold container and isolated SQL warehouse | Curated semantic views only |
+| `RAG_ROLE` | AI container | Release-bound secure RAG document view |
+
+AI, Gold-consumption, RAG and Text-to-SQL object grants are intentionally exact,
+not schema-wide future grants. Their migrations add access only when the
+approved object exists. ChromaDB writer/reader credentials are separate local
+service boundaries and are not Snowflake roles.
+
+Run the static role contract:
+
+```powershell
+.venv\Scripts\pytest.exe tests\test_snowflake_rbac.py -q
+```
+
+Run the opt-in live positive/negative permission suite:
+
+```powershell
+$env:REVIEWLENS_RUN_LIVE_SNOWFLAKE_RBAC='1'
+.venv\Scripts\pytest.exe tests\live\test_snowflake_rbac_live.py -q -rs
+```
+
+The live suite disables secondary roles for every service-role probe, creates
+only synthetic test objects, re-applies the role DDL to verify idempotency,
+checks allowed and denied operations, drops the probes and suspends both
+warehouses. The bootstrap connection uses `ACCOUNTADMIN` only to provision and
+test roles; no runtime credential is assigned an admin role.

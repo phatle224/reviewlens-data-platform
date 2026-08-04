@@ -7,12 +7,12 @@
 | TC-M1-001 | Bootstrap | Lockfile và local Python environment reproducible | `uv sync --locked` thành công | `PASS` | `uv sync --locked --offline --cache-dir .uv-cache`: project built/installed successfully |
 | TC-M1-002 | Static | Ruff format/lint | Không lỗi | `PASS` | `ruff format --check src tests`; `ruff check src tests` |
 | TC-M1-003 | Static | Mypy strict | Không lỗi | `PASS` | `mypy src tests`: 0 issues |
-| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | Offline suite: 30 passed, 2 live skipped, 86.47% branch-aware coverage |
+| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | Offline suite after Olist migration: 45 passed, 3 live skipped, 87.23% branch-aware coverage |
 | TC-M1-005 | Config | Single-local config + `.env` precedence/ignore | `config/config.toml` không có secret/profile selector; process env ghi đè `.env`; `.env` bị ignore | `PASS` | Unit tests pass; `git check-ignore -v .env` → `.gitignore:2` ; old-profile scan 0 match |
-| TC-M1-006 | Compliance | Real Yelp + managed provider | Config fail closed | `PASS` | `test_real_yelp_cannot_enable_managed_providers` pass |
+| TC-M1-006 | Compliance | Olist source/license configuration | CC BY-NC-SA, NonCommercial, attribution và ShareAlike không thể bị làm yếu | `PASS` | Olist config contract + three weakened-license negative tests pass |
 | TC-M1-007 | Security | Secret-safe config summary | Không lộ secret | `PASS` | Secret-field scan 0 match; safe-summary unit test pass |
 | TC-M1-008 | Fixture | Deterministic regenerate | File checksums giống nhau | `PASS` | `test_generator_is_deterministic` pass |
-| TC-M1-009 | Fixture | Synthetic source contract | 5 required JSONL + manifest, không Yelp payload | `PASS` | 3 fixture safety/contract tests pass |
+| TC-M1-009 | Fixture | Synthetic Olist source contract | 9 required CSVs + manifest, exact headers và valid relational FKs | `PASS` | Determinism/header/FK/source-directory/synthetic-content tests pass |
 | TC-M1-010 | Adapter | Provider boundaries với fakes | Không hard-code secret/model | `PENDING` | R2 + Snowflake adapter/fake/error-sanitization subsets pass; OpenRouter/Chroma/audit/clock còn lại |
 | TC-M1-011 | Logging | Seeded token/email/phone redaction | Log không chứa seeded values | `PENDING` | Chưa chạy |
 | TC-M1-012 | Metrics | Synthetic health metric | Prometheus sample quan sát được | `PENDING` | Chưa chạy |
@@ -20,8 +20,8 @@
 | TC-M1-014 | R2 live | Put/head/get/list/delete synthetic object + anonymous deny | Tất cả pass, object được cleanup | `PASS` | Bucket-scoped credential, checksum, list, anonymous/account denial và post-delete absence pass |
 | TC-M1-015 | Snowflake contract | DDL, X-SMALL/60s, monitor, stage | Static SQL contract pass | `PASS` | `infra/snowflake/001_foundation.sql` + `tests/test_snowflake.py`: secret-free DDL, config match, SQL parser, S3-compatible stage và error sanitization pass |
 | TC-M1-016 | Snowflake live | Account facts + R2 stage `LIST`/`COPY INTO` | Synthetic row load/reconcile pass | `PASS` | Owner account facts documented; live test 1 pass: foundation deploy, exact-key `LIST`, one-row JSON `COPY INTO`/reconcile, R2 delete và warehouse suspend |
-| TC-M1-017 | RBAC | Static positive/negative grant matrix | Forbidden grants absent | `PENDING` | Chưa chạy |
-| TC-M1-018 | RBAC live | Service-role positive/negative queries | Least privilege pass | `DEFERRED` | Cần provisioned Snowflake roles |
+| TC-M1-017 | RBAC | Static positive/negative grant matrix | Forbidden grants absent | `PASS` | 7 contract tests: complete hierarchy, isolated SQL warehouse, ingest/transform boundaries, exact-only consumers, no PUBLIC/account/all-privilege/user grants |
+| TC-M1-018 | RBAC live | Service-role positive/negative queries | Least privilege pass | `PASS` | 1 live suite pass in 40.25s: 8 primary roles, `USE SECONDARY ROLES NONE`, allowed operations pass, 25 cross-layer/write probes denied, fixture cleanup and two-warehouse suspend |
 | TC-M1-019 | dbt | `dbt parse` Snowflake-only | Parse pass; không DuckDB profile | `PENDING` | Chưa chạy |
 | TC-M1-020 | Airflow | DAG import/task graph | Import không side effect; expected task IDs | `PENDING` | Chưa chạy |
 | TC-M1-021 | App | Anonymous/authenticated shell behavior | Anonymous denied; valid token allowed | `PENDING` | Chưa chạy |
@@ -32,8 +32,9 @@
 | TC-M1-026 | Deploy | Immutable artifact tag/rollback metadata | Deterministic digest + local-scope guard | `PENDING` | Chưa chạy |
 | TC-M1-027 | Runbook | Required operations documented | Bootstrap/credentials/test/cost-stop/break-glass present | `PENDING` | Chưa chạy |
 | TC-M1-028 | Secret scan | Repository tracked/untracked source scan | Không secret-like value | `PENDING` | Chưa chạy |
-| TC-M1-029 | Data leak | Git-visible files deny Yelp/review/vector artifacts | Policy scan pass | `PASS` | `git status --untracked-files=all` scan: 0 prohibited data/artifact paths; `.env` untracked |
+| TC-M1-029 | Data leak | Git-visible files deny Olist CSV/review/vector artifacts | Policy scan pass | `PASS` | `archive/`, `.env` and source/vector artifacts ignored; Git-visible scan contains metadata/docs only |
 | TC-M1-030 | Status | Skill status validator | 0 errors/warnings | `PASS` | Validator: 0 errors, 0 warnings |
+| TC-M1-031 | Migration | Active source baseline is Olist end to end | Config/license, 9-table fixture, Snowflake CSV format, docs/status/diagram and attribution agree; no active Yelp contract | `PASS` | ADR-008, source manifest, attribution; full offline suite 45 pass/3 expected live skip; active-reference scan reviewed |
 
 ## Execution log — 2026-08-04
 
@@ -64,4 +65,24 @@
 - The first live attempt exposed the quoted-semicolon parser bug after the resource monitor step; cleanup ran, the parser was corrected and covered by a regression test. The retry passed in 16.63 seconds.
 - Final Snowflake live evidence: foundation deploy succeeded; R2 exact-key `LIST` returned the synthetic object; `COPY INTO` loaded one row and reconciled `data_class`/`object_id`; cleanup deleted the R2 object and suspended the warehouse.
 - Final offline gate: Ruff format/lint pass, mypy strict pass, pytest 30 pass + 2 explicitly skipped live tests, 86.47% branch-aware coverage; `uv lock --check` and locked offline sync pass.
-- OpenRouter was not called and no Yelp payload, review text or embedding was used.
+- OpenRouter was not called and no real source payload, review text or embedding was used.
+
+### Olist source-baseline migration
+
+- Recorded the nine local CSV filenames, headers, row counts, byte sizes and SHA-256 values without printing row content.
+- Added ADR-008 and CC BY-NC-SA attribution/non-commercial/ShareAlike release obligations.
+- Migrated typed config from expiring Yelp terms to the Olist license contract while keeping `synthetic` as the M1 default data mode.
+- Replaced the fixture contract with deterministic, relational nine-CSV Olist-shaped data and exact foreign-key tests.
+- Added `OLIST_CSV_FORMAT` to Snowflake and scoped it to `INGEST_ROLE`; real source upload remains an M2 operator action.
+- Added `archive/` and `olist_dataset/` to `.gitignore`; no local source CSV was deleted or committed.
+- Full migration gate: Ruff format/lint pass, mypy strict pass, pytest 45 pass + 3 explicitly skipped live tests, 87.23% branch-aware coverage; lock check and locked offline sync pass.
+
+### Snowflake least-privilege RBAC slice
+
+- Added idempotent `infra/snowflake/002_roles.sql`: top custom `REVIEWLENS_OWNER` under `SYSADMIN` with eight service roles beneath it; no system role is granted downward and no role is granted directly to a user in this artifact.
+- Added isolated `REVIEWLENS_SQL_WH` for Text-to-SQL at XSMALL/60-second auto-suspend on the existing 10-credit resource monitor.
+- `INGEST_ROLE` is insert-only for Bronze/Quarantine plus external-stage/file-format usage. `TRANSFORMER_ROLE` is broad only for Bronze-read/Silver-build. AI, vector, Gold consumption, analyst, Text-to-SQL and RAG object access remains exact-grant-only.
+- Static RBAC suite passed 7/7 tests, including forbidden PUBLIC/account/all-privilege/user grants and absence of schema-wide object grants on sensitive consumers.
+- Live suite provisioned the role hierarchy twice to verify idempotency, disabled secondary roles for each probe and exercised all eight service roles. Positive reads/writes passed; 25 forbidden cross-layer reads/writes were denied.
+- All RBAC fixture payloads were synthetic. Probe views/tables were dropped and both `REVIEWLENS_WH` and `REVIEWLENS_SQL_WH` were suspended during cleanup. No OpenRouter call was made.
+- Final offline gate: Ruff format/lint pass, mypy strict pass, pytest 37 pass + 3 explicitly skipped live tests, 86.53% branch-aware coverage; locked dependency checks and secret/private-key/restricted-data scans pass.

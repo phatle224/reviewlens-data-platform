@@ -26,19 +26,31 @@ class DeploymentMode(StrEnum):
 
 class DataMode(StrEnum):
     SYNTHETIC = "synthetic"
-    REAL_LOCAL = "real_local"
+    OLIST = "olist"
 
 
 class LicenseConfig(BaseModel, frozen=True, extra="forbid"):
+    dataset: str
+    provider: str
+    source_url: str
     accessed_at: date
-    license_expires_at: date
-    term_months: int = Field(gt=0)
+    license_id: str
+    license_url: str
+    commercial_use_allowed: bool
+    attribution_required: bool
+    share_alike_required: bool
     status: str
 
     @model_validator(mode="after")
-    def validate_term(self) -> LicenseConfig:
-        if self.license_expires_at <= self.accessed_at:
-            raise ValueError("license_expires_at must be after accessed_at")
+    def validate_olist_contract(self) -> LicenseConfig:
+        if self.dataset != "brazilian-ecommerce" or self.provider != "Olist":
+            raise ValueError("the active source contract must identify the Olist dataset")
+        if self.license_id != "CC-BY-NC-SA-4.0":
+            raise ValueError("Olist source data must use the CC BY-NC-SA 4.0 contract")
+        if self.commercial_use_allowed:
+            raise ValueError("the Olist dataset contract is non-commercial")
+        if not self.attribution_required or not self.share_alike_required:
+            raise ValueError("Olist attribution and ShareAlike obligations must remain enabled")
         if self.status != "active":
             raise ValueError("only an active license may be configured")
         return self
@@ -146,10 +158,6 @@ class AppSettings(BaseModel, frozen=True, extra="forbid"):
             "::1",
         }:
             raise ValueError("local demo must bind only to loopback")
-        if self.data_mode is DataMode.REAL_LOCAL:
-            managed = self.r2.enabled or self.snowflake.enabled or self.openrouter.enabled
-            if managed:
-                raise ValueError("real Yelp data is local-only and cannot use managed providers")
         return self
 
     def safe_summary(self) -> dict[str, Any]:

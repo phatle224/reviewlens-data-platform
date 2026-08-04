@@ -14,6 +14,7 @@ Use this as a routing guide, not as a replacement for the live project documents
 | Material technical decisions | `docs/ADR/ADR-*.md` |
 | M0 accepted decisions | `docs/phases/M0/M0_DECISION_REGISTER.md` |
 | Data/privacy boundary | `docs/phases/M0/M0_SECURITY_PRIVACY.md` |
+| Dataset attribution/license | `docs/DATA_ATTRIBUTION.md`, `docs/data/OLIST_SOURCE_MANIFEST.md` |
 | Budget and SLO | `docs/phases/M0/M0_SLO_BUDGET.md` |
 | AI evaluation gates | `docs/phases/M0/M0_AI_EVALUATION_PLAN.md` |
 | RAG design advisory | `docs/reviewlens_rag_recommendation.md` — read before M5/AI work; PRD/ADR/evaluation gates take precedence |
@@ -31,7 +32,7 @@ Use this as a routing guide, not as a replacement for the live project documents
 - Local persistent, versioned ChromaDB index.
 - Streamlit consumption layer.
 - One local runtime with versioned non-secret `config/config.toml`; credentials come only from process environment/ignored `.env`. No staging/production profiles in current scope.
-- Real Yelp data remains local while the Terms/approval gate is closed; cloud, external AI, CI, and public artifacts use synthetic fixtures.
+- Olist is the only active real-data source (nine relational CSVs, CC BY-NC-SA 4.0). Raw/row-level data stays outside Git; private R2/Snowflake processing requires manifest/privacy gates; external AI requires a minimized DLP-approved review projection; CI/public evidence uses synthetic or aggregate/redacted artifacts.
 
 ## Phase order
 

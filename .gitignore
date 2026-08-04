@@ -5,12 +5,13 @@
 *.pem
 *.key
 *.p8
-*.p8
 keys/
 
 # Source data and generated artifacts
 Yelp-JSON/
-data/
+archive/
+olist_dataset/
+/data/
 artifacts/
 quarantine/
 manifests/

@@ -6,7 +6,7 @@
 
 ## Decision
 
-Treat each Yelp JSON archive as a complete source snapshot unless manifest evidence says otherwise. Fingerprint source bytes, archive originals, generate Parquet/Snappy, load immutable Bronze and build isolated Silver/Gold candidates. AI map and ChromaDB collection are release-addressable. A guarded pointer changes only after all gates pass.
+Treat the nine-file Olist CSV bundle as one complete source snapshot. A batch is eligible only when every required filename, header and checksum matches a manifest. Fingerprint source bytes, archive originals privately in R2, load immutable Bronze and build isolated Silver/Gold candidates. AI maps and ChromaDB collections are release-addressable. A guarded pointer changes only after all gates pass.
 
 ## Consequences
 
@@ -17,4 +17,3 @@ Treat each Yelp JSON archive as a complete source snapshot unless manifest evide
 ## Verification
 
 Snapshot conflict, duplicate replay, partial source, concurrent run, failure injection, pointer compare-and-set, rollback and revoked-release tests.
-

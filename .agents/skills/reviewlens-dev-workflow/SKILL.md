@@ -56,7 +56,7 @@ Follow repository conventions and the accepted ADRs. Keep provider access behind
 
 Apply these non-negotiable gates:
 
-- Keep real Yelp data local unless documented eligibility, written approval, or a qualified review explicitly opens cloud/AI/public transfer.
+- Keep raw Olist CSVs, review text, embeddings and row-level derived artifacts outside Git. Private R2/Snowflake processing requires the source manifest and privacy gate; external AI requires a minimized DLP-approved projection. Preserve CC BY-NC-SA attribution, non-commercial and ShareAlike obligations.
 - Use synthetic data for R2, Snowflake, OpenRouter, CI, screenshots, and public demos while that gate is closed.
 - Keep Snowflake as the only warehouse; do not introduce DuckDB as a fallback.
 - Keep R2 private, use scoped credentials, and use batch `COPY INTO` through `s3compat://` for the MVP.

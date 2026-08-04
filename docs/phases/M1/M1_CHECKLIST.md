@@ -3,10 +3,10 @@
 | Thuộc tính | Giá trị |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 6/19 work items |
-| Partial | 1/19 work items |
-| Blocked | 0/19 work items |
-| Not started | 12/19 work items |
+| Completed | 8/20 work items |
+| Partial | 1/20 work items |
+| Blocked | 0/20 work items |
+| Not started | 11/20 work items |
 | Last updated | 2026-08-05 |
 
 ## Checklist theo implementation plan
@@ -16,10 +16,10 @@
 | IMP-M1-001 | `DONE` | Repo/package/lock/lint/type/test commands | `pyproject.toml`, `.python-version`, `uv.lock`; full `uv sync --locked --offline` và tool entry points pass |
 | IMP-M1-002 | `DONE` | README, contribution, CODEOWNERS, PR/issue templates | `README.md`, `CONTRIBUTING.md`, `.github/CODEOWNERS`, PR + issue forms; repository contract tests pass |
 | IMP-M1-003 | `DONE` | Một typed local config; `.env`/process-only secrets; không có staging/prod profiles | `config/config.toml`, `.env.example`, `src/reviewlens/config.py`; TC-M1-005…007 pass |
-| IMP-M1-004 | `DONE` | Deterministic synthetic fixture generator/pack | `src/reviewlens/synthetic/generator.py`; TC-M1-008/009 pass |
+| IMP-M1-004 | `DONE` | Deterministic nine-CSV relational Olist fixture generator/pack | `src/reviewlens/synthetic/generator.py`; exact headers, FK integrity and determinism tests pass |
 | IMP-M1-005 | `DONE` | Private R2 config, scoped token/lifecycle/public deny | Bucket-scoped live round trip, account-list denial, anonymous denial và cleanup pass; owner xác nhận lifecycle rule đã apply/enabled ngày 2026-08-05 |
 | IMP-M1-006 | `DONE` | Snowflake foundation, monitor và R2 external stage | Secret-free idempotent DDL + in-memory stage DDL; XSMALL/60s/10-credit monitor; live R2 `LIST`/`COPY INTO`/reconcile pass và warehouse cleanup suspend |
-| IMP-M1-007 | `NOT_STARTED` | Least-privilege Snowflake/service roles | Chờ implementation |
+| IMP-M1-007 | `DONE` | Least-privilege Snowflake/service roles | 9-role hierarchy dưới `SYSADMIN`, isolated `REVIEWLENS_SQL_WH`, container/exact-object grant boundary; static matrix và live 8-role positive/negative suite pass với secondary roles disabled |
 | IMP-M1-008 | `NOT_STARTED` | Credential boundaries và rotation skeleton | Chờ implementation |
 | IMP-M1-009 | `NOT_STARTED` | Snowflake-only dbt scaffold | Chờ implementation |
 | IMP-M1-010 | `NOT_STARTED` | Airflow 3 DAG scaffold không có parse side effect | Chờ implementation |
@@ -32,6 +32,7 @@
 | IMP-M1-017 | `NOT_STARTED` | Local Compose/deploy skeleton + immutable artifact tags | Chờ implementation |
 | IMP-M1-018 | `NOT_STARTED` | Metrics sink/health visibility | Chờ implementation |
 | IMP-M1-019 | `NOT_STARTED` | Foundation operations runbook | Chờ implementation |
+| IMP-M1-020 | `DONE` | Migrate active source baseline from Yelp to Olist | ADR-008; nine-file manifest; config/license, fixture, Snowflake CSV format, PRD/plan/M0/M1/RAG/diagram updates; TC-M1-031 pass |
 
 ## Exit gate
 

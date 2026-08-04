@@ -4,13 +4,13 @@
 
 | Stage | Data envelope | Mục tiêu |
 |---|---|---|
-| D1 fixture | 100 businesses, 1,000 reviews, small related rows | Fast deterministic CI/integration |
-| D2 vertical slice | 10,000 businesses, 100,000 reviews | Validate ingestion/dbt/dashboard design |
+| D1 fixture | 100 orders, related customers/items/payments/products/sellers and reviews | Fast deterministic CI/integration |
+| D2 vertical slice | 10,000 orders with relational children | Validate ingestion/dbt/dashboard design |
 | D3 AI pilot | Tối đa 2,000 stratified reviews | Tune schema, prompt, rate/cost |
-| Portfolio MVP | Full structured JSON ingest nếu Snowflake runway cho phép; tối đa 10,000 AI-enriched reviews | Portfolio demonstration |
+| Portfolio MVP | Full nine-CSV ingest nếu Snowflake runway cho phép; tối đa 10,000 AI-enriched comments | Portfolio demonstration |
 | Scale gate | Named full release, AI subset vẫn bounded | Prove streaming/idempotency without full LLM cost |
 
-Không dùng Pandas để load toàn bộ review file. Parser/writer phải streaming/chunked và memory được đo trên representative large chunk.
+Không dùng Pandas để load toàn bộ CSV lớn. Parser/writer phải streaming/chunked và memory được đo trên representative large chunk.
 
 ## 2. Cost guardrails
 
@@ -22,11 +22,13 @@ Không dùng Pandas để load toàn bộ review file. Parser/writer phải stre
 | AI batch | 2,000 reviews/pilot, concurrency ban đầu 2 | 80% estimated job budget | Không submit batch mới; committed results được giữ |
 | ChromaDB | ≤5 GB local disk cho MVP | 80% disk budget | GC non-active collections theo retention; không xóa active/rollback |
 
-R2 hiện có free allowance 10 GB-month cho Standard và không tính direct egress; vì source archive khoảng 4.35 GB cộng Parquet/manifest có thể vượt 10 GB, plan không giả định chi phí luôn bằng 0. Nguồn: [Cloudflare R2 pricing](https://developers.cloudflare.com/r2/pricing/).
+Olist source snapshot hiện khoảng 124 MB. Kể cả source, Parquet và manifest,
+capacity vẫn phải được đo và không được giả định vĩnh viễn miễn phí. Nguồn:
+[Cloudflare R2 pricing](https://developers.cloudflare.com/r2/pricing/).
 
 Snowflake expiry và credit thực tế phải được ghi từ account trước M1. Resource monitor chỉ kiểm soát warehouse credit; storage/serverless usage phải theo dõi riêng.
 
-Account facts xác nhận ngày `2026-08-04`: Snowflake Standard Edition trên AWS Singapore (`AWS_AP_SOUTHEAST_1`), trial balance hiển thị `US$400`, hết hạn `2026-09-03`. Khoản balance không thay hard guardrail 10 credits/tháng cho đến khi owner explicit điều chỉnh; ưu tiên đo synthetic M1/M2 vertical slice trước expiry.
+Account facts xác nhận ngày `2026-08-04`: Snowflake Standard Edition trên AWS Singapore (`AWS_AP_SOUTHEAST_1`), trial balance hiển thị `US$400`, hết hạn `2026-09-03`. Khoản balance không thay hard guardrail 10 credits/tháng cho đến khi owner explicit điều chỉnh; ưu tiên M2 Olist vertical slice trước expiry.
 
 ## 3. SLO baseline
 

@@ -1,73 +1,60 @@
-# M0 Source Profile — Yelp Open Dataset
+# M0 Source Profile — Olist Brazilian E-Commerce Dataset
 
-| Thuộc tính | Giá trị |
+## Source decision
+
+| Field | Accepted value |
 |---|---|
-| Trạng thái | `DONE` cho M0 inventory — archive fingerprint, exact inner files, row counts và sample schema đã xác nhận |
-| Current local artifact | `Yelp-JSON/` extracted directory; original ZIP không còn hiện diện tại thời điểm kết thúc profile |
-| Observed source ZIP size | `4,345,335,132` bytes |
-| Observed source ZIP SHA-256 | `47DD6E4D279AC9D8734DDC30BFB3D78E571B9DF4BB95923D7ACF9A6EF3D8A4AB` |
-| Local last-write UTC | `2026-08-04 05:19:41Z` |
-| Profile date | `2026-08-04` |
-| Bundled Terms | `YELP DATASET TERMS OF USE`, last updated 2023-07-07, pages 7–10 của documentation PDF |
+| Dataset | Brazilian E-Commerce Public Dataset by Olist |
+| Source | `https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce` |
+| Accessed | 2026-08-05 |
+| License | CC BY-NC-SA 4.0 |
+| Local location | ignored `archive/` directory |
+| Snapshot semantics | One complete snapshot containing exactly nine required CSV files |
+| Active source ADR | [ADR-008](../../ADR/ADR-008-olist-primary-dataset.md) |
+| Metadata manifest | [OLIST_SOURCE_MANIFEST.md](../../data/OLIST_SOURCE_MANIFEST.md) |
 
-## 1. Outer archive inventory
+The files were profiled using filename, byte size, header, row count and SHA-256
+only. Review-row values were not printed or committed.
 
-| Entry | Uncompressed bytes | Compressed bytes | Xử lý |
-|---|---:|---:|---|
-| `Yelp JSON/Yelp Dataset Documentation & ToS copy.pdf` | 124,660 | 114,483 | Review Terms trước real-data external transfer |
-| `Yelp JSON/yelp_dataset.tar` | 4,343,892,965 | 4,345,217,694 | Source payload chính; extract streaming ở M1/M2 |
-| `__MACOSX/*` | 2,326 | 1,661 | Ignore bằng path rule |
+## Required source contract
 
-Archive gốc không được commit vào Git, upload public hoặc sửa tại chỗ. `source_release_id` tạm thời được tạo từ SHA-256 của outer archive cho đến khi tài liệu bên trong cung cấp release ID authoritative.
+| Dataset | Physical file | Grain/key | Main relationships | Rows in snapshot |
+|---|---|---|---|---:|
+| Customers | `olist_customers_dataset.csv` | one row per `customer_id` | parent of orders; `customer_unique_id` groups repeat buyers | 99,441 |
+| Geolocation | `olist_geolocation_dataset.csv` | one coordinate record per ZIP-prefix occurrence | customer/seller ZIP prefixes | 1,000,163 |
+| Order items | `olist_order_items_dataset.csv` | `order_id + order_item_id` | orders, products, sellers | 112,650 |
+| Payments | `olist_order_payments_dataset.csv` | `order_id + payment_sequential` | orders | 103,886 |
+| Reviews | `olist_order_reviews_dataset.csv` | source review row; dedup by `review_id + order_id` | orders | 99,224 |
+| Orders | `olist_orders_dataset.csv` | one row per `order_id` | customers; parent of item/payment/review | 99,441 |
+| Products | `olist_products_dataset.csv` | one row per `product_id` | order items; category translation | 32,951 |
+| Sellers | `olist_sellers_dataset.csv` | one row per `seller_id` | order items | 3,095 |
+| Category translation | `product_category_name_translation.csv` | one row per Portuguese category | products | 71 |
 
-Bundled Terms engineering review cho thấy license chỉ dành cho academic use, hạn chế public display/distribution và third-party sharing, yêu cầu review/approval trước public presentation/publication liên quan Data/Yelp brand, có term 12 tháng từ ngày access và yêu cầu xóa dữ liệu khi termination. Đây không phải tư vấn pháp lý; implementation áp restrictive default trong [security/privacy baseline](./M0_SECURITY_PRIVACY.md).
+All nine files are required. Missing, duplicate, truncated or header-incompatible
+files make the source release incomplete. Row counts above exclude headers and
+identify this snapshot; they are not timeless product claims.
 
-## 2. Extracted JSON inventory
+## Relationship and data-quality risks
 
-| File | Bytes | Physical JSONL rows | Top-level fields từ deterministic opening sample |
-|---|---:|---:|---|
-| `yelp_academic_dataset_business.json` | 118,863,795 | 150,346 | `business_id`, name/address/location, stars, review_count, is_open, attributes, categories, hours |
-| `yelp_academic_dataset_checkin.json` | 286,958,945 | 131,930 | `business_id`, `date` |
-| `yelp_academic_dataset_review.json` | 5,341,868,833 | 6,990,280 | `review_id`, `user_id`, `business_id`, stars, useful/funny/cool, text, date |
-| `yelp_academic_dataset_tip.json` | 180,604,475 | 908,915 | `user_id`, `business_id`, text, date, compliment_count |
-| `yelp_academic_dataset_user.json` | 3,363,329,011 | 1,987,897 | `user_id`, name, review_count, yelping_since, friends, useful/funny/cool, fans, elite, average_stars, compliment fields |
+- `customer_id` identifies an order-scoped customer record;
+  `customer_unique_id` is the repeat-customer grouping key.
+- Review comments and titles are nullable; score remains analytically useful.
+- Orders may be cancelled, unavailable or not delivered; delivery metrics must
+  use an explicit eligible-status policy.
+- A review can be associated with a multi-item order, so product/category review
+  attribution is many-to-many and must avoid silent double counting.
+- Geolocation has repeated ZIP prefixes. Use an explicit centroid/quality rule,
+  not an unconstrained join that multiplies facts.
+- Product source fields contain the original `*_lenght` spelling; Bronze keeps
+  source headers while Silver uses corrected canonical column names.
+- Timestamps are source-local civil times without offsets. Preserve raw values
+  and apply the versioned Brazilian-time policy only in Silver.
+- Free-text comments are untrusted content and require DLP/prompt-injection
+  controls before AI or public presentation.
 
-Row counts được đo bằng nonblank JSONL lines trên file giải nén. Full JSON/schema validation vẫn thuộc M2; M0 chỉ khóa inventory và contract baseline.
+## Snapshot identity
 
-## 3. Dataset contract baseline
-
-Trang chính thức hiện mô tả JSON download gồm 5 JSON files và khoảng 6,990,280 reviews, 150,346 businesses. Con số chỉ là planning baseline; row count thật phải lấy từ extracted archive và khóa trong manifest. Nguồn: [Yelp Open Dataset](https://business.yelp.com/data/resources/open-dataset/).
-
-| Logical dataset | Physical source dự kiến | Required | Business key | Quan hệ chính | Quyết định |
-|---|---|---|---|---|---|
-| `business` | `yelp_academic_dataset_business.json` | Yes | `business_id` | Parent của review/checkin/tip | Core MVP |
-| `review` | `yelp_academic_dataset_review.json` | Yes | `review_id` | `business_id`, `user_id` | Core MVP |
-| `user` | `yelp_academic_dataset_user.json` | Yes | `user_id` | Referenced by review/tip | Ingest; minimize serving fields |
-| `checkin` | `yelp_academic_dataset_checkin.json` | Yes | `business_id` | Business | Core analytics |
-| `tip` | `yelp_academic_dataset_tip.json` | Yes | Composite hash; source không bảo đảm ID riêng | `business_id`, `user_id` | Core analytics |
-| `attributes` | Nested `business.attributes` | Derived | `business_id + attribute_name` | Business | Không yêu cầu file riêng |
-| `photo` | Gói Yelp photos riêng | Optional/P1 | `photo_id` | Business | Không chặn MVP JSON |
-
-Nếu tên/shape thực tế khác bảng trên, contract test phải fail `SOURCE_CONTRACT_MISMATCH`; không tự động đoán và tiếp tục.
-
-## 4. Source semantics
-
-- Baseline: `FULL_SNAPSHOT` theo archive release, không phải CDC/daily increment.
-- Complete marker: outer ZIP tồn tại, hash ổn định, inner TAR mở được và đủ 5 required datasets.
-- Same filename + different checksum: source release mới hoặc `SOURCE_RELEASE_CONFLICT`, không overwrite.
-- Same checksum: `SKIPPED_DUPLICATE` nhưng release-object lineage vẫn được ghi.
-- Absence chỉ được diễn giải là deletion/tombstone khi manifest được xác nhận là complete full snapshot.
-- Source timestamps không có offset được giữ `TIMESTAMP_NTZ` kèm `timezone_assumption='SOURCE_LOCAL_UNKNOWN'`; không tự gắn UTC.
-
-## 5. Profile cần hoàn tất ở M1/M2
-
-- [x] Extract nested TAR; toàn bộ extracted directory được `.gitignore`.
-- [x] Xác nhận exact filename và byte size từng JSON; outer ZIP SHA-256 là release fingerprint M0.
-- [x] Đếm physical nonblank lines.
-- [ ] Tính checksum từng inner JSON trong manifest generator M1/M2.
-- [ ] Full-parse để đếm malformed lines thay vì chỉ line count.
-- [ ] Sample deterministic đầu/giữa/cuối file, không chỉ `head`.
-- [ ] Profile null/type/nested shape/cardinality và FK coverage.
-- [ ] Xác nhận `attributes` nested trong `business`.
-- [ ] Đọc bản Terms đi kèm và ghi explicit allowed/restricted uses.
-- [ ] Tạo machine-readable manifest và source contract v1.
+`source_release_id` is a canonical hash over the sorted nine-file manifest
+(filename, byte count and SHA-256), not the directory name or download date.
+Same manifest is an idempotent replay; same filename with different bytes is a
+new candidate snapshot; a missing required file cannot produce a release.
