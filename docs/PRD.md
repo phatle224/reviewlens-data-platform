@@ -4,12 +4,12 @@
 
 | Thuộc tính | Giá trị |
 |---|---|
-| Phiên bản | 1.0 |
-| Trạng thái | Draft sẵn sàng cho technical design và chia backlog |
+| Phiên bản | 1.1 |
+| Trạng thái | Draft đã đồng bộ kiến trúc cost-optimized cho solo implementation |
 | Ngày cập nhật | 2026-08-04 |
 | Nguồn đầu vào | [Sơ đồ kiến trúc](./images/plan.png) |
-| Product Owner | TBD |
-| Technical Owner | TBD |
+| Product Owner | Solo Developer |
+| Technical Owner | Solo Developer |
 
 Tài liệu này chuyển sơ đồ kiến trúc thành yêu cầu sản phẩm có thể dùng để thiết kế, phát triển, kiểm thử và nghiệm thu. Các giá trị định lượng trong PRD là baseline đề xuất cho MVP; chúng được dùng làm tiêu chí mặc định cho đến khi Product Owner phê duyệt giá trị khác.
 
@@ -33,7 +33,7 @@ ReviewLens là nền tảng dữ liệu và AI end-to-end biến Yelp Open Datas
 5. RAG chatbot trả lời câu hỏi định tính dựa trên review và luôn kèm nguồn.
 6. Text-to-SQL cho câu hỏi định lượng, chỉ thực thi truy vấn đọc an toàn trên Gold semantic views.
 
-AWS S3 là data lake/landing zone; Snowflake là storage và compute engine; dbt quản lý mọi transformation từ Bronze sang Silver và Gold; Apache Airflow điều phối pipeline; Streamlit là giao diện MVP; OpenAI được dùng qua lớp cấu hình cho enrichment, embedding và answer/SQL generation.
+Cloudflare R2 Standard là data lake/landing zone thông qua API tương thích S3; Snowflake là warehouse duy nhất cho development và portfolio demo, đồng thời cung cấp storage và compute cho Bronze/Silver/Gold; dbt quản lý mọi transformation từ Bronze sang Silver và Gold; Apache Airflow điều phối pipeline; Streamlit là giao diện MVP; OpenRouter được dùng qua lớp provider adapter cho enrichment, embedding và answer/SQL generation; ChromaDB chạy local là vector store duy nhất của MVP.
 
 ### 1.1 Vấn đề cần giải quyết
 
@@ -80,13 +80,14 @@ Tạo một nguồn dữ liệu nhà hàng duy nhất, có kiểm thử và line
 ### 2.3 Nguyên tắc kiến trúc bắt buộc
 
 1. Bronze mặc định immutable và không bị update/delete bởi pipeline thông thường.
-2. Mọi transformation Silver và Gold được định nghĩa trong dbt và thực thi trên Snowflake.
+2. Snowflake là warehouse duy nhất của dự án từ development đến portfolio demo; không duy trì DuckDB hoặc warehouse fallback song song. Mọi transformation Silver và Gold được định nghĩa trong dbt và thực thi trên Snowflake.
 3. Airflow là control plane; dữ liệu không được truyền qua Airflow task payload ngoài metadata nhỏ.
 4. AI enrichment nằm giữa Silver và Gold; chỉ record hợp lệ mới được promote vào mart.
-5. Review và kết quả retrieve là dữ liệu không tin cậy, không phải instruction cho LLM.
-6. Generated SQL không bao giờ được chạy chỉ vì LLM tạo ra; nó phải qua parser, policy validator và role chỉ đọc.
-7. Không có record nào bị bỏ qua âm thầm: mọi input phải được load hoặc quarantine với lý do.
-8. Mọi output quan trọng phải truy vết được về source, batch, code, model, prompt và query liên quan.
+5. OpenRouter chat/embedding calls chạy trong Python worker do Airflow/app điều phối, không chạy qua Snowflake external function; kết quả đã validate mới được ghi lại Snowflake/ChromaDB.
+6. Review và kết quả retrieve là dữ liệu không tin cậy, không phải instruction cho LLM.
+7. Generated SQL không bao giờ được chạy chỉ vì LLM tạo ra; nó phải qua parser, policy validator và role chỉ đọc.
+8. Không có record nào bị bỏ qua âm thầm: mọi input phải được load hoặc quarantine với lý do.
+9. Mọi output quan trọng phải truy vết được về source, batch, code, model, prompt và query liên quan.
 
 ### 2.4 Chỉ số giá trị sản phẩm
 
@@ -136,7 +137,7 @@ Telemetry chỉ thu thập sau privacy review, dùng actor pseudonymous và khô
 
 ### 4.1 P0 — MVP bắt buộc
 
-- Batch ingestion, validation, S3 landing, manifest, audit, quarantine và idempotency.
+- Batch ingestion, validation, Cloudflare R2 landing, manifest, audit, quarantine và idempotency.
 - Snowflake Bronze, Silver, Gold; dbt models, tests và docs.
 - LLM enrichment cho review; validation, retry, error table và versioning.
 - Embedding và một vector store duy nhất.
@@ -168,7 +169,7 @@ Telemetry chỉ thu thập sau privacy review, dùng actor pseudonymous và khô
 
 ## 5. Giả định và quyết định mặc định cho MVP
 
-Các quyết định dưới đây giúp đội phát triển có thể bắt đầu. Những mục có nhãn **P0-confirm** phải được Product Owner/Architect xác nhận trước khi đóng technical design.
+Các quyết định dưới đây giúp solo developer có thể bắt đầu. Những mục có nhãn **P0-confirm** phải được ghi thành quyết định/ADR trước khi đóng technical design; các role khác trong tài liệu là “mũ trách nhiệm” do cùng một người đảm nhiệm, không hàm ý có team riêng.
 
 | Chủ đề | Mặc định MVP | Trạng thái |
 |---|---|---|
@@ -177,13 +178,16 @@ Các quyết định dưới đây giúp đội phát triển có thể bắt đ
 | Semantics nguồn | Source snapshot được fingerprint; pipeline suy ra new/changed rows bằng checksum/hash. Không coi append-only là đủ để chống trùng | P0-confirm |
 | Ảnh | Chỉ xử lý metadata trong `photo.json`, không lưu/xử lý binary image | Đã chọn cho MVP |
 | Business attributes | Nếu không có `attributes.json` độc lập, tách nested `attributes` từ `business.json` thành contract tương đương | P0-confirm sau khi xem package thật |
-| Bronze loader | Airflow-managed `COPY INTO`; không bật Snowpipe đồng thời cho cùng path/table | Mặc định |
-| Vector store | Chọn đúng một backend. Working default: Snowflake Cortex Search nếu edition/region đáp ứng; nếu không, quyết định qua ADR giữa pgvector và ChromaDB | P0-confirm |
+| Object storage | Cloudflare R2 Standard, private bucket, scoped API token và S3-compatible endpoint; không dùng AWS S3 | Đã chọn cho MVP |
+| Warehouse | Snowflake dùng ngay từ development và là warehouse duy nhất; không có DuckDB fallback | Đã chọn cho MVP |
+| Snowflake trial | Owner cung cấp account/trial; ngày hết hạn và credit thực tế phải đọc từ chính account và ghi vào runbook. Kiến trúc không phụ thuộc advertised trial duration | P0-verify |
+| Bronze loader | Airflow-managed batch `COPY INTO` từ R2 external stage; không dùng auto-refresh/Snowpipe cho MVP | Đã chọn cho MVP |
+| Vector store | ChromaDB chạy local, persistent volume riêng, một collection vật lý theo `index_version`; không dùng Cortex Search hoặc pgvector trong MVP | Đã chọn cho MVP |
 | UI | Streamlit; Snowsight dùng cho analyst kỹ thuật | Mặc định |
 | Ngôn ngữ | Dữ liệu review tiếng Anh; UI/query tiếng Anh ở MVP. Ngôn ngữ khác chỉ bật sau evaluation riêng | P0-confirm |
 | Timezone | Giữ raw timestamp/offset. Chỉ đổi sang UTC khi source có offset hoặc mapping đáng tin; timestamp naive dùng `TIMESTAMP_NTZ` + `timezone_assumption`. Reporting timezone phải hiển thị rõ | P0-confirm trong data contract |
-| LLM | Model sinh nội dung cấu hình qua environment, không hard-code; thay model phải chạy regression evaluation | Mặc định |
-| Embedding | `text-embedding-3-small` theo sơ đồ, kèm `embedding_version` và dimension lấy từ response/config | Mặc định |
+| LLM | OpenRouter là provider; model slug cấu hình qua environment, không hard-code; thay model phải chạy regression evaluation | Đã chọn provider, model P0-confirm |
+| Embedding | OpenRouter Embeddings API; model slug phải được xác nhận có trong embedding catalog, pin cùng `embedding_version` và dimension lấy từ response/config | Đã chọn provider, model P0-confirm |
 | AI publish gate | Permanent enrichment error >1% của batch chặn toàn bộ release mới; ứng dụng tiếp tục dùng release đã publish gần nhất | Baseline cần duyệt |
 | AI confidence/retry | Confidence threshold 0.70; tối đa 3 total attempts với tối đa 1 schema-repair attempt | Baseline cần tune trên golden set |
 | Topic taxonomy | Closed, versioned taxonomy với `other/unknown`; label set được khóa từ sample thật ở M0, không cho free-form topic ở MVP | Baseline |
@@ -195,9 +199,9 @@ Các quyết định dưới đây giúp đội phát triển có thể bắt đ
 
 1. License/Terms của Yelp cho mục đích sử dụng dự kiến, gồm lưu review, tạo embedding, gửi text tới LLM và hiển thị citation.
 2. Manifest và schema thật của source package; đặc biệt `attributes.json`, photo metadata và cơ chế release.
-3. AWS/Snowflake region, data residency và chính sách retention của LLM provider.
-4. Vector store, nơi chạy Airflow/Streamlit, container registry và network topology.
-5. Monthly budget và quota cho Snowflake, S3, LLM và embedding.
+3. Cloudflare R2 jurisdiction/location, Snowflake cloud/region, cross-cloud latency và chính sách retention/training của OpenRouter/model provider.
+4. Nơi chạy Airflow/Streamlit/ChromaDB, persistent volume, container registry và network topology.
+5. Monthly budget và quota cho Snowflake, R2, OpenRouter chat/embedding và local storage.
 6. App authentication, nhóm người dùng và yêu cầu SSO/RLS/masking.
 
 ---
@@ -209,11 +213,11 @@ Các quyết định dưới đây giúp đội phát triển có thể bắt đ
 ```text
 Yelp JSON/JSONL
   → validate + manifest + checksum
-  → archive source + Parquet/Snappy trên S3
+  → archive source + Parquet/Snappy trên Cloudflare R2
   → Snowflake Bronze (raw VARIANT + metadata)
   → dbt Silver (typed, cleaned, deduplicated, conformed)
-  → LLM enrichment + JSON/schema/semantic validation
-  → embeddings/vector index
+  → OpenRouter LLM enrichment + JSON/schema/semantic validation
+  → OpenRouter embeddings + versioned ChromaDB collection
   → dbt Gold (dimensions, facts, marts)
   → dashboard / RAG / Text-to-SQL
 ```
@@ -354,20 +358,22 @@ Absence semantics MUST được khóa trong source contract:
 
 `_record_hash` được tính từ canonical representation của payload nghiệp vụ; metadata ingestion không tham gia hash.
 
-### 7.4 S3 layout và format
+### 7.4 Cloudflare R2 layout, stage và format
 
 ```text
-s3://<bucket>/source/<source_release_id>/<original-file>
-s3://<bucket>/raw/<dataset_name>/ingestion_date=YYYY-MM-DD/<batch-id>-*.snappy.parquet
-s3://<bucket>/quarantine/<dataset_name>/ingestion_date=YYYY-MM-DD/<batch-id>-*.jsonl
-s3://<bucket>/manifests/ingestion_date=YYYY-MM-DD/<batch-id>.json
+r2://<bucket>/source/<source_release_id>/<original-file>
+r2://<bucket>/raw/<dataset_name>/ingestion_date=YYYY-MM-DD/<batch-id>-*.snappy.parquet
+r2://<bucket>/quarantine/<dataset_name>/ingestion_date=YYYY-MM-DD/<batch-id>-*.jsonl
+r2://<bucket>/manifests/ingestion_date=YYYY-MM-DD/<batch-id>.json
 ```
+
+`r2://` ở trên là logical URI dùng trong audit/documentation. Snowflake external stage MUST dùng `URL='s3compat://<bucket>/<prefix>/'` cùng `ENDPOINT='<account_id>.r2.cloudflarestorage.com'` và credentials của R2 token chỉ có quyền trên bucket cần thiết. Metadata auto-refresh của S3-compatible external stage không được giả định; Airflow là owner duy nhất của batch discovery, `LIST`/manifest validation và `COPY INTO`.
 
 - `source/` giữ byte gốc để audit/reprocess; versioning được bật. Object Lock chỉ được bật sau ADR Security/Legal xác nhận mode/retention tương thích deletion obligations.
 - `raw/` dùng format Parquet và compression Snappy như sơ đồ.
 - Parquet MUST chứa payload đủ để tái tạo `RAW_RECORD` và toàn bộ metadata chuẩn.
 - Không overwrite object của batch đã công bố.
-- S3 server-side encryption, block public access và lifecycle policy là bắt buộc.
+- R2 bucket phải private, truyền qua TLS, dùng provider-managed encryption at rest, scoped token và lifecycle/retention policy đã duyệt; public development URL không được bật.
 
 Thiết kế này giải quyết điểm mơ hồ trong sơ đồ: JSON/JSONL gốc vẫn được bảo toàn, còn landing tối ưu cho load bằng Parquet/Snappy; Bronze chuyển payload thành Snowflake `VARIANT`.
 
@@ -406,7 +412,7 @@ Audit contracts tối thiểu:
 
 - `AUDIT.INGESTION_RUN`: `batch_id`, `source_release_id`, `release_type`, `started_at`, `ended_at`, `files_expected`, `files_processed`, `physical_records`, `records_accepted`, `records_quarantined`, `records_parse_failed`, `bytes_received`, `status`, `error_log_ref`.
 - `AUDIT.SOURCE_RELEASE_OBJECT`: mapping many-to-many `source_release_id + source_object_id + dataset_name + requirement + ordinal/status`; bắt buộc ghi cả khi object được `SKIPPED_DUPLICATE`, để release mới có lineage tới Bronze bytes đã tồn tại.
-- `AUDIT.FILE_LOAD`: `dataset_run_id`, `ingestion_attempt_id`, `source_object_id`, file/checksum/bytes, physical record count, parsed/accepted/quarantined/parse-failed counts, S3 object refs, Bronze COPY query/load IDs, retry/lease/status và timestamps.
+- `AUDIT.FILE_LOAD`: `dataset_run_id`, `ingestion_attempt_id`, `source_object_id`, file/checksum/bytes, physical record count, parsed/accepted/quarantined/parse-failed counts, R2 object refs, Bronze COPY query/load IDs, retry/lease/status và timestamps.
 - `AUDIT.PROCESSING_RUN`: `processing_run_id`, input `batch_id/source_release_id`, code/contract/dbt/prompt/model versions, started/ended timestamps, layer states, status và error refs. Một ingestion run có thể có nhiều processing runs.
 - `AUDIT.PROCESSING_INPUT`: mapping `processing_run_id + source_object_id + bronze_table + bronze_key/range`, tạo lineage cho reprocess mà không update/duplicate Bronze.
 
@@ -699,7 +705,7 @@ event_type = CANDIDATE_CREATED | BUILD_COMPLETED | ACTIVATED |
 
 | ID | Yêu cầu | Ưu tiên | Tiêu chí nghiệm thu |
 |---|---|---|---|
-| DWH-001 | Load mỗi dataset vào đúng Bronze table bằng `COPY INTO` và metadata chuẩn. | P0 | Row reconciliation giữa S3 accepted rows và Bronze bằng 100%. |
+| DWH-001 | Load mỗi dataset vào đúng Bronze table bằng `COPY INTO` từ R2 S3-compatible external stage và metadata chuẩn. | P0 | Row reconciliation giữa R2 accepted rows và Bronze bằng 100%. |
 | DWH-002 | Bronze immutable và replay-safe. | P0 | Service role không có UPDATE/DELETE; replay không sinh duplicate. |
 | DWH-003 | Parse raw VARIANT thành typed Silver columns bằng dbt. | P0 | Model contract và dbt tests pass; timestamp offset/naive/DST, type và boolean normalization đúng fixture. |
 | DWH-004 | Deduplicate deterministic theo business key, record hash và source version. | P0 | Reorder input không đổi current row được chọn. |
@@ -765,6 +771,8 @@ Thay filter/citation/ACL/policy metadata phải upsert document vào index mới
 | EMB-005 | Version hóa index và hỗ trợ rebuild/rollback. | P0 | Có thể chuyển alias từ index mới về index trước mà không sửa source data. |
 | EMB-006 | Theo dõi embedding count, latency, error, age và cost. | P0 | Dashboard vận hành có đủ metric và alert index lag. |
 | EMB-007 | Embedding compute và vector upsert dùng hai durable ledgers/idempotency keys tách biệt. | P0 | Crash/replay tạo tối đa một committed compute result và một document mỗi upsert key; duplicate provider cost quan sát được. |
+
+Ràng buộc backend MVP: embedding được gọi qua OpenRouter adapter; ChromaDB local lưu collection theo `index_version` trên persistent volume. Snowflake giữ document metadata/release map authoritative, còn ChromaDB chỉ là retrieval index có thể rebuild. ChromaDB collection không được coi là system of record và không được chứa raw field ngoài schema `AI.RAG_DOCUMENT` đã cho phép.
 
 ### 9.5 RAG chatbot
 
@@ -863,8 +871,8 @@ DAG bắt buộc: `yelp_pipeline`.
 | Thứ tự | Task | Input chính | Output/gate |
 |---:|---|---|---|
 | 1 | `validate_source` | Source release/manifest | Valid manifest + `processing_run_id` + candidate `data_release_id/event`, hoặc fail |
-| 2 | `upload_to_s3` | Valid source files | Source archive + Parquet/raw + audit |
-| 3 | `copy_to_bronze` | S3 paths/checksums | Bronze load + reconciliation |
+| 2 | `upload_to_r2` | Valid source files | R2 source archive + Parquet/raw + audit |
+| 3 | `copy_to_bronze` | R2 paths/checksums | Bronze load + reconciliation |
 | 4 | `dbt_build_silver` | Processing run + Bronze refs | Versioned `silver_physical_ref` |
 | 5 | `dbt_test_silver` | Explicit Silver run schema | Critical quality gate |
 | 6 | `enrich_reviews` | New/changed `SIL_REVIEW` từ explicit Silver ref | AI candidates/errors |
@@ -918,7 +926,7 @@ Tên `publish_metrics` được giữ để khớp sơ đồ, nhưng trách nhi�
 | `GOLD_BUILDER_ROLE` | SELECT approved Silver/AI release objects; CRUD versioned Gold build target qua dbt | Mutate published release; read raw PII ngoài build contract |
 | `ANALYST_ROLE` | SELECT Gold approved views | Write; đọc Bronze/Silver/restricted AI |
 | `TEXT_TO_SQL_ROLE` | SELECT curated Gold semantic views; warehouse riêng | Mọi write; raw schemas; information schema rộng; stage/external functions |
-| `RAG_ROLE` | SELECT release-bound secure `AI.RAG_DOCUMENT` projection và USAGE explicit vector index version | Join Silver/base AI; global current/candidate refs; user PII ngoài citation/filter allowlist; write source tables |
+| `RAG_ROLE` | SELECT release-bound secure `AI.RAG_DOCUMENT` projection; ChromaDB access đi qua app service credential tách biệt | Join Silver/base AI; global current/candidate refs; user PII ngoài citation/filter allowlist; write source tables hoặc Chroma collection ngoài active version |
 
 - App identity và service identity phải tách biệt.
 - Không dùng shared human credentials cho service.
@@ -929,14 +937,14 @@ Năm role trong sơ đồ là ví dụ rút gọn; PRD tách thêm AI writer, ve
 
 ### 10.2 Bảo vệ dữ liệu
 
-- Encrypt in transit và at rest; S3 dùng KMS/key policy phù hợp.
+- Encrypt in transit và at rest; R2 bucket private dùng TLS, provider-managed encryption, scoped bucket token và lifecycle policy phù hợp.
 - Secrets nằm trong secrets manager/secret backend, không ở code, image, Airflow Variable plaintext hoặc log.
 - Pseudonymize `user_id`; minimize/loại name, friends và trường user không phục vụ use case.
 - Review text có thể chứa PII tự do. Trước external LLM/embedding transfer phải áp DLP/redaction/tokenization policy đã test hoặc có approval rõ ràng cho từng data class/provider; không được mặc định gửi nguyên văn.
 - Không log raw prompt, raw review, full SQL result hoặc access token theo mặc định.
 - User question, generated SQL, feedback và conversation metadata cũng là dữ liệu có thể nhạy cảm; phải redact/hash theo field, access-control và retention riêng.
 - Retention phải định nghĩa riêng cho source, Bronze, curated, vector, cache, prompt/response metadata và audit.
-- Deletion/correction hợp pháp phải propagate qua S3, Snowflake, vector index và cache; backup/Object Lock dùng tombstone + restore filtering + expiry hoặc approved crypto-erasure theo runbook, dù Bronze thông thường immutable.
+- Deletion/correction hợp pháp phải propagate qua R2, Snowflake, ChromaDB index và cache; immutable source/backup dùng tombstone + restore filtering + expiry hoặc approved crypto-erasure theo runbook, dù Bronze thông thường immutable.
 - Data provider setting về training/retention, region và cross-border transfer phải được Security/Legal duyệt.
 
 ### 10.3 Bảo vệ AI
@@ -957,6 +965,8 @@ Chỉ được dùng synthetic fixtures trước khi có bằng chứng Security
 - Quyền gửi nội dung cho model/embedding provider.
 - Attribution/citation bắt buộc.
 - Data retention/deletion và privacy obligations.
+
+M0 bundled Terms review (bản 2023-07-07) áp restrictive default: real Yelp Data không được upload lên managed R2/Snowflake, gửi tới OpenRouter/embedding hoặc public dưới dạng rows/review excerpts/derived metrics cho đến khi owner chứng minh academic eligibility và có mọi Yelp review/approval cần thiết. Trong thời gian đó, cloud integration và public portfolio demo chỉ dùng synthetic fixtures; source thật chỉ được profile local trong phạm vi agreement.
 
 ### 10.5 Security acceptance requirements
 
@@ -1143,11 +1153,11 @@ Mỗi error code phải chỉ rõ retryable/non-retryable, severity, owner, retr
 
 Config versioned nhưng không chứa secret:
 
-- Bucket/path, Snowflake database/schema/warehouse/role.
+- R2 bucket/prefix/endpoint/stage, Snowflake database/schema/warehouse/role và ChromaDB persistence path/collection.
 - Source contracts và schema versions.
 - DQ thresholds và publish gates.
-- LLM model/endpoint, prompt/taxonomy version, timeout, retry, concurrency và token cap.
-- Embedding model/version, vector backend/index, top-k và filters.
+- OpenRouter chat model slug/endpoint, prompt/taxonomy version, timeout, retry, concurrency và token cap.
+- OpenRouter embedding model/version/dimension, ChromaDB collection/index version, top-k và filters.
 - SQL allowlist, row/time/cost limits.
 - SLO, alerts, owner/channel và retention.
 
@@ -1173,10 +1183,11 @@ Mọi production release phải có migration plan, backward compatibility asses
 |---|---|
 | Python | Validation, ingestion adapters, AI/serving logic và operational utilities |
 | Pandas | Transform cục bộ trên bounded chunks/test fixtures; không đọc toàn bộ source lớn vào memory |
-| AWS S3 | Source archive, Parquet landing, manifest và quarantine |
+| Cloudflare R2 Standard | Private source archive, Parquet landing, manifest và quarantine qua S3-compatible API |
 | Snowflake | Bronze/Silver/AI/Gold/Audit storage, SQL compute và serving views |
 | dbt | Duy nhất quản lý transformation/test/docs Silver và Gold |
-| OpenAI | Provider qua abstraction/config cho enrichment, embedding, RAG answer và SQL generation |
+| OpenRouter | OpenAI-compatible provider gateway qua adapter/config cho enrichment, embedding, RAG answer và SQL generation |
+| ChromaDB | Local persistent vector index cho MVP; rebuild được từ authoritative Snowflake documents/metadata |
 | Apache Airflow | Schedule/control/retry/backfill/alert; không làm data warehouse |
 | Streamlit | UI MVP cho dashboard, RAG và Text-to-SQL |
 | Docker | Immutable runtime image cho pipeline/app components phù hợp |
@@ -1190,7 +1201,7 @@ Infrastructure, IAM/RBAC, network, storage lifecycle, Snowflake objects và moni
 |---|---|---|---|
 | CON-001 | Mỗi dataset có versioned schema contract, fixture, key, PII, timestamp và evolution policy. | P0 | Contract tests và owner approval trước M2 |
 | CON-002 | Source release/object, batch, dataset run, attempt và processing run có identity/cardinality không nhập nhằng. | P0 | Duplicate/reprocess/lineage tests theo mục 7.2 |
-| CON-003 | Manifest, record metadata, S3 source/raw/quarantine layout và encryption/lifecycle đúng mục 7. | P0 | Schema/path/security/reconciliation tests |
+| CON-003 | Manifest, record metadata, R2 source/raw/quarantine layout, private access, scoped token và lifecycle đúng mục 7. | P0 | Schema/path/security/reconciliation tests |
 | CON-004 | State machine và audit contract tách theo release/batch/file/record/invocation. | P0 | Transition, lease-expiry và crash-recovery tests |
 | CON-005 | Snapshot absence/tombstone và timestamp offset/naive/DST tuân contract đã duyệt. | P0 | Full-vs-partial snapshot và time fixtures |
 | REL-001 | Gold build là immutable/release-addressable và không mutate serving target. | P0 | Concurrent build/read isolation test |
@@ -1218,11 +1229,11 @@ Infrastructure, IAM/RBAC, network, storage lifecycle, Snowflake objects và moni
 | Milestone | Deliverable chính | Exit criteria |
 |---|---|---|
 | M0 — Product/Architecture decisions | Approved PRD, ADRs, source manifest/schema, metric dictionary, threat/license review, budget/SLO | Không còn open question P0 chặn DDL hoặc deployment |
-| M1 — Foundation | Repo structure, environments, CI, Docker, secrets/config, S3/Snowflake baseline và RBAC | CI pass; negative permission tests pass |
-| M2 — Ingestion & Bronze | Validation, manifest, source archive, Parquet/S3, audit, quarantine, Bronze COPY | Full source batch load và replay không duplicate |
+| M1 — Foundation | Repo structure, environments, CI, Docker, secrets/config, R2/Snowflake/ChromaDB baseline và RBAC | CI pass; R2→Snowflake connectivity và negative permission tests pass |
+| M2 — Ingestion & Bronze | Validation, manifest, R2 source archive/Parquet, audit, quarantine, Bronze COPY | Full source batch load và replay không duplicate |
 | M3 — Silver & core Gold | dbt models/tests/docs, dimensions/facts/marts, KPI fixtures | Full/incremental equivalence; critical dbt tests pass |
 | M4 — AI enrichment | Structured output, batch/rate control, validation, errors, version/cost tracking | Golden enrichment set đạt threshold; retry/replay pass |
-| M5 — Embedding & RAG | Selected vector backend, index sync, retrieval, chatbot/citations, RAG eval | Citation/groundedness/security targets pass |
+| M5 — Embedding & RAG | OpenRouter embeddings, versioned ChromaDB collections, index sync, retrieval, chatbot/citations, RAG eval | Citation/groundedness/security targets pass |
 | M6 — Text-to-SQL | Semantic views/catalog, generation, AST guardrails, read-only execution, table/chart | Semantic/security eval và role tests pass |
 | M7 — Dashboard & integration | Streamlit pages, filters, freshness, DQ view, RAG/SQL tabs | Business UAT và reconciliation pass |
 | M8 — Production hardening | Airflow SLO/alerts, cost, backups, load/security tests, runbooks, deploy/rollback | Launch checklist, restore drill và owner sign-off |
@@ -1241,7 +1252,7 @@ Hai gate end-to-end bắt buộc:
 - `E2E-SCALE-001`: named full source release với byte/row/token/concurrency envelope đã khóa; chạy staging trước production.
 
 1. **AC-SYS-01** — Hai gate trên chạy từ source JSON/JSONL đến dashboard, RAG và Text-to-SQL theo phạm vi phù hợp.
-2. **AC-SYS-02** — Replay không tạo duplicate committed S3/Bronze/Silver/Gold/AI/vector effect. Operation đã commit không gọi provider lại; ambiguous crash call được ledger ghi nhận/costed.
+2. **AC-SYS-02** — Replay không tạo duplicate committed R2/Bronze/Silver/Gold/AI/ChromaDB effect. Operation đã commit không gọi provider lại; ambiguous crash call được ledger ghi nhận/costed.
 3. **AC-SYS-03** — File thiếu, partial-upload, empty bất thường, wrong schema, malformed record và duplicate batch được phát hiện đúng.
 4. **AC-SYS-04** — Mọi physical record được đối soát thành accepted, parsed-quarantined hoặc parse-failed với error/raw/offset reference.
 5. **AC-SYS-05** — Bronze immutable qua role thông thường và đủ để rebuild Silver.
@@ -1257,7 +1268,7 @@ Hai gate end-to-end bắt buộc:
 15. **AC-SYS-15** — Không có secret trong repo/image/log; role/identity không thể thực hiện hành vi ngoài quyền.
 16. **AC-SYS-16** — Cost/usage, data quality và offline/online correlation quan sát được.
 17. **AC-SYS-17** — README, data dictionary, dbt docs, ADR, deployment guide, recovery/backfill/DLQ/legal purge runbook hoàn tất.
-18. **AC-SYS-18** — Product, Data, Security/Legal và Operations owner ký launch checklist.
+18. **AC-SYS-18** — Solo developer hoàn tất launch self-review theo từng responsibility hat; nếu public/production hoặc policy yêu cầu, các external Security/Legal/Operations approver ký phần tương ứng.
 
 ---
 
@@ -1270,7 +1281,7 @@ Hai gate end-to-end bắt buộc:
 | `attributes.json` không tồn tại độc lập | Trung bình | Contract adapter tách attributes từ `business.json` |
 | Business ngoài restaurant làm nhiễu mart/RAG | Cao | Versioned restaurant taxonomy/scope, unknown quarantine khỏi serving và scope coverage tests |
 | Raw Parquet làm mất byte gốc | Cao | Lưu source archive bất biến và checksum; Parquet là landing tối ưu |
-| COPY INTO và Snowpipe double-load | Cao | Chọn một owner/loader cho mỗi path/table; MVP chỉ dùng Airflow COPY |
+| Hai Airflow runs cùng load một R2 object | Cao | Manifest/checksum idempotency, lease theo source object và COPY load history; một active run cho mỗi idempotency key |
 | Schema drift/nested data gây vỡ pipeline | Cao | Versioned contracts, compatibility policy, quarantine và representative fixtures |
 | LLM chậm, đắt hoặc rate-limited | Cao | Incremental hash cache, batch, bounded concurrency, token cap, checkpoint và budget alert |
 | AI output schema-valid nhưng sai nghĩa | Cao | Human golden set, semantic validation, confidence/publish gate và versioned taxonomy |
@@ -1296,10 +1307,10 @@ Hai gate end-to-end bắt buộc:
 | OQ-03 | Chỉ cần photo metadata hay phải lưu binary image? | Product/Legal | M0 |
 | OQ-04 | License có cho phép gửi review tới external LLM, tạo embedding và hiển thị citation không? | Legal/Security | M0 |
 | OQ-05 | Ứng dụng internal hay public; ai đăng nhập; có SSO, tenant/RLS/masking không? | Product/Security | M0 |
-| OQ-06 | Chọn Cortex Search, pgvector hay ChromaDB; edition/region/HA/cost tương ứng? | Architecture | M0 |
+| OQ-06 | ChromaDB persistent volume/backup path, collection naming và retention theo environment là gì? | Architecture | M0 |
 | OQ-07 | SCD strategy cho business/user và correction/deletion semantics là gì? | Data Architecture | M0 |
 | OQ-08 | Metric/grain/timezone/sample threshold nào là authoritative? | Product/Analytics | M0 |
-| OQ-09 | LLM/provider/model nào, region/retention/training policy và token budget bao nhiêu? | AI/Security/Finance | M0 |
+| OQ-09 | Chọn OpenRouter chat/embedding model slug nào, provider routing/retention/training setting và token budget bao nhiêu? | AI/Security/Finance | M0 |
 | OQ-10 | Airflow, Streamlit, registry và secrets manager chạy ở đâu? | Platform | M0 |
 | OQ-11 | Monthly budget, hard cap và hành vi degrade ở 80/100% là gì? | Product/Finance | M0 |
 | OQ-12 | Retention cho source, Bronze, prompt/response metadata, SQL audit, vector và backups? | Security/Data | M0 |
@@ -1313,10 +1324,14 @@ Hai gate end-to-end bắt buộc:
 | Decision ID | Ngày | Quyết định | Lý do | Người duyệt | Tài liệu/ADR |
 |---|---|---|---|---|---|
 | DEC-001 | 2026-08-04 | Scheduler có thể daily nhưng ingest theo complete source release/snapshot diff | Không giả định nguồn có daily CDC; chống duplicate snapshot | Chờ duyệt | ADR-SOURCE-SEMANTICS ở M0 |
-| DEC-002 | 2026-08-04 | MVP dùng Airflow-managed `COPY INTO`, không đồng thời Snowpipe trên cùng target | Một owner cho load/idempotency | Chờ duyệt | ADR-INGESTION ở M0 |
+| DEC-002 | 2026-08-04 | MVP dùng Airflow-managed batch `COPY INTO` từ R2 external stage; không dùng auto-refresh/Snowpipe | Một owner cho load/idempotency và phù hợp giới hạn S3-compatible stage | Solo Developer | ADR-INGESTION ở M0 |
 | DEC-003 | 2026-08-04 | Bronze immutable trong vận hành; legal/incident deletion là controlled exception | Cân bằng lineage với compliance | Chờ Security/Legal | ADR-RETENTION ở M0 |
 | DEC-004 | 2026-08-04 | Lưu byte nguồn ở `source/`, Parquet/Snappy ở `raw/` | Giải quyết mâu thuẫn raw JSON VARIANT và landing Parquet trong sơ đồ | Chờ duyệt | ADR-STORAGE ở M0 |
 | DEC-005 | 2026-08-04 | Run fail/partial không publish; tiếp tục phục vụ full release gần nhất | Giữ DAG tuyến tính và tránh mixed-version | Chờ duyệt | ADR-RELEASE ở M0 |
+| DEC-006 | 2026-08-04 | Cloudflare R2 Standard thay AWS S3 | Giảm chi phí portfolio, vẫn dùng S3-compatible integration với Snowflake | Solo Developer | ADR-STORAGE ở M0 |
+| DEC-007 | 2026-08-04 | Snowflake là warehouse duy nhất từ development; không dùng DuckDB fallback | Giữ implementation và portfolio tập trung vào Snowflake | Solo Developer | ADR-WAREHOUSE ở M0 |
+| DEC-008 | 2026-08-04 | OpenRouter cho chat và embedding; ChromaDB local là vector store MVP | Dùng API key hiện có, giảm cloud dependency và chi phí vector serving | Solo Developer | ADR-AI-VECTOR ở M0 |
+| DEC-009 | 2026-08-04 | Real Yelp Data bị chặn khỏi R2/Snowflake/OpenRouter và public demo đến khi academic eligibility/Yelp approval được xác nhận | Bundled Terms hạn chế third-party sharing/public display và yêu cầu review trước publication | Solo Developer | M0 Security/Privacy baseline |
 
 ---
 
@@ -1341,7 +1356,7 @@ Một feature chỉ được coi là Done khi:
 |---|---|
 | 1. Data Sources | Mục 5, 7 |
 | 2. Ingestion & Validation | Mục 7, 9.1 |
-| 3. Data Lake (AWS S3) | Mục 7.4 |
+| 3. Data Lake (Cloudflare R2) | Mục 7.4 |
 | 4. Snowflake Medallion Warehouse | Mục 8, 9.2 |
 | AI Enrichment between Silver and Gold | Mục 8.4, 9.3 |
 | 5. Orchestration (Airflow) | Mục 9.8 |
@@ -1392,7 +1407,7 @@ Một feature chỉ được coi là Done khi:
 | AC-SYS-15 | APP-001…010, SEC-001…008 | Secret/auth/authz/DLP negative tests |
 | AC-SYS-16 | OBS-001…008 | Monitoring/cost/correlation dashboard evidence |
 | AC-SYS-17 | CFG-001/002 và Definition of Done | Documentation/runbook review checklist |
-| AC-SYS-18 | COMP-001/002, OQ gates | Signed launch checklist/approval artifacts |
+| AC-SYS-18 | COMP-001/002, OQ gates | Solo launch evidence; external approval artifacts khi public/policy yêu cầu |
 
 Ký hiệu `001…NNN` nghĩa là toàn bộ ID liên tục trong range được nêu. Khi tạo issue/backlog, mỗi ticket MUST ghi Goal, User Story, Requirement ID, test evidence, milestone và owner tương ứng; không đóng ticket chỉ dựa trên mô tả triển khai.
 
@@ -1404,8 +1419,8 @@ PRD này yêu cầu các artifact sau trong quá trình implementation:
 
 - Source data contracts và fixtures.
 - Metric dictionary machine-readable.
-- ADR cho source semantics, SCD, vector backend, deployment và AI provider.
-- S3 naming/lifecycle/encryption policy.
+- ADR cho source semantics, SCD, Snowflake-only warehouse, R2 storage, ChromaDB deployment và OpenRouter model policy.
+- R2 naming/private-access/scoped-token/lifecycle policy và Snowflake S3-compatible stage DDL.
 - Snowflake DDL/RBAC grants và negative permission tests.
 - dbt project với models, tests, snapshots/incremental strategy, docs và exposures.
 - Airflow DAG, task config, pools, alerts và backfill/recovery runbook.
@@ -1419,7 +1434,7 @@ PRD này yêu cầu các artifact sau trong quá trình implementation:
 
 ## Phụ lục B — Điều kiện để bắt đầu implementation
 
-Đội phát triển có thể bắt đầu M1 sau khi:
+Solo developer có thể bắt đầu M1 sau khi:
 
 1. Product Owner duyệt phạm vi P0/P1/P2 và persona chính.
 2. Có sample source package thực để khóa data contract.

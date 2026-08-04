@@ -1,0 +1,40 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Source data and generated artifacts
+Yelp-JSON/
+data/
+artifacts/
+quarantine/
+manifests/
+
+# Local service state
+chroma_data/
+airflow/logs/
+logs/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage.xml
+.coverage
+htmlcov/
+
+# dbt
+dbt/**/target/
+dbt/**/logs/
+dbt/**/dbt_packages/
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
