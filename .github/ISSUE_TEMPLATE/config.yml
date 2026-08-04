@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Current project status
+    url: https://github.com/phatle224/reviewlens-data-platform/blob/main/docs/PROJECT_STATUS.md
+    about: Read the active phase, blockers and next actions before opening an issue.

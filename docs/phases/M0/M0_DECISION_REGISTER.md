@@ -8,6 +8,7 @@
 | ChromaDB local | Accepted | [ADR-004](../../ADR/ADR-004-chromadb-vector-store.md) | Vector backend/persistence/security model |
 | Full-snapshot batch + atomic release | Accepted baseline | [ADR-005](../../ADR/ADR-005-ingestion-release-strategy.md) | Source semantics/pointer contract |
 | Solo local/private deployment | Accepted | [ADR-006](../../ADR/ADR-006-solo-deployment-auth.md) | Public exposure/auth/hosting |
+| Single-local configuration | Accepted | `config/config.toml`, [ADR-006](../../ADR/ADR-006-solo-deployment-auth.md) | Thêm staging/production hoặc đổi secret-loading boundary |
 | SCD/time/retention | Accepted baseline | [ADR-007](../../ADR/ADR-007-scd-time-retention.md) | Correction/deletion/time/Terms policy |
 | JSON source set | 5 required + 1 derived + photo optional | [Source profile](./M0_SOURCE_PROFILE.md) | Extracted archive chứng minh khác baseline |
 | Restaurant population | Exact normalized token `Restaurants` | [Product/data baseline](./M0_PRODUCT_DATA_BASELINE.md) | Taxonomy inclusion rule |
@@ -22,5 +23,6 @@ Không ghi secret trong tài liệu. Trạng thái hiện tại:
 
 1. `RESOLVED`: Snowflake account facts và R2 bucket topology.
 2. `RESOLVED_RESTRICTIVE`: project không thuộc chương trình academic chính thức và không có Yelp approval; synthetic-only gate cho managed cloud/external AI/public demo được giữ nguyên.
-3. `OPEN_NON_BLOCKING`: public URL strategy, explicit budget acceptance và model candidate acceptance.
-4. `OPEN_BEFORE_REAL_LOCAL_USE`: Yelp dataset access/effective date để tính license expiry/cleanup.
+3. `RESOLVED`: local demo + video/screenshots, không có public URL; source code có thể public nhưng Yelp data/review/embedding/derived result không được commit hoặc public.
+4. `RESOLVED`: OpenRouter hard cap 5 USD và model evaluation set hiện tại được chấp nhận.
+5. `RESOLVED`: Yelp dataset term active từ `2026-08-04` đến `2027-08-04`; retention cleanup dùng mốc này.

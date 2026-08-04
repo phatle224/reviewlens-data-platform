@@ -17,5 +17,4 @@ Use Snowflake for development, integration and portfolio demo. Use `dbt-snowflak
 
 ## Verification
 
-Connection smoke, dbt parse/compile, role negative tests, auto-suspend observation, resource monitor alert/suspend and environment isolation.
-
+Connection smoke, dbt parse/compile, role negative tests, auto-suspend observation, resource monitor alert/suspend and single-local config contract.

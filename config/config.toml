@@ -1,0 +1,51 @@
+runtime = "local"
+deployment_mode = "local_demo"
+data_mode = "synthetic"
+
+[license]
+accessed_at = "2026-08-04"
+license_expires_at = "2027-08-04"
+term_months = 12
+status = "active"
+
+[r2]
+enabled = true
+bucket = "reviewlens-data-dev"
+location = "apac"
+storage_class = "Standard"
+public_access = false
+prefixes = ["source/", "raw/", "quarantine/", "manifests/"]
+
+[snowflake]
+enabled = true
+cloud = "AWS"
+region = "AWS_AP_SOUTHEAST_1"
+edition = "STANDARD"
+database = "REVIEWLENS"
+warehouse = "REVIEWLENS_WH"
+role = "REVIEWLENS_OWNER"
+warehouse_size = "X-SMALL"
+auto_suspend_seconds = 60
+trial_expires_at = "2026-09-03"
+
+[openrouter]
+enabled = true
+base_url = "https://openrouter.ai/api/v1"
+hard_budget_usd = 5.0
+daily_warning_usd = 0.5
+enrichment_model = "google/gemini-2.5-flash-lite"
+rag_model = "google/gemini-2.5-flash-lite"
+sql_model = "google/gemini-3.5-flash"
+embedding_model = "qwen/qwen3-embedding-8b"
+
+[chroma]
+enabled = true
+host = "127.0.0.1"
+port = 8000
+persistence_path = "./chroma_data"
+collection_prefix = "reviewlens"
+
+[app]
+bind_host = "127.0.0.1"
+port = 8501
+auth_required = true

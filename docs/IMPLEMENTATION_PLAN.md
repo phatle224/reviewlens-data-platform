@@ -84,7 +84,7 @@ M5 Embedding + RAG ────────────────────�
                                          ↓
                               M7 Dashboard + Integration
                                          ↓
-                              M8 Production Hardening
+                              M8 Portfolio Hardening
 ```
 
 Critical path mặc định: `M0 → M1 → M2 → M3 → M4 → M5 → M7 → M8`.
@@ -107,12 +107,12 @@ Range trên giả định cloud accounts và source sample sẵn có. Legal appr
 | Boundary | Lựa chọn bắt buộc | Không implement trong MVP |
 |---|---|---|
 | Object storage | Cloudflare R2 Standard, private bucket, S3-compatible SDK | AWS S3/IAM/KMS/S3 event integration |
-| Warehouse | Snowflake cho dev/staging/portfolio; `dbt-snowflake` | DuckDB/local warehouse fallback |
+| Warehouse | Snowflake cho một local portfolio runtime; `dbt-snowflake` | DuckDB/local warehouse fallback |
 | Ingestion | Airflow batch `COPY INTO` từ R2 `s3compat://` stage, manual discovery/manifest | Snowpipe hoặc metadata auto-refresh |
 | AI gateway | OpenRouter chat và embeddings qua Python adapter | Snowflake external function gọi provider trực tiếp |
 | Vector store | ChromaDB local, persistent versioned collections | Cortex Search hoặc pgvector |
 
-Các giá trị `R2_ACCOUNT_ID`, endpoint, Snowflake account/role/warehouse, OpenRouter model slug và ChromaDB path đến từ typed environment config/secret backend. Không ghi secret thật vào plan, `.env.example`, test fixture hoặc log. Snowflake trial/credit expiry được kiểm tra từ chính account và theo dõi như operational constraint; backlog không dựa vào một thời hạn trial cố định.
+Các giá trị không nhạy cảm đến từ `config/config.toml`; credential, API key và password đến từ process environment hoặc local `.env`. Process environment ghi đè `.env`; `.env` không được commit và `.env.example` chỉ chứa tên biến rỗng/hướng dẫn. Snowflake trial/credit expiry được kiểm tra từ chính account và theo dõi như operational constraint; backlog không dựa vào một thời hạn trial cố định.
 
 ---
 
@@ -140,6 +140,9 @@ Toàn bộ role trong bảng là các “mũ trách nhiệm” do cùng solo dev
 reviewlens-data-platform/
 ├── .github/
 │   └── workflows/                 # CI, image build, deploy/promotion
+├── config/
+│   └── config.toml                # Một local config versioned, không chứa secret
+├── .env.example                   # Tên biến credential; local .env bị Git ignore
 ├── apps/
 │   └── streamlit/
 │       ├── pages/                 # Dashboard, RAG, Text-to-SQL, DQ health
@@ -220,14 +223,14 @@ Không bắt buộc dùng đúng tên công cụ quản lý dependency/task runn
 | Milestone | Outcome | Phụ thuộc | Effort tham khảo | Exit gate |
 |---|---|---|---|---|
 | M0 | Quyết định và contract được duyệt | PRD | 1–3 tuần | Không còn OQ P0 hoặc temporary default trái policy |
-| M1 | Foundation, environments, CI, RBAC và skeleton chạy được | M0 | 2–4 tuần | Synthetic smoke test + negative permission tests pass |
+| M1 | Foundation, single-local config, CI, RBAC và skeleton chạy được | M0 | 2–4 tuần | Synthetic smoke test + negative permission tests pass |
 | M2 | Source → R2 → Snowflake Bronze idempotent, audit/quarantine đầy đủ | M1 | 3–5 tuần | Replay/reconciliation/backfill tests pass |
 | M3 | Versioned Silver/Gold, KPI và release framework | M2 | 4–6 tuần | dbt gates, metric fixtures, concurrency isolation pass |
 | M4 | Incremental LLM enrichment có ledger/evaluation | M3 | 3–5 tuần | AI schema/semantic/cost/security gates pass |
 | M5 | Versioned embeddings và grounded RAG | M4 | 3–5 tuần | Citation/groundedness/index/security gates pass |
 | M6 | Safe, release-bound Text-to-SQL | M3 | 3–5 tuần | Semantic/adversarial/RBAC tests pass |
 | M7 | Dashboard và ba consumption flows tích hợp | M3, M5, M6 | 3–5 tuần | Business UAT + `E2E-FIXTURE-001` pass |
-| M8 | Production readiness, SLO, DR, cost, runbooks | M7 | 3–5 tuần | `E2E-SCALE-001` + solo launch evidence; external sign-off nếu public |
+| M8 | Portfolio readiness, SLO, DR, cost, runbooks | M7 | 3–5 tuần | `E2E-SCALE-001` + solo launch evidence; production là future scope |
 
 ### 5.1 Demo checkpoints cho solo developer
 
@@ -236,7 +239,7 @@ Không bắt buộc dùng đúng tên công cụ quản lý dependency/task runn
 | D1 sau M2 | Business/review synthetic → R2 → Snowflake Bronze + audit/quarantine | Chưa có trusted analytics/AI |
 | D2 sau M3 | Core rating/review/city/category dashboard từ versioned Gold | Chưa activate release thiếu AI/vector gates |
 | D3 sau M4 | Sentiment/aspect/topic enrichment trên approved subset | Chưa có grounded chatbot/index |
-| D4 sau M5/M6 | RAG có citation và safe Text-to-SQL trên staging | Chưa đạt full UAT/SLO/DR |
+| D4 sau M5/M6 | RAG có citation và safe Text-to-SQL trong local demo | Chưa đạt full UAT/SLO/DR |
 | D5 sau M7 | Hoàn chỉnh trải nghiệm MVP bằng `E2E-FIXTURE-001` | Chưa launch trước M8 |
 
 Solo developer nên ưu tiên D1→D5 theo vertical slice, dùng bounded approved sample. Snowflake là warehouse duy nhất ngay từ dev; R2, Airflow, ChromaDB và Streamlit có thể chạy bằng account/service hoặc Docker local tương ứng. Không được bỏ SQL guardrails, data transfer approval hoặc auth nếu ứng dụng được expose cho người khác.
@@ -286,7 +289,7 @@ Execution artifacts và trạng thái thực tế được quản lý tại [doc
 
 ---
 
-## 7. M1 — Foundation, environments và developer platform
+## 7. M1 — Foundation, single-local configuration và developer platform
 
 ### 7.1 Mục tiêu
 
@@ -298,29 +301,29 @@ Tạo nền móng có thể build/test/deploy lặp lại, đồng thời khóa 
 |---|---|---|---|---|---|
 | IMP-M1-001 | Khởi tạo repo structure, package metadata, dependency lock, lint/type/test commands | Tech Lead | M0-019 | Fresh clone chạy bootstrap/test command thành công | M |
 | IMP-M1-002 | Tạo `README`, contribution guide, CODEOWNERS, PR/issue templates có requirement/test fields | Tech Lead | M1-001 | Sample PR qua checklist | S |
-| IMP-M1-003 | Tạo centralized typed config cho dev/staging/prod; không chứa secret | Backend/Platform | M1-001, ADRs | Config validation tests; CFG-001/002 | M |
+| IMP-M1-003 | Tạo một typed `config/config.toml` local không chứa secret; nạp credential từ process environment/`.env` và bỏ mọi profile selector | Backend/Platform | M1-001, ADRs | Single-local config, precedence, ignore và secret-scan tests; CFG-001/002 | M |
 | IMP-M1-004 | Tạo synthetic source fixture generator và checked-in small fixture pack | QA/Data Eng | M0-006/007 | Deterministic regenerate + checksums | M |
 | IMP-M1-005 | Provision private Cloudflare R2 Standard bucket/prefixes, scoped API token, lifecycle và public-access denial bằng IaC/config | Platform | ADR-STORAGE | Policy/connectivity tests; CON-003 | L |
 | IMP-M1-006 | Provision Snowflake databases, schemas, `X-SMALL` warehouses, resource monitors và R2 S3-compatible external stages (`AUTO_REFRESH=FALSE`) | Platform/Data | M1-005, ADR-DEPLOYMENT | Idempotent deploy + R2 `LIST`/`COPY INTO` smoke; expiry/credits documented | L |
 | IMP-M1-007 | Implement Snowflake roles: ingest, transformer, AI enrich, Gold builder, analyst, RAG và SQL; ChromaDB writer/reader credentials tách khỏi Snowflake RBAC | Security/Data | M1-006 | Positive/negative grant and credential suite; SEC-001 | L |
 | IMP-M1-008 | Configure Snowflake/R2/OpenRouter/ChromaDB service credentials, app auth, secret backend và key rotation skeleton | Security/Platform | M0-012/013 | No shared/admin identity; secret retrieval/rotation smoke | L |
-| IMP-M1-009 | Scaffold Snowflake-only dbt project, profiles-by-environment, naming macros, model contracts và CI schema isolation | Analytics Eng | M1-006 | `dbt parse/compile` bằng `dbt-snowflake`; không có DuckDB profile | M |
-| IMP-M1-010 | Scaffold Airflow DAG `yelp_pipeline`, task interfaces, pools, config và local/staging deploy | Data Eng/Platform | M1-003/008 | DAG import test; no side effect | M |
+| IMP-M1-009 | Scaffold Snowflake-only dbt project, một local target, naming macros, model contracts và CI schema isolation | Analytics Eng | M1-006 | `dbt parse/compile` bằng `dbt-snowflake`; không có DuckDB hoặc staging/prod profile | M |
+| IMP-M1-010 | Scaffold Airflow DAG `yelp_pipeline`, task interfaces, pools và single-local config/deploy | Data Eng/Platform | M1-003/008 | DAG import test; no side effect | M |
 | IMP-M1-011 | Scaffold Python adapters cho R2 S3-compatible storage, Snowflake, OpenRouter chat/embeddings, ChromaDB, audit và clock/ID generation | Backend/Data | M1-001/003 | Unit tests với fakes; provider boundaries không hard-code model/secret | L |
 | IMP-M1-012 | Scaffold Streamlit app, authenticated shell, health/readiness page và error boundary | App/Security | M0-012, M1-003 | Anonymous denied; authenticated smoke | L |
 | IMP-M1-013 | Tạo audit schema migrations cho ingestion/process/file/release event/pointer/invocation ledgers | Data Architect | ADR-RELEASE, M1-006 | Migration up/down/compatibility test | L |
 | IMP-M1-014 | Tạo structured logging, trace/correlation library và redaction filter dùng chung | Platform/Backend | M0-005/018 | Seeded secret/PII log tests | M |
 | IMP-M1-015 | Tạo CI workflow: lint, type, unit, contracts, dbt compile, secret/dependency/container scan | Platform | M1-001/009 | Deliberate failing fixture blocks merge; DEP-001 | L |
 | IMP-M1-016 | Tạo Docker images/runtime entrypoints cho ingestion/Airflow/app components | Platform | M1-001/010/012 | Reproducible image build + non-root smoke | M |
-| IMP-M1-017 | Tạo environment deployment skeleton và immutable artifact tagging | Platform | M1-015/016 | Deploy dev + artifact digest + rollback smoke | L |
+| IMP-M1-017 | Tạo local Docker Compose/deployment skeleton và immutable artifact tagging | Platform | M1-015/016 | Local deploy + artifact digest + rollback/rebuild smoke | L |
 | IMP-M1-018 | Bootstrap metrics sink/dashboards cho health, CI/deploy và service errors | Platform | M1-014/017 | Synthetic metric/log visible end-to-end | M |
 | IMP-M1-019 | Viết foundation/runbook: bootstrap, Snowflake/R2/OpenRouter credentials, Chroma volume, local test, deploy, cost stop và break-glass | Platform/Tech Lead | M1-001…018 | Clean-machine solo dry run | M |
 
 ### 7.3 Exit criteria M1
 
 - Fresh checkout có thể bootstrap, chạy tests và build image bằng tài liệu.
-- Dev environment provision được từ code; staging/prod config tách biệt.
-- Snowflake là warehouse dev đang hoạt động; R2 external stage `LIST`/`COPY INTO` pass, warehouse auto-suspend và resource monitor đã bật.
+- Local runtime bootstrap được từ code bằng đúng một `config/config.toml`; `.env` bị ignore và không tồn tại config/profile staging/prod.
+- Snowflake là warehouse local-demo đang hoạt động; R2 external stage `LIST`/`COPY INTO` pass, warehouse auto-suspend và resource monitor đã bật.
 - Snowflake negative permission tests pass; không service nào dùng admin/shared identity.
 - App không anonymous; secret/PII không xuất hiện trong repo/image/log fixtures.
 - DAG/dbt/app skeleton deploy được nhưng chưa xử lý dữ liệu thật nếu compliance gate chưa mở.
@@ -560,14 +563,14 @@ Tạo trải nghiệm thống nhất cho dashboard, Ask Reviews và Ask Data; m�
 | IMP-M7-008 | Xây City & Category Trends page; xử lý non-additive category và sample thresholds | App/Analytics | M3-015, M7-005 | Ranking/no-double-count fixtures | L |
 | IMP-M7-009 | Xây Review & Aspect Insights page với enrichment coverage | App/Analytics | M4 Gold models, M7-005 | AI denominator/coverage reconciliation | L |
 | IMP-M7-010 | Xây Data Quality & Pipeline Health page | App/Data/Platform | M2-019, M3 dbt audit, M4/M5 metrics | Latest run/error/quarantine/freshness display | L |
-| IMP-M7-011 | Tích hợp RAG tab production UX | App/AI | M5-017/019/021, M7-002…005 | RAG E2E/citation/auth tests | M |
-| IMP-M7-012 | Tích hợp Text-to-SQL tab production UX | App/AI | M6-015/018/019, M7-002…005 | SQL E2E/denial/auth tests | M |
+| IMP-M7-011 | Tích hợp RAG tab portfolio UX | App/AI | M5-017/019/021, M7-002…005 | RAG E2E/citation/auth tests | M |
+| IMP-M7-012 | Tích hợp Text-to-SQL tab portfolio UX | App/AI | M6-015/018/019, M7-002…005 | SQL E2E/denial/auth tests | M |
 | IMP-M7-013 | Implement evidence route với re-authorization và serving-safe excerpt | App/Security | M5-003/015/016, M7-003 | IDOR/copied-link negative tests | M |
 | IMP-M7-014 | Implement loading, empty, unavailable, stale, failed và rate-limit states thống nhất | App/Product | M7-001/004/010…012 | UI state matrix tests; BI-005 | M |
 | IMP-M7-015 | Implement keyboard navigation, labels, contrast và accessible chart/table alternatives | App/QA | M7-006…014 | Accessibility smoke; BI-006 | M |
 | IMP-M7-016 | Implement privacy-safe product telemetry: active users, task completion, latency, useful feedback | App/Product/Security | M0 metrics, M7-002 | Actor pseudonymous; retention/redaction tests | M |
 | IMP-M7-017 | Cấu hình Snowsight/approved BI access tới current convenience views và release metadata | Analytics/Security | M3-016/018, OQ-14 | Analyst role read-only + freshness visible | M |
-| IMP-M7-018 | Xây `E2E-FIXTURE-001` từ malformed/replay/correction/deletion/AI/security cases | QA/All | M2–M6 | Deterministic end-to-end CI/staging run | XL |
+| IMP-M7-018 | Xây `E2E-FIXTURE-001` từ malformed/replay/correction/deletion/AI/security cases | QA/All | M2–M6 | Deterministic end-to-end CI/local run | XL |
 | IMP-M7-019 | Chạy business UAT script theo US-01…US-08 và sửa discrepancy | Product/QA/All | M7-006…018 | Signed UAT evidence; no unexplained KPI mismatch | L |
 | IMP-M7-020 | Hoàn thiện user guide, analyst guide và support/error guidance | Product/App/Ops | M7-019 | New pilot user dry run | M |
 
@@ -581,7 +584,7 @@ Tạo trải nghiệm thống nhất cho dashboard, Ask Reviews và Ask Data; m�
 
 ---
 
-## 14. M8 — Production hardening và launch
+## 14. M8 — Portfolio hardening và launch evidence
 
 ### 14.1 Mục tiêu
 
@@ -607,9 +610,9 @@ Chứng minh hệ thống chịu tải, quan sát được, rollback/recover/rev
 | IMP-M8-014 | Chạy Gold/AI/vector rollback và index/Silver rebuild drills | QA/Data/AI | M3/M4/M5, M8-002 | Meet rollback window/RTO | L |
 | IMP-M8-015 | Configure backup/retention/lifecycle và restore-filter behavior | Platform/Security | M0-005, M8-011 | Restore drill; revoked data not reintroduced | L |
 | IMP-M8-016 | Chạy performance/load test theo capacity envelope: full release, concurrent UI/RAG/SQL, cold/warm | QA/Platform | M0-015, M7 | SLO/cost report; NFR-001…004 | XL |
-| IMP-M8-017 | Chạy `E2E-SCALE-001` trên named source release và khóa byte/row/token counts | QA/All | Real-data approval, M8-016 | Full staging evidence; AC-SYS-01 | XL |
+| IMP-M8-017 | Chạy `E2E-SCALE-001` trên named synthetic/approved local release và khóa byte/row/token counts | QA/All | Data-use gate, M8-016 | Full local evidence; AC-SYS-01 | XL |
 | IMP-M8-018 | Tối ưu bottleneck đã đo: chunking, warehouse, dbt incremental, cache, concurrency | Relevant owner | M8-016/017 | Before/after benchmark; no semantic regression | L |
-| IMP-M8-019 | Hoàn thiện CI/CD promotion dev→staging→prod, migration approval, smoke và automated rollback hook | Platform | M1-015/017, all tests | DEP-001/002 deployment rehearsal | L |
+| IMP-M8-019 | Hoàn thiện CI + local portfolio packaging, migration check, Compose smoke và rollback/rebuild hook | Platform | M1-015/017, all tests | DEP-001/002 local deployment rehearsal | L |
 | IMP-M8-020 | Scan/pin dependency và container; generate SBOM/provenance/artifact digest | Platform/Security | M8-019 | Critical scan findings resolved/accepted | M |
 | IMP-M8-021 | Hoàn thiện runbooks: ingest, DQ, DLQ, AI quota, vector, SQL, deploy, rollback, DR, revoke, cost | All/Ops | M8-001…020 | Runbook coverage checklist | L |
 | IMP-M8-022 | Thiết lập on-call/support ownership, severity matrix và incident communication | Ops/Product | M8-005/021 | Tabletop incident exercise | M |
@@ -621,8 +624,8 @@ Chứng minh hệ thống chịu tải, quan sát được, rollback/recover/rev
 - `E2E-SCALE-001`, security corpus, AI/RAG/SQL eval và SLO tests đều pass hoặc có signed exception không critical.
 - Failure ở bất kỳ upstream task nào vẫn có terminal audit/alert và không đổi active release.
 - Rollback, rebuild, revoke/legal deletion và restore filtering đáp ứng policy/RTO.
-- Cost dashboards/budget alerts/hard cap hoạt động; production capacity nằm trong envelope.
-- CI/CD promotion và rollback rehearsal thành công; runbooks/on-call/ownership đầy đủ.
+- Cost dashboards/budget alerts/hard cap hoạt động; portfolio capacity nằm trong envelope.
+- CI, local packaging và rollback/rebuild rehearsal thành công; runbooks/support ownership đầy đủ.
 - AC-SYS-01…18 có evidence và solo launch checklist hoàn tất; external Security/Legal/Operations sign-off được đính kèm nếu public/policy yêu cầu.
 
 ---
@@ -682,12 +685,12 @@ Nếu bất kỳ bước 1–8 fail, append terminal failure event/audit, giữ 
 |---|---|---|---|
 | Mỗi commit/local | Unit, type/lint, contract fast tests | Synthetic nhỏ | Vài phút |
 | Mỗi pull request | Unit + contract + dbt parse/compile + SQL policy + secret/dependency scan | Synthetic/CI isolated | Dưới khoảng 15–20 phút nếu khả thi |
-| Merge/main | Integration R2/Snowflake/ChromaDB test, DAG import/task tests, container build | Synthetic isolated env | Dưới khoảng 30–45 phút |
+| Merge/main | Integration R2/Snowflake/ChromaDB test, DAG import/task tests, container build | Synthetic data + isolated local resources | Dưới khoảng 30–45 phút |
 | Nightly | Replay/backfill, dbt build/test, AI fake/provider smoke, vector/serving smoke | Synthetic medium | Theo budget nightly |
-| Model/prompt/index change | Full enrichment/RAG regression + security corpus | Versioned golden sets | Gate trước staging promotion |
-| Staging release | `E2E-FIXTURE-001`, auth/RBAC, rollback/revoke, cold/warm serving | Production-like synthetic/approved data | Gate trước approval |
-| Pre-production | `E2E-SCALE-001`, load/cost/SLO, DR/legal-delete drill | Named approved release | Gate trước launch |
-| Production deploy | Migration check, smoke, pointer/version/freshness, synthetic queries | Safe synthetic probes | Tự động, ngắn |
+| Model/prompt/index change | Full enrichment/RAG regression + security corpus | Versioned golden sets | Gate trước khi ghi portfolio evidence mới |
+| Local portfolio release | `E2E-FIXTURE-001`, auth/RBAC, rollback/revoke, cold/warm serving, Compose smoke | Synthetic/approved local data | Gate trước video/screenshots |
+
+Staging/pre-production/production test lanes không được tạo trong current scope. Nếu public deployment được duyệt sau này, phải bổ sung environment design, test data policy và promotion gates bằng ADR/plan revision riêng.
 
 ### 17.1 Minimum test artifacts
 
@@ -704,23 +707,23 @@ Nếu bất kỳ bước 1–8 fail, append terminal failure event/audit, giữ 
 
 ---
 
-## 18. Environment promotion và change management
+## 18. Local release và change management
 
-### 18.1 Promotion flow
+### 18.1 Local portfolio release flow
 
 ```text
 Feature branch
 → PR checks
 → merge main
 → immutable artifact
-→ dev deployment + integration smoke
-→ staging migration/build + full gates
-→ manual approval
-→ production candidate deployment
-→ smoke
+→ Docker Compose local + integration smoke
+→ full synthetic fixture/evaluation gates
 → release activation
-→ monitor / rollback if needed
+→ video/screenshots + artifact digest
+→ monitor / rollback/rebuild nếu cần
 ```
+
+Flow này không provision staging hoặc production. Public deployment là future scope và cần một deployment ADR mới.
 
 ### 18.2 Thay đổi cần migration/evaluation riêng
 

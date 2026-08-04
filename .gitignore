@@ -4,6 +4,9 @@
 !.env.example
 *.pem
 *.key
+*.p8
+*.p8
+keys/
 
 # Source data and generated artifacts
 Yelp-JSON/
@@ -19,6 +22,7 @@ logs/
 
 # Python
 .venv/
+.uv-cache/
 __pycache__/
 *.py[cod]
 .pytest_cache/

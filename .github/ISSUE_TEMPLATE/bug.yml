@@ -1,0 +1,37 @@
+name: Bug report
+description: Report a reproducible ReviewLens defect without including restricted data.
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed behavior
+      description: Redact credentials, Yelp text and private identifiers.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Synthetic reproduction
+      description: Provide deterministic steps using synthetic fixtures.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: requirement
+    attributes:
+      label: Related requirement/test ID
+      placeholder: TC-M1-005 / CFG-001
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, real Yelp data, review text and embeddings.
+          required: true

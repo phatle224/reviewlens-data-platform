@@ -441,18 +441,18 @@ Với JSONL, physical record là nonblank line; malformed line vẫn có line/by
 
 ### 8.1 Quy ước object
 
-Mỗi environment dùng database riêng hoặc prefix tương đương:
+Portfolio MVP dùng một database Snowflake duy nhất cho local demo:
 
 ```text
-REVIEWLENS_<ENV>.BRONZE
-REVIEWLENS_<ENV>.SILVER
-REVIEWLENS_<ENV>.AI
-REVIEWLENS_<ENV>.GOLD
-REVIEWLENS_<ENV>.AUDIT
-REVIEWLENS_<ENV>.QUARANTINE
+REVIEWLENS.BRONZE
+REVIEWLENS.SILVER
+REVIEWLENS.AI
+REVIEWLENS.GOLD
+REVIEWLENS.AUDIT
+REVIEWLENS.QUARANTINE
 ```
 
-Tên warehouse, stage, storage integration và service account phải có environment suffix. Không dùng production credentials ở dev/test.
+Warehouse, stage, storage integration và service account có tên riêng theo chức năng và quyền tối thiểu. Không tạo suffix/profile `dev`, `staging` hoặc `prod` trong scope local hiện tại; nếu sau này public deployment được duyệt thì environment isolation phải được thiết kế bằng ADR/migration riêng trước khi provision.
 
 ### 8.2 Bronze — raw, immutable
 
@@ -958,7 +958,7 @@ Năm role trong sơ đồ là ví dụ rút gọn; PRD tách thêm AI writer, ve
 
 ### 10.4 License và compliance gate
 
-Chỉ được dùng synthetic fixtures trước khi có bằng chứng Security/Legal phê duyệt. Việc ingest dữ liệu Yelp thật vào dev/staging, gửi review thật tới LLM/embedding provider hoặc tạo vector thật cũng thuộc gate này, không chỉ production. Approval phải bao phủ:
+Chỉ được dùng synthetic fixtures trước khi có bằng chứng Security/Legal phê duyệt. Việc ingest dữ liệu Yelp thật vào bất kỳ managed service nào, gửi review thật tới LLM/embedding provider hoặc tạo vector thật cũng thuộc gate này, không chỉ public deployment. Approval phải bao phủ:
 
 - Quyền dùng dataset cho mục đích dự kiến.
 - Quyền lưu/transform/re-distribute review text và metadata.
@@ -1015,7 +1015,7 @@ SEC-003 test fixtures MUST seed tên, email, số điện thoại, địa chỉ,
 - Warehouse size, auto-suspend, cluster strategy và vector capacity được quyết định bằng benchmark, không hard-code trong business logic.
 - Hệ thống phải degrade có kiểm soát khi LLM/vector store unavailable: analytics không bị mất; AI feature báo unavailable/stale rõ ràng.
 
-Tại M0, owner MUST khóa capacity envelope dùng cho staging/load test: source release ID, compressed/uncompressed GB, row count từng dataset, max/p95 review length và token count, incremental/new/changed rows, concurrent users, dashboard/RAG/Text-to-SQL requests per second và selected warehouse/vector sizing. SLO chỉ được ký khi test chạy đúng hoặc cao hơn envelope này.
+Tại M0, owner MUST khóa capacity envelope dùng cho local portfolio/load test: source release ID, compressed/uncompressed GB, row count từng dataset, max/p95 review length và token count, incremental/new/changed rows, concurrent users, dashboard/RAG/Text-to-SQL requests per second và selected warehouse/vector sizing. SLO chỉ được ký khi test chạy đúng hoặc cao hơn envelope này.
 
 SLO được tính theo rolling 30 ngày, chỉ khi có tối thiểu sample size được owner chốt; planned maintenance được báo trước có thể tách riêng nhưng không được loại dependency cold start hoặc retry mà người dùng thật quan sát thấy.
 
@@ -1083,7 +1083,7 @@ GitHub Actions tối thiểu chạy:
 5. AI prompt/eval smoke test không chứa production data.
 6. Dependency/secret/container scan.
 7. Build và push immutable Docker image khi các gate pass.
-8. Deploy dev/staging; production cần approval và rollback reference.
+8. Build local-demo artifact và chạy synthetic smoke test; public deployment là future scope, cần approval và rollback reference riêng.
 
 Không merge/deploy khi critical unit, dbt, contract hoặc security test fail.
 
@@ -1143,13 +1143,14 @@ Mỗi error code phải chỉ rõ retryable/non-retryable, severity, owner, retr
 
 ---
 
-## 14. Configuration, environments và deployment
+## 14. Configuration và local deployment
 
-### 14.1 Environment
+### 14.1 Một môi trường local duy nhất
 
-- `dev`: sample/synthetic data, chi phí thấp, developer self-service.
-- `staging`: production-like topology, masked/approved data, full regression/evaluation.
-- `prod`: controlled access, approval, monitoring, backups và on-call.
+- Current scope chỉ có `local`: solo developer chạy local demo, quay video và chụp screenshots; không có staging, production hoặc public live URL.
+- Repo chỉ có một file versioned `config/config.toml`. File này chỉ chứa cấu hình không nhạy cảm và không có profile selector.
+- Credential, API key và password chỉ được nạp từ process environment hoặc `.env`; process environment ghi đè `.env`. `.env` bị Git ignore và `.env.example` chỉ chứa tên biến rỗng/hướng dẫn an toàn.
+- Nếu sau này cần public/staging/production, phải tạo ADR và migration riêng; không thêm trước các profile chưa sử dụng.
 
 Config versioned nhưng không chứa secret:
 
@@ -1167,15 +1168,13 @@ Config versioned nhưng không chứa secret:
 Pull request
 → GitHub Actions tests/security gates
 → Build & push immutable Docker image
-→ Deploy dev
-→ Integration + dbt + AI regression tests
-→ Deploy staging
-→ Approval
-→ Deploy Airflow/apps production
-→ Smoke test + monitor
+→ Chạy Docker Compose local với `config/config.toml` + `.env`
+→ Integration + dbt + AI regression tests bằng synthetic fixtures
+→ Local smoke test
+→ Quay video/chụp screenshots và lưu artifact digest
 ```
 
-Mọi production release phải có migration plan, backward compatibility assessment, artifact digest, rollback version và owner.
+Public/staging/production deployment không thuộc scope hiện tại. Nếu scope này được mở trong tương lai, release phải có migration plan, backward compatibility assessment, artifact digest, rollback version, owner và environment isolation trước khi triển khai.
 
 ### 14.3 Foundation và ranh giới công cụ
 
@@ -1215,10 +1214,10 @@ Infrastructure, IAM/RBAC, network, storage lifecycle, Snowflake objects và moni
 | NFR-002 | Đạt warm/cold end-to-end latency và availability SLO mục 11. | P0 | Load/synthetic monitoring report |
 | NFR-003 | Đạt core/AI RPO-RTO và controlled degradation. | P0 | Restore/rebuild/dependency-failure drill |
 | NFR-004 | Capacity envelope được khóa và scale test không vượt budget/SLO. | P0 | `E2E-SCALE-001` report |
-| CFG-001 | Dev/staging/prod có config, credentials, database/schema/warehouse/index tách biệt. | P0 | Environment isolation tests |
+| CFG-001 | Local demo dùng đúng một `config/config.toml` không chứa secret; credential chỉ đến từ process environment/`.env`, `.env` bị Git ignore và không có selector/profile dev-staging-prod. | P0 | Single-local config contract, `.env` precedence và secret-scan tests |
 | CFG-002 | Threshold/model/prompt/taxonomy/semantic catalog/index đều versioned và không hard-code. | P0 | Config validation + lineage tests |
 | DEP-001 | CI chạy gates mục 12.3 và tạo immutable/scanned artifact. | P0 | CI evidence + artifact digest |
-| DEP-002 | Staged deployment có migration, approval, smoke test và rollback. | P0 | Staging/prod deployment rehearsal |
+| DEP-002 | Local demo artifact có migration check, synthetic smoke test, digest và rollback/rebuild instruction; public deployment là future gated scope. | P0 | Local deployment rehearsal |
 | COMP-001 | License/external-transfer approval có trước mọi dữ liệu thật. | P0 gate | Approval artifact + synthetic-only enforcement |
 | COMP-002 | Retention, DLP, user telemetry privacy và deletion/restore suppression được thực thi. | P0 gate | Seeded-PII, lifecycle và legal-deletion drills |
 
@@ -1229,14 +1228,14 @@ Infrastructure, IAM/RBAC, network, storage lifecycle, Snowflake objects và moni
 | Milestone | Deliverable chính | Exit criteria |
 |---|---|---|
 | M0 — Product/Architecture decisions | Approved PRD, ADRs, source manifest/schema, metric dictionary, threat/license review, budget/SLO | Không còn open question P0 chặn DDL hoặc deployment |
-| M1 — Foundation | Repo structure, environments, CI, Docker, secrets/config, R2/Snowflake/ChromaDB baseline và RBAC | CI pass; R2→Snowflake connectivity và negative permission tests pass |
+| M1 — Foundation | Repo structure, single-local config, CI, Docker, secrets, R2/Snowflake/ChromaDB baseline và RBAC | CI pass; R2→Snowflake connectivity và negative permission tests pass |
 | M2 — Ingestion & Bronze | Validation, manifest, R2 source archive/Parquet, audit, quarantine, Bronze COPY | Full source batch load và replay không duplicate |
 | M3 — Silver & core Gold | dbt models/tests/docs, dimensions/facts/marts, KPI fixtures | Full/incremental equivalence; critical dbt tests pass |
 | M4 — AI enrichment | Structured output, batch/rate control, validation, errors, version/cost tracking | Golden enrichment set đạt threshold; retry/replay pass |
 | M5 — Embedding & RAG | OpenRouter embeddings, versioned ChromaDB collections, index sync, retrieval, chatbot/citations, RAG eval | Citation/groundedness/security targets pass |
 | M6 — Text-to-SQL | Semantic views/catalog, generation, AST guardrails, read-only execution, table/chart | Semantic/security eval và role tests pass |
 | M7 — Dashboard & integration | Streamlit pages, filters, freshness, DQ view, RAG/SQL tabs | Business UAT và reconciliation pass |
-| M8 — Production hardening | Airflow SLO/alerts, cost, backups, load/security tests, runbooks, deploy/rollback | Launch checklist, restore drill và owner sign-off |
+| M8 — Portfolio hardening | Airflow SLO/alerts, cost, backups, load/security tests, runbooks, local package/rollback | Portfolio evidence checklist, restore drill và owner sign-off; production là future scope |
 
 Mỗi milestone chỉ hoàn tất khi code, automated tests, monitoring, documentation, ownership và operational runbook tương ứng đều có đủ.
 
@@ -1248,8 +1247,8 @@ MVP được chấp nhận khi đồng thời đạt tất cả điều kiện s
 
 Hai gate end-to-end bắt buộc:
 
-- `E2E-FIXTURE-001`: deterministic fixture nhỏ chứa valid, malformed, duplicate, late-arriving, correction, deletion/tombstone, AI failure và adversarial question; chạy trong CI/staging.
-- `E2E-SCALE-001`: named full source release với byte/row/token/concurrency envelope đã khóa; chạy staging trước production.
+- `E2E-FIXTURE-001`: deterministic fixture nhỏ chứa valid, malformed, duplicate, late-arriving, correction, deletion/tombstone, AI failure và adversarial question; chạy trong CI/local runtime.
+- `E2E-SCALE-001`: named synthetic/approved local release với byte/row/token/concurrency envelope đã khóa; chạy trước khi ghi portfolio performance evidence.
 
 1. **AC-SYS-01** — Hai gate trên chạy từ source JSON/JSONL đến dashboard, RAG và Text-to-SQL theo phạm vi phù hợp.
 2. **AC-SYS-02** — Replay không tạo duplicate committed R2/Bronze/Silver/Gold/AI/ChromaDB effect. Operation đã commit không gọi provider lại; ambiguous crash call được ledger ghi nhận/costed.
@@ -1345,7 +1344,7 @@ Một feature chỉ được coi là Done khi:
 - Security/privacy/cost impact đã được xem xét.
 - Logs, metrics, alert và correlation IDs cần thiết đã có.
 - Documentation, owner và runbook được cập nhật.
-- Đã deploy/test trên staging và có rollback path.
+- Đã chạy/test bằng local Docker Compose và có rollback/rebuild path.
 - Không tạo open critical defect hoặc data discrepancy chưa giải thích.
 
 ---
@@ -1429,7 +1428,7 @@ PRD này yêu cầu các artifact sau trong quá trình implementation:
 - RAG và Text-to-SQL service contracts.
 - Streamlit UX spec/wireframe và analytics acceptance queries.
 - AI/security evaluation datasets và reports.
-- CI/CD pipeline, environment config examples, deployment/rollback guide.
+- CI pipeline, single-local `config.toml`/`.env.example`, local deployment/rollback guide.
 - Monitoring dashboards, alert catalog, data retention và incident runbooks.
 
 ## Phụ lục B — Điều kiện để bắt đầu implementation

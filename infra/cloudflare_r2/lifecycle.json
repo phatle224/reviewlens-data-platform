@@ -1,0 +1,17 @@
+{
+  "Rules": [
+    {
+      "ID": "expire-reviewlens-smoke-objects",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "manifests/_smoke/"
+      },
+      "Expiration": {
+        "Days": 1
+      },
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 7
+      }
+    }
+  ]
+}

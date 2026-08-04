@@ -1,0 +1,44 @@
+name: Implementation work item
+description: Propose a scoped implementation-plan task.
+title: "[IMP] "
+labels: ["implementation"]
+body:
+  - type: input
+    id: work_item
+    attributes:
+      label: Implementation item
+      description: Use the canonical ID from docs/IMPLEMENTATION_PLAN.md.
+      placeholder: IMP-M1-001
+    validations:
+      required: true
+  - type: input
+    id: requirements
+    attributes:
+      label: Requirement IDs
+      placeholder: CFG-001, SEC-001
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Verifiable outcome
+      description: Describe the artifact and evidence needed to close this item.
+    validations:
+      required: true
+  - type: dropdown
+    id: data_mode
+    attributes:
+      label: Data boundary
+      options:
+        - Synthetic only
+        - Real data local-only
+        - No data touched
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Planned tests
+      description: Include happy, failure and security/privacy paths.
+    validations:
+      required: true

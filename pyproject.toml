@@ -1,0 +1,77 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "reviewlens-data-platform"
+version = "0.1.0"
+description = "Synthetic-first foundation for the ReviewLens data platform."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "boto3>=1.40,<2",
+  "httpx>=0.28,<1",
+  "prometheus-client>=0.22,<1",
+  "pydantic>=2.11,<3",
+  "pydantic-settings>=2.10,<3",
+  "python-dotenv>=1.1,<2",
+  "snowflake-connector-python>=3.17,<4",
+  "structlog>=25.4,<26",
+]
+
+[project.optional-dependencies]
+app = ["streamlit>=1.48,<2"]
+vector = ["chromadb>=1.0,<2"]
+
+[project.scripts]
+reviewlens-config = "reviewlens.config:main"
+reviewlens-fixtures = "reviewlens.synthetic.generator:main"
+
+[dependency-groups]
+dev = [
+  "mypy>=1.17,<2",
+  "pip-audit>=2.9,<3",
+  "pytest>=8.4,<9",
+  "pytest-cov>=6.2,<7",
+  "ruff>=0.12,<1",
+]
+airflow = ["apache-airflow-task-sdk>=1.1,<2"]
+dbt = ["dbt-snowflake>=1.10,<2"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/reviewlens"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = [
+  "contract: static provider or infrastructure contract",
+  "live: requires explicit local credentials and may touch managed services",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "S", "RUF"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S105", "S106"]
+"tests/live/test_snowflake_live.py" = ["S608"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+files = ["src", "tests"]
+warn_unused_configs = true
+
+[tool.coverage.run]
+branch = true
+source = ["reviewlens"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true

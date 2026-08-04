@@ -27,6 +27,7 @@ Use this as a routing guide, not as a replacement for the live project documents
 - OpenRouter for chat and embeddings through application-side adapters.
 - Local persistent, versioned ChromaDB index.
 - Streamlit consumption layer.
+- One local runtime with versioned non-secret `config/config.toml`; credentials come only from process environment/ignored `.env`. No staging/production profiles in current scope.
 - Real Yelp data remains local while the Terms/approval gate is closed; cloud, external AI, CI, and public artifacts use synthetic fixtures.
 
 ## Phase order
