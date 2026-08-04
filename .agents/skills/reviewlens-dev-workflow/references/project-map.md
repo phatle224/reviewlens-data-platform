@@ -17,6 +17,9 @@ Use this as a routing guide, not as a replacement for the live project documents
 | Budget and SLO | `docs/phases/M0/M0_SLO_BUDGET.md` |
 | AI evaluation gates | `docs/phases/M0/M0_AI_EVALUATION_PLAN.md` |
 | RAG design advisory | `docs/reviewlens_rag_recommendation.md` — read before M5/AI work; PRD/ADR/evaluation gates take precedence |
+| R2 infrastructure contract | `infra/cloudflare_r2/README.md`, `infra/cloudflare_r2/lifecycle.json` |
+| Snowflake foundation contract | `infra/snowflake/README.md`, `infra/snowflake/001_foundation.sql` |
+| Managed provider adapters | `src/reviewlens/providers/`; offline fakes/contracts in `tests/test_*.py`, opt-in synthetic tests in `tests/live/` |
 
 ## Frozen baseline
 

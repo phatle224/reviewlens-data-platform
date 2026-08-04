@@ -70,8 +70,12 @@ FORCE = TRUE""",
         )
         assert rows == [("synthetic", str(object_id))]
     finally:
-        snowflake.suspend_warehouse(warehouse)
-        snowflake.close()
-        r2.delete(key)
+        try:
+            snowflake.suspend_warehouse(warehouse)
+        finally:
+            try:
+                snowflake.close()
+            finally:
+                r2.delete(key)
 
     assert not r2.exists(key)

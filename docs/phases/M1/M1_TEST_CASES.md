@@ -7,19 +7,19 @@
 | TC-M1-001 | Bootstrap | Lockfile và local Python environment reproducible | `uv sync --locked` thành công | `PASS` | `uv sync --locked --offline --cache-dir .uv-cache`: project built/installed successfully |
 | TC-M1-002 | Static | Ruff format/lint | Không lỗi | `PASS` | `ruff format --check src tests`; `ruff check src tests` |
 | TC-M1-003 | Static | Mypy strict | Không lỗi | `PASS` | `mypy src tests`: 0 issues |
-| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | Offline suite: 15 passed, 1 live skipped, 83.33% coverage |
+| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | Offline suite: 30 passed, 2 live skipped, 86.47% branch-aware coverage |
 | TC-M1-005 | Config | Single-local config + `.env` precedence/ignore | `config/config.toml` không có secret/profile selector; process env ghi đè `.env`; `.env` bị ignore | `PASS` | Unit tests pass; `git check-ignore -v .env` → `.gitignore:2` ; old-profile scan 0 match |
 | TC-M1-006 | Compliance | Real Yelp + managed provider | Config fail closed | `PASS` | `test_real_yelp_cannot_enable_managed_providers` pass |
 | TC-M1-007 | Security | Secret-safe config summary | Không lộ secret | `PASS` | Secret-field scan 0 match; safe-summary unit test pass |
 | TC-M1-008 | Fixture | Deterministic regenerate | File checksums giống nhau | `PASS` | `test_generator_is_deterministic` pass |
 | TC-M1-009 | Fixture | Synthetic source contract | 5 required JSONL + manifest, không Yelp payload | `PASS` | 3 fixture safety/contract tests pass |
-| TC-M1-010 | Adapter | Provider boundaries với fakes | Không hard-code secret/model | `PENDING` | R2 adapter/fake subset pass; các provider adapter khác chưa implement |
+| TC-M1-010 | Adapter | Provider boundaries với fakes | Không hard-code secret/model | `PENDING` | R2 + Snowflake adapter/fake/error-sanitization subsets pass; OpenRouter/Chroma/audit/clock còn lại |
 | TC-M1-011 | Logging | Seeded token/email/phone redaction | Log không chứa seeded values | `PENDING` | Chưa chạy |
 | TC-M1-012 | Metrics | Synthetic health metric | Prometheus sample quan sát được | `PENDING` | Chưa chạy |
 | TC-M1-013 | R2 contract | Bucket/prefix/private/lifecycle config | Static contract pass | `PASS` | Typed config + `infra/cloudflare_r2/lifecycle.json` + adapter contract tests pass |
 | TC-M1-014 | R2 live | Put/head/get/list/delete synthetic object + anonymous deny | Tất cả pass, object được cleanup | `PASS` | Bucket-scoped credential, checksum, list, anonymous/account denial và post-delete absence pass |
-| TC-M1-015 | Snowflake contract | DDL, X-SMALL/60s, monitor, stage | Static SQL contract pass | `PENDING` | Chưa chạy |
-| TC-M1-016 | Snowflake live | Account facts + R2 stage `LIST`/`COPY INTO` | Synthetic row load/reconcile pass | `DEFERRED` | Cần local Snowflake/R2 credentials |
+| TC-M1-015 | Snowflake contract | DDL, X-SMALL/60s, monitor, stage | Static SQL contract pass | `PASS` | `infra/snowflake/001_foundation.sql` + `tests/test_snowflake.py`: secret-free DDL, config match, SQL parser, S3-compatible stage và error sanitization pass |
+| TC-M1-016 | Snowflake live | Account facts + R2 stage `LIST`/`COPY INTO` | Synthetic row load/reconcile pass | `PASS` | Owner account facts documented; live test 1 pass: foundation deploy, exact-key `LIST`, one-row JSON `COPY INTO`/reconcile, R2 delete và warehouse suspend |
 | TC-M1-017 | RBAC | Static positive/negative grant matrix | Forbidden grants absent | `PENDING` | Chưa chạy |
 | TC-M1-018 | RBAC live | Service-role positive/negative queries | Least privilege pass | `DEFERRED` | Cần provisioned Snowflake roles |
 | TC-M1-019 | dbt | `dbt parse` Snowflake-only | Parse pass; không DuckDB profile | `PENDING` | Chưa chạy |
@@ -53,3 +53,15 @@
 - First anonymous R2 probe returned unsigned-request HTTP 400, which still denied payload; the contract was corrected to accept R2 denial codes `400/401/403/404` and require response payload mismatch.
 - Final live R2 test: 1 pass. The synthetic object was uploaded under `manifests/_smoke/`, checksum/retrieval/list verified, account-level bucket listing denied, anonymous payload denied, and object deleted/confirmed absent.
 - Lifecycle configuration is versioned but not applied with the application token because Cloudflare lifecycle administration requires broader bucket-level authority; owner application/verification remains pending.
+
+## Execution log — 2026-08-05
+
+### R2 owner gate and Snowflake foundation slice
+
+- Owner confirmed the R2 lifecycle rule is applied/enabled and moved the Snowflake private key outside the repository. Safe checks found zero private-key files in the workspace; `.env` remains ignored/untracked.
+- Added secret-free idempotent Snowflake foundation DDL for `REVIEWLENS`, six schemas, `REVIEWLENS_WH` at XSMALL/60-second auto-suspend, a 10-credit monthly monitor with 50/80/100% actions, and the JSONL file format.
+- Added a Snowflake adapter with key-pair bootstrap, safe identifier/path validation, sanitized errors, an SQL splitter that preserves semicolons in quoted literals, and R2 stage DDL rendered only in memory from `.env` credentials.
+- The first live attempt exposed the quoted-semicolon parser bug after the resource monitor step; cleanup ran, the parser was corrected and covered by a regression test. The retry passed in 16.63 seconds.
+- Final Snowflake live evidence: foundation deploy succeeded; R2 exact-key `LIST` returned the synthetic object; `COPY INTO` loaded one row and reconciled `data_class`/`object_id`; cleanup deleted the R2 object and suspended the warehouse.
+- Final offline gate: Ruff format/lint pass, mypy strict pass, pytest 30 pass + 2 explicitly skipped live tests, 86.47% branch-aware coverage; `uv lock --check` and locked offline sync pass.
+- OpenRouter was not called and no Yelp payload, review text or embedding was used.
