@@ -2,15 +2,22 @@
 
 from __future__ import annotations
 
+import json
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Protocol, cast
 from urllib.parse import urlparse
 
 import snowflake.connector
 
-from reviewlens.config import R2Config, SnowflakeConfig
+from reviewlens.config import (
+    IdentityConfig,
+    R2Config,
+    SnowflakeConfig,
+    SnowflakeServiceIdentityConfig,
+)
 
 
 class _SnowflakeCursor(Protocol):
@@ -148,6 +155,58 @@ class SnowflakeClient:
             raise SnowflakeProviderError("Snowflake bootstrap connection failed") from None
         return cls(cast(_SnowflakeConnection, connection))
 
+    @classmethod
+    def connect_service(
+        cls,
+        config: SnowflakeConfig,
+        identity: SnowflakeServiceIdentityConfig,
+        *,
+        credential_values: Mapping[str, str],
+    ) -> SnowflakeClient:
+        """Connect one runtime identity with its exact role and no secondary roles."""
+
+        if not config.account:
+            raise ValueError("Snowflake service access requires SNOWFLAKE_ACCOUNT")
+        private_key_path = credential_values.get(identity.private_key_path_env)
+        if not private_key_path:
+            raise ValueError(
+                f"Snowflake {identity.service.value} access requires "
+                f"{identity.private_key_path_env}"
+            )
+        kwargs: dict[str, Any] = {
+            "account": config.account,
+            "user": identity.user,
+            "authenticator": "SNOWFLAKE_JWT",
+            "private_key_file": private_key_path,
+            "database": config.database,
+            "warehouse": identity.warehouse,
+            "role": identity.role,
+            "autocommit": True,
+            "session_parameters": {
+                "QUERY_TAG": f"reviewlens:{identity.service.value}:runtime",
+                "STATEMENT_TIMEOUT_IN_SECONDS": 120,
+            },
+        }
+        passphrase = credential_values.get(identity.private_key_passphrase_env)
+        if passphrase:
+            kwargs["private_key_file_pwd"] = passphrase
+        try:
+            connection = snowflake.connector.connect(**kwargs)
+            client = cls(cast(_SnowflakeConnection, connection))
+            secondary_roles = client.query_all(
+                "SELECT CURRENT_SECONDARY_ROLES()",
+                operation="Snowflake service secondary-role verification",
+            )
+            secondary_role_state = json.loads(str(secondary_roles[0][0]))
+            if secondary_role_state.get("roles") or secondary_role_state.get("value"):
+                raise SnowflakeProviderError("Snowflake service secondary roles are active")
+        except Exception:
+            if "connection" in locals():
+                with suppress(Exception):
+                    connection.close()
+            raise SnowflakeProviderError("Snowflake service connection failed") from None
+        return client
+
     def close(self) -> None:
         self._connection.close()
 
@@ -210,6 +269,30 @@ class SnowflakeClient:
             secret_access_key=r2.secret_access_key.get_secret_value(),
         )
         self.execute(sensitive_statement, operation="sensitive R2 stage creation")
+
+    def create_or_replace_r2_runtime_stage(
+        self,
+        *,
+        snowflake: SnowflakeConfig,
+        r2: R2Config,
+        identities: IdentityConfig,
+        credential_values: Mapping[str, str],
+    ) -> None:
+        """Create the external stage with its dedicated read-only R2 identity."""
+
+        account_id = r2.account_id or credential_values.get("R2_ACCOUNT_ID")
+        access_key_id = credential_values.get(identities.r2_stage_access_key_env)
+        secret_access_key = credential_values.get(identities.r2_stage_secret_key_env)
+        if not account_id or not access_key_id or not secret_access_key:
+            raise ValueError("R2 runtime stage requires account ID and stage credentials")
+        sensitive_statement = render_r2_stage_sql(
+            database=snowflake.database,
+            bucket=r2.bucket,
+            endpoint=f"https://{account_id}.r2.cloudflarestorage.com",
+            access_key_id=access_key_id,
+            secret_access_key=secret_access_key,
+        )
+        self.execute(sensitive_statement, operation="sensitive R2 runtime stage creation")
 
     def list_stage_path(self, *, database: str, key: str) -> list[tuple[Any, ...]]:
         if not _STAGE_KEY.fullmatch(key) or ".." in key:

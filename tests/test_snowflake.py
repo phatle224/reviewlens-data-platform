@@ -177,6 +177,31 @@ def test_stage_creation_and_list_use_adapter_boundary() -> None:
     assert result == [("synthetic-result",)]
 
 
+def test_runtime_stage_uses_dedicated_read_only_credential_references() -> None:
+    settings = load_settings(environ={})
+    fake = FakeConnection()
+    client = SnowflakeClient(fake)
+
+    client.create_or_replace_r2_runtime_stage(
+        snowflake=settings.snowflake,
+        r2=settings.r2,
+        identities=settings.identities,
+        credential_values={
+            "R2_ACCOUNT_ID": "seeded-account",
+            "R2_STAGE_ACCESS_KEY_ID": "seeded-stage-access",
+            "R2_STAGE_SECRET_ACCESS_KEY": "seeded-stage-secret",
+            "R2_ACCESS_KEY_ID": "forbidden-bootstrap-access",
+            "R2_SECRET_ACCESS_KEY": "forbidden-bootstrap-secret",
+        },
+    )
+
+    statement = fake.statements[0]
+    assert "seeded-stage-access" in statement
+    assert "seeded-stage-secret" in statement
+    assert "forbidden-bootstrap-access" not in statement
+    assert "forbidden-bootstrap-secret" not in statement
+
+
 def test_bootstrap_connection_uses_key_pair_without_target_objects(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

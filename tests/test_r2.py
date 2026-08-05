@@ -6,9 +6,15 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+import pytest
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
-from reviewlens.providers.r2 import R2Client
+from reviewlens.config import load_settings
+from reviewlens.providers.r2 import (
+    R2AccessPolicyError,
+    R2Client,
+    R2RuntimePurpose,
+)
 
 
 class FakeS3Client:
@@ -103,3 +109,71 @@ def test_r2_lifecycle_contract_is_smoke_only() -> None:
             }
         ]
     }
+
+
+def test_r2_runtime_identities_use_dedicated_credentials_and_stage_is_read_only(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    settings = load_settings(environ={}, env_file=tmp_path / ".env")
+    credentials = {
+        "R2_ACCOUNT_ID": "seeded-account",
+        "R2_INGEST_ACCESS_KEY_ID": "seeded-ingest-access",
+        "R2_INGEST_SECRET_ACCESS_KEY": "seeded-ingest-secret",
+        "R2_STAGE_ACCESS_KEY_ID": "seeded-stage-access",
+        "R2_STAGE_SECRET_ACCESS_KEY": "seeded-stage-secret",
+    }
+    calls: list[dict[str, Any]] = []
+    fakes: list[FakeS3Client] = []
+
+    def fake_boto3_client(_service: str, **kwargs: Any) -> FakeS3Client:
+        calls.append(kwargs)
+        fake = FakeS3Client()
+        fakes.append(fake)
+        return fake
+
+    monkeypatch.setattr("reviewlens.providers.r2.boto3.client", fake_boto3_client)
+    ingestion = R2Client.from_runtime_identity(
+        settings.r2,
+        settings.identities,
+        R2RuntimePurpose.INGESTION,
+        credential_values=credentials,
+    )
+    stage = R2Client.from_runtime_identity(
+        settings.r2,
+        settings.identities,
+        R2RuntimePurpose.SNOWFLAKE_STAGE,
+        credential_values=credentials,
+    )
+
+    ingestion.put_bytes("manifests/_smoke/runtime.json", b"synthetic")
+    assert calls[0]["aws_access_key_id"] == "seeded-ingest-access"
+    assert calls[0]["aws_secret_access_key"] == "seeded-ingest-secret"
+    assert calls[1]["aws_access_key_id"] == "seeded-stage-access"
+    assert calls[1]["aws_secret_access_key"] == "seeded-stage-secret"
+    assert all(
+        call["endpoint_url"] == "https://seeded-account.r2.cloudflarestorage.com" for call in calls
+    )
+    with pytest.raises(R2AccessPolicyError, match="read-only"):
+        stage.put_bytes("manifests/_smoke/forbidden.json", b"synthetic")
+    with pytest.raises(R2AccessPolicyError, match="read-only"):
+        stage.delete("manifests/_smoke/forbidden.json")
+    assert not fakes[1].objects
+
+
+def test_r2_runtime_identity_missing_credentials_fails_without_value_leak(
+    tmp_path: Path,
+) -> None:
+    settings = load_settings(environ={}, env_file=tmp_path / ".env")
+    with pytest.raises(ValueError) as captured:
+        R2Client.from_runtime_identity(
+            settings.r2,
+            settings.identities,
+            R2RuntimePurpose.SNOWFLAKE_STAGE,
+            credential_values={"R2_ACCOUNT_ID": "seeded-account"},
+        )
+
+    message = str(captured.value)
+    assert "R2_STAGE_ACCESS_KEY_ID" in message
+    assert "R2_STAGE_SECRET_ACCESS_KEY" in message
+    assert "seeded-account" not in message

@@ -47,6 +47,7 @@ def test_safe_summary_never_exposes_secrets() -> None:
         "SNOWFLAKE_PRIVATE_KEY_PATH": "seeded-private-key-path",
         "SNOWFLAKE_PASSWORD": "seeded-password",
         "OPENROUTER_API_KEY": "sk-or-v1-seeded-secret",
+        "CHROMA_AUTH_TOKEN": "seeded-chroma-token",
         "APP_AUTH_TOKEN": "seeded-app-token",
     }
     text = str(load_settings(environ=environment).safe_summary())

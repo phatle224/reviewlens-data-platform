@@ -7,19 +7,19 @@
 | TC-M1-001 | Bootstrap | Lockfile và local Python environment reproducible | `uv sync --locked` thành công | `PASS` | `uv sync --locked --offline --cache-dir .uv-cache`: project built/installed successfully |
 | TC-M1-002 | Static | Ruff format/lint | Không lỗi | `PASS` | `ruff format --check src tests`; `ruff check src tests` |
 | TC-M1-003 | Static | Mypy strict | Không lỗi | `PASS` | `mypy src tests`: 0 issues |
-| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | Offline suite after Olist migration: 45 passed, 3 live skipped, 87.23% branch-aware coverage |
+| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | 91 passed, 5 expected live skips, 90.09% branch-aware coverage |
 | TC-M1-005 | Config | Single-local config + `.env` precedence/ignore | `config/config.toml` không có secret/profile selector; process env ghi đè `.env`; `.env` bị ignore | `PASS` | Unit tests pass; `git check-ignore -v .env` → `.gitignore:2` ; old-profile scan 0 match |
 | TC-M1-006 | Compliance | Olist source/license configuration | CC BY-NC-SA, NonCommercial, attribution và ShareAlike không thể bị làm yếu | `PASS` | Olist config contract + three weakened-license negative tests pass |
 | TC-M1-007 | Security | Secret-safe config summary | Không lộ secret | `PASS` | Secret-field scan 0 match; safe-summary unit test pass |
 | TC-M1-008 | Fixture | Deterministic regenerate | File checksums giống nhau | `PASS` | `test_generator_is_deterministic` pass |
 | TC-M1-009 | Fixture | Synthetic Olist source contract | 9 required CSVs + manifest, exact headers và valid relational FKs | `PASS` | Determinism/header/FK/source-directory/synthetic-content tests pass |
-| TC-M1-010 | Adapter | Provider boundaries với fakes | Không hard-code secret/model | `PENDING` | R2 + Snowflake adapter/fake/error-sanitization subsets pass; OpenRouter/Chroma/audit/clock còn lại |
+| TC-M1-010 | Adapter | Provider boundaries với fakes | Không hard-code secret/model; deterministic offline failures fail closed | `PASS` | R2/Snowflake/OpenRouter/Chroma/audit/clock adapter suites pass; configured models/secrets remain outside code and provider errors are sanitized |
 | TC-M1-011 | Logging | Seeded token/email/phone redaction | Log không chứa seeded values | `PENDING` | Chưa chạy |
 | TC-M1-012 | Metrics | Synthetic health metric | Prometheus sample quan sát được | `PENDING` | Chưa chạy |
 | TC-M1-013 | R2 contract | Bucket/prefix/private/lifecycle config | Static contract pass | `PASS` | Typed config + `infra/cloudflare_r2/lifecycle.json` + adapter contract tests pass |
 | TC-M1-014 | R2 live | Put/head/get/list/delete synthetic object + anonymous deny | Tất cả pass, object được cleanup | `PASS` | Bucket-scoped credential, checksum, list, anonymous/account denial và post-delete absence pass |
 | TC-M1-015 | Snowflake contract | DDL, X-SMALL/60s, monitor, stage | Static SQL contract pass | `PASS` | `infra/snowflake/001_foundation.sql` + `tests/test_snowflake.py`: secret-free DDL, config match, SQL parser, S3-compatible stage và error sanitization pass |
-| TC-M1-016 | Snowflake live | Account facts + R2 stage `LIST`/`COPY INTO` | Synthetic row load/reconcile pass | `PASS` | Owner account facts documented; live test 1 pass: foundation deploy, exact-key `LIST`, one-row JSON `COPY INTO`/reconcile, R2 delete và warehouse suspend |
+| TC-M1-016 | Snowflake live | Account facts + dedicated R2 stage `LIST`/`COPY INTO` | Synthetic row load/reconcile pass using ingest write + stage read-only identities | `PASS` | Live test 1 pass in 15.96s: ingest upload, runtime stage recreate, exact-key `LIST`, one-row JSON `COPY INTO`/reconcile, R2 delete và warehouse suspend |
 | TC-M1-017 | RBAC | Static positive/negative grant matrix | Forbidden grants absent | `PASS` | 7 contract tests: complete hierarchy, isolated SQL warehouse, ingest/transform boundaries, exact-only consumers, no PUBLIC/account/all-privilege/user grants |
 | TC-M1-018 | RBAC live | Service-role positive/negative queries | Least privilege pass | `PASS` | 1 live suite pass in 40.25s: 8 primary roles, `USE SECONDARY ROLES NONE`, allowed operations pass, 25 cross-layer/write probes denied, fixture cleanup and two-warehouse suspend |
 | TC-M1-019 | dbt | `dbt parse` Snowflake-only | Parse pass; không DuckDB profile | `PENDING` | Chưa chạy |
@@ -35,6 +35,16 @@
 | TC-M1-029 | Data leak | Git-visible files deny Olist CSV/review/vector artifacts | Policy scan pass | `PASS` | `archive/`, `.env` and source/vector artifacts ignored; Git-visible scan contains metadata/docs only |
 | TC-M1-030 | Status | Skill status validator | 0 errors/warnings | `PASS` | Validator: 0 errors, 0 warnings |
 | TC-M1-031 | Migration | Active source baseline is Olist end to end | Config/license, 9-table fixture, Snowflake CSV format, docs/status/diagram and attribution agree; no active Yelp contract | `PASS` | ADR-008, source manifest, attribution; full offline suite 45 pass/3 expected live skip; active-reference scan reviewed |
+| TC-M1-032 | Identity contract | Eight runtime services map one-to-one to dedicated Snowflake users and least-privilege roles | Exact inventory; no admin/owner role, duplicate user or shared key env | `PASS` | Typed config and negative validation tests pass |
+| TC-M1-033 | Credential safety | Readiness exposes booleans only and fails closed when runtime secrets are absent | No credential value appears in output; missing env remains not-ready | `PASS` | Seeded-secret and isolated-empty-env unit tests pass |
+| TC-M1-034 | Service connection | Snowflake runtime connector pins user/role/warehouse and key-pair auth | No password fallback; secondary roles verified empty/fail closed; provider errors sanitized | `PASS` | Connector fake, active-secondary-role negative, missing-key, provider and cleanup-error tests pass |
+| TC-M1-035 | Rotation runbook | Snowflake/R2/OpenRouter/Chroma/app initial setup, rotation and emergency revocation are actionable | Windows prerequisites, exact UI/PowerShell/SQL/`.env` mapping, verification, troubleshooting, cutover/revoke and owner gates documented | `PASS` | Guided runbook contract 12/12 pass; 12 PowerShell code blocks parse without syntax errors |
+| TC-M1-036 | Identity live | Service-user provisioning and named-key authentication are exact | Two DDL applies; 8 users enabled with active role-scoped keys; JWT sessions match user/role/warehouse/database and have no secondary roles | `PASS` | Live Snowflake suite: 1 pass in 70.33s; all eight runtime identities authenticated; warehouses suspended |
+| TC-M1-037 | Rotation live | Controlled named-key rotation/revocation smoke without admin fallback | New key succeeds with exact role; old key is denied after configured grace/revoke | `PENDING` | Initial keys are active; rotation changes live auth state and requires an explicit owner-approved maintenance step |
+| TC-M1-038 | R2 runtime identities live | Ingestion is write-scoped and Snowflake stage is read-only | Ingest put/read/delete passes; stage read/list passes and direct write is denied; account listing denied; cleanup succeeds | `PASS` | Dedicated R2 live suite: 1 pass in 5.22s using synthetic smoke object only |
+| TC-M1-039 | OpenRouter boundary | Only internal-control, synthetic or hash-verified DLP-approved text can cross the adapter; model/privacy route comes from policy/config | Restricted/hash-mismatched text is denied before HTTP; Bearer/model/payload shape and `data_collection=deny` are exact; errors leak no token/prompt/body | `PASS` | Deterministic `httpx.MockTransport` chat/embedding tests pass; no provider request left the process and no spend occurred |
+| TC-M1-040 | Chroma boundary | Every collection is index-versioned and every result remains pinned to Snowflake `AI.RAG_DOCUMENT` authority | Upsert contains embeddings/reference metadata but no document text; mismatched source/release/index and restricted records fail closed | `PASS` | In-memory Chroma backend tests cover versioning, token header, loopback-only connection, dimension/version validation and sanitized errors |
+| TC-M1-041 | Audit/clock boundary | Audit events are immutable, deterministic and secret-safe; clocks are aware UTC | Stable IDs/timestamps with fakes; sensitive metadata keys and unsafe names rejected | `PASS` | `InMemoryAuditSink`, `FrozenClock` and `SystemClock` unit tests pass |
 
 ## Execution log — 2026-08-04
 
@@ -86,3 +96,37 @@
 - Live suite provisioned the role hierarchy twice to verify idempotency, disabled secondary roles for each probe and exercised all eight service roles. Positive reads/writes passed; 25 forbidden cross-layer reads/writes were denied.
 - All RBAC fixture payloads were synthetic. Probe views/tables were dropped and both `REVIEWLENS_WH` and `REVIEWLENS_SQL_WH` were suspended during cleanup. No OpenRouter call was made.
 - Final offline gate: Ruff format/lint pass, mypy strict pass, pytest 37 pass + 3 explicitly skipped live tests, 86.53% branch-aware coverage; locked dependency checks and secret/private-key/restricted-data scans pass.
+
+### Dedicated service identity and rotation slice
+
+- Added a typed one-to-one inventory for eight runtime services, each with an exact Snowflake service user, role, warehouse and private-key environment reference. Admin/owner roles, duplicate users and shared key references fail configuration validation.
+- Added distinct environment references for R2 ingestion/stage credentials plus OpenRouter, Chroma and app tokens. Readiness output is boolean-only and remains fail-closed when values are absent.
+- Added key-pair-only Snowflake service connections that pin the declared user/role/warehouse, set a query tag and disable secondary roles; password fallback is not available and provider failures are sanitized.
+- Added secret-free idempotent `003_service_identities.sql`. The live suite applied it twice and verified all eight `TYPE=SERVICE` users have exact defaults and only the intended runtime role; users remain disabled until their public keys are registered.
+- Added `M1_CREDENTIAL_ROTATION.md` covering normal and emergency rotation/revocation for Snowflake named keys, the two scoped R2 credentials, OpenRouter, Chroma and app auth.
+- Final gate: Ruff format/lint pass, mypy strict pass, pytest 57 pass + 4 expected live skips, 88.83% branch-aware coverage; live identity suite 1 pass in 13.99s; lock check and locked offline sync pass. No warehouse data processing, R2 object operation or OpenRouter call occurred in this slice.
+
+### Credential guide usability revision
+
+- Replaced the terse rotation notes with a Vietnamese guided setup for Windows/PowerShell: current readiness, prerequisites, 8-key generation, Snowflake registration/fingerprint verification, exact `.env` mapping, two Cloudflare R2 token flows, Chroma token generation, readiness checks and troubleshooting.
+- Verified against current official Snowflake named-key, Cloudflare R2 token and OpenRouter rotation documentation. The focused runbook contract passed 12/12 and all 12 PowerShell code blocks parsed without syntax errors.
+- No credential was printed, changed or sent to a provider during this documentation-only revision.
+
+### Runtime credential activation and R2 boundary slice
+
+- Boolean readiness reports every runtime credential configured. The eight `.p8` paths initially appeared absent only inside the workspace sandbox; an approved filename/size-only check confirmed all 8 private and 8 public key files exist behind the intended Windows ACL.
+- Extended the Snowflake live identity suite from provisioning metadata to real JWT authentication for all eight service users. Named keys are active and role-scoped; current user/role/warehouse/database match typed config and `CURRENT_SECONDARY_ROLES()` reports no active/requested roles.
+- The first runtime attempt exposed Snowflake error `3107/42501`: role-restricted service sessions cannot execute the post-connect `USE SECONDARY ROLES NONE`. The adapter now verifies `CURRENT_SECONDARY_ROLES()` and fails closed if either role list/value is non-empty; direct JWT auth and the final 8-user live suite pass.
+- Added R2 runtime-purpose construction that reads the dedicated ingestion/stage environment references rather than bootstrap secrets. The stage adapter rejects mutating methods locally before a provider call.
+- Live R2 evidence proves the bucket-scoped ingestion credential can write/read/delete, the stage credential can read/list but Cloudflare denies a direct write, and both credentials are denied account bucket listing. The one synthetic object was removed.
+- Final R2→Snowflake integration re-created the external stage with dedicated `R2_STAGE_*` credentials and passed `LIST`/`COPY INTO`/reconciliation in 15.96s; ingestion cleanup and warehouse suspension passed.
+- Final offline gate: Ruff format/lint pass, mypy strict pass, pytest 61 pass + 5 expected live skips, 89.68% branch-aware coverage; lock check and locked offline sync pass. OpenRouter was not called and no Olist source data was accessed.
+
+### Remaining provider, audit and clock boundary slice
+
+- Added a typed OpenRouter adapter for configured enrichment/RAG/Text-to-SQL and embedding models. Every text carries an internal-control, synthetic or hash-verified DLP-approved transfer decision; restricted and hash-mismatched text is rejected before HTTP.
+- OpenRouter requests use Bearer authentication, the documented `/chat/completions` and `/embeddings` endpoints, non-streaming deterministic payloads and `provider.data_collection=deny`. Tests use `httpx.MockTransport`; no request reached OpenRouter and no cost was incurred. Contract references: [chat completion](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request), [embeddings](https://openrouter.ai/docs/api/api-reference/embeddings/create-embeddings).
+- Added a lazy-loaded local Chroma `HttpClient` boundary with loopback-only host and `x-chroma-token`. Collections use `reviewlens_rag_<index_version>`; upsert sends embeddings plus release/hash/policy metadata and intentionally omits document text because Snowflake `AI.RAG_DOCUMENT` is authoritative. Contract references: [Python client](https://docs.trychroma.com/reference/python/client), [collection upsert/query](https://docs.trychroma.com/reference/python/collection).
+- Chroma query validates source table, data release and index version before returning only `chunk_id + distance`; wrong authority metadata fails closed. All Chroma tests use an in-memory backend, so no local collection was created.
+- Added an audit sink protocol, immutable event contract, secret-key metadata denial, in-memory fake, UTC system clock and frozen test clock. The Snowflake audit ledger remains correctly scoped to dependent `IMP-M1-013`.
+- Focused suite: 30/30 pass. Full gate: Ruff format/lint pass, mypy strict pass, pytest 91 pass + 5 expected live skips, 90.09% branch-aware coverage; `uv lock --check` và locked offline sync pass. No OpenRouter call, Chroma write, managed-resource mutation or Olist source access occurred.

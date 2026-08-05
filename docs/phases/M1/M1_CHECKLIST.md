@@ -3,10 +3,10 @@
 | Thuộc tính | Giá trị |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 8/20 work items |
+| Completed | 9/20 work items |
 | Partial | 1/20 work items |
 | Blocked | 0/20 work items |
-| Not started | 11/20 work items |
+| Not started | 10/20 work items |
 | Last updated | 2026-08-05 |
 
 ## Checklist theo implementation plan
@@ -18,12 +18,12 @@
 | IMP-M1-003 | `DONE` | Một typed local config; `.env`/process-only secrets; không có staging/prod profiles | `config/config.toml`, `.env.example`, `src/reviewlens/config.py`; TC-M1-005…007 pass |
 | IMP-M1-004 | `DONE` | Deterministic nine-CSV relational Olist fixture generator/pack | `src/reviewlens/synthetic/generator.py`; exact headers, FK integrity and determinism tests pass |
 | IMP-M1-005 | `DONE` | Private R2 config, scoped token/lifecycle/public deny | Bucket-scoped live round trip, account-list denial, anonymous denial và cleanup pass; owner xác nhận lifecycle rule đã apply/enabled ngày 2026-08-05 |
-| IMP-M1-006 | `DONE` | Snowflake foundation, monitor và R2 external stage | Secret-free idempotent DDL + in-memory stage DDL; XSMALL/60s/10-credit monitor; live R2 `LIST`/`COPY INTO`/reconcile pass và warehouse cleanup suspend |
+| IMP-M1-006 | `DONE` | Snowflake foundation, monitor và R2 external stage | Secret-free idempotent DDL + in-memory stage DDL using dedicated `R2_STAGE_*` read-only identity; XSMALL/60s/10-credit monitor; live ingest-upload → stage `LIST`/`COPY INTO`/reconcile pass và warehouse cleanup suspend |
 | IMP-M1-007 | `DONE` | Least-privilege Snowflake/service roles | 9-role hierarchy dưới `SYSADMIN`, isolated `REVIEWLENS_SQL_WH`, container/exact-object grant boundary; static matrix và live 8-role positive/negative suite pass với secondary roles disabled |
-| IMP-M1-008 | `NOT_STARTED` | Credential boundaries và rotation skeleton | Chờ implementation |
+| IMP-M1-008 | `PARTIAL` | Credential boundaries và rotation skeleton | All runtime credentials ready; 8 named keys active, fingerprint/user/role/warehouse/database exact và live JWT auth pass; R2 ingest write/stage read-only live boundary pass. Còn controlled Snowflake rotation/revocation smoke để đóng item |
 | IMP-M1-009 | `NOT_STARTED` | Snowflake-only dbt scaffold | Chờ implementation |
 | IMP-M1-010 | `NOT_STARTED` | Airflow 3 DAG scaffold không có parse side effect | Chờ implementation |
-| IMP-M1-011 | `PARTIAL` | Provider adapters + fakes | R2 và Snowflake adapters + fake/error-sanitization tests pass; OpenRouter/Chroma/audit/clock adapters còn lại |
+| IMP-M1-011 | `DONE` | Provider adapters + fakes | R2/Snowflake/OpenRouter/Chroma/audit/clock typed boundaries và deterministic fakes pass; external AI chỉ nhận typed synthetic/DLP-approved text, Chroma chỉ giữ vector/reference metadata trỏ `AI.RAG_DOCUMENT`, provider errors được sanitize; không có paid/live AI call |
 | IMP-M1-012 | `NOT_STARTED` | Authenticated Streamlit shell + health/error state | Chờ implementation |
 | IMP-M1-013 | `NOT_STARTED` | Audit schema up/down/compatibility migrations | Chờ implementation |
 | IMP-M1-014 | `NOT_STARTED` | Structured logging, correlation và redaction | Chờ implementation |

@@ -29,6 +29,53 @@ class DataMode(StrEnum):
     OLIST = "olist"
 
 
+class ServiceName(StrEnum):
+    INGESTION = "ingestion"
+    TRANSFORM = "transform"
+    AI_ENRICH = "ai_enrich"
+    VECTOR_INDEX = "vector_index"
+    GOLD_BUILD = "gold_build"
+    ANALYTICS = "analytics"
+    TEXT_TO_SQL = "text_to_sql"
+    RAG = "rag"
+
+
+EXPECTED_SNOWFLAKE_IDENTITIES: dict[ServiceName, tuple[str, str, str]] = {
+    ServiceName.INGESTION: ("REVIEWLENS_INGEST_SVC", "INGEST_ROLE", "REVIEWLENS_WH"),
+    ServiceName.TRANSFORM: (
+        "REVIEWLENS_TRANSFORM_SVC",
+        "TRANSFORMER_ROLE",
+        "REVIEWLENS_WH",
+    ),
+    ServiceName.AI_ENRICH: (
+        "REVIEWLENS_AI_ENRICH_SVC",
+        "AI_ENRICH_ROLE",
+        "REVIEWLENS_WH",
+    ),
+    ServiceName.VECTOR_INDEX: (
+        "REVIEWLENS_VECTOR_INDEXER_SVC",
+        "VECTOR_INDEXER_ROLE",
+        "REVIEWLENS_WH",
+    ),
+    ServiceName.GOLD_BUILD: (
+        "REVIEWLENS_GOLD_BUILDER_SVC",
+        "GOLD_BUILDER_ROLE",
+        "REVIEWLENS_WH",
+    ),
+    ServiceName.ANALYTICS: (
+        "REVIEWLENS_ANALYTICS_SVC",
+        "ANALYST_ROLE",
+        "REVIEWLENS_WH",
+    ),
+    ServiceName.TEXT_TO_SQL: (
+        "REVIEWLENS_TEXT_TO_SQL_SVC",
+        "TEXT_TO_SQL_ROLE",
+        "REVIEWLENS_SQL_WH",
+    ),
+    ServiceName.RAG: ("REVIEWLENS_RAG_SVC", "RAG_ROLE", "REVIEWLENS_WH"),
+}
+
+
 class LicenseConfig(BaseModel, frozen=True, extra="forbid"):
     dataset: str
     provider: str
@@ -128,6 +175,7 @@ class ChromaConfig(BaseModel, frozen=True, extra="forbid"):
     port: int = Field(gt=0, lt=65536)
     persistence_path: str
     collection_prefix: str
+    auth_token: SecretStr | None = None
 
 
 class AppConfig(BaseModel, frozen=True, extra="forbid"):
@@ -135,6 +183,61 @@ class AppConfig(BaseModel, frozen=True, extra="forbid"):
     port: int = Field(gt=0, lt=65536)
     auth_required: bool
     auth_token: SecretStr | None = None
+
+
+class SnowflakeServiceIdentityConfig(BaseModel, frozen=True, extra="forbid"):
+    service: ServiceName
+    user: str = Field(pattern=r"^REVIEWLENS_[A-Z0-9_]+_SVC$")
+    role: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
+    warehouse: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
+    private_key_path_env: str = Field(pattern=r"^SNOWFLAKE_[A-Z0-9_]+_PRIVATE_KEY_PATH$")
+    private_key_passphrase_env: str = Field(
+        pattern=r"^SNOWFLAKE_[A-Z0-9_]+_PRIVATE_KEY_PASSPHRASE$"
+    )
+
+
+class IdentityConfig(BaseModel, frozen=True, extra="forbid"):
+    snowflake_key_pair_name: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
+    credential_max_age_days: int = Field(gt=0, le=90)
+    rotation_grace_hours: int = Field(ge=0, le=24)
+    snowflake_services: tuple[SnowflakeServiceIdentityConfig, ...]
+    r2_ingest_access_key_env: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
+    r2_ingest_secret_key_env: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
+    r2_stage_access_key_env: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
+    r2_stage_secret_key_env: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
+    openrouter_api_key_env: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
+    chroma_auth_token_env: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
+    app_auth_token_env: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
+
+    @model_validator(mode="after")
+    def validate_service_boundaries(self) -> IdentityConfig:
+        by_service = {identity.service: identity for identity in self.snowflake_services}
+        if set(by_service) != set(ServiceName):
+            raise ValueError("exactly one Snowflake identity is required for every service")
+        users = [identity.user for identity in self.snowflake_services]
+        path_envs = [identity.private_key_path_env for identity in self.snowflake_services]
+        passphrase_envs = [
+            identity.private_key_passphrase_env for identity in self.snowflake_services
+        ]
+        if len(users) != len(set(users)):
+            raise ValueError("Snowflake service users must be unique")
+        if len(path_envs) != len(set(path_envs)) or len(passphrase_envs) != len(
+            set(passphrase_envs)
+        ):
+            raise ValueError("Snowflake service credential environment names must be unique")
+        for service, expected in EXPECTED_SNOWFLAKE_IDENTITIES.items():
+            actual = by_service[service]
+            if (actual.user, actual.role, actual.warehouse) != expected:
+                raise ValueError(f"invalid least-privilege identity mapping for {service.value}")
+        r2_envs = {
+            self.r2_ingest_access_key_env,
+            self.r2_ingest_secret_key_env,
+            self.r2_stage_access_key_env,
+            self.r2_stage_secret_key_env,
+        }
+        if len(r2_envs) != 4:
+            raise ValueError("R2 ingestion and Snowflake stage credentials must be distinct")
+        return self
 
 
 class AppSettings(BaseModel, frozen=True, extra="forbid"):
@@ -147,6 +250,7 @@ class AppSettings(BaseModel, frozen=True, extra="forbid"):
     openrouter: OpenRouterConfig
     chroma: ChromaConfig
     app: AppConfig
+    identities: IdentityConfig
 
     @model_validator(mode="after")
     def validate_security_boundaries(self) -> AppSettings:
@@ -167,6 +271,7 @@ class AppSettings(BaseModel, frozen=True, extra="forbid"):
                 "r2": {"account_id", "access_key_id", "secret_access_key"},
                 "snowflake": {"account", "user", "private_key_path", "password"},
                 "openrouter": {"api_key"},
+                "chroma": {"auth_token"},
                 "app": {"auth_token"},
             },
         )
@@ -177,6 +282,7 @@ class AppSettings(BaseModel, frozen=True, extra="forbid"):
             self.snowflake.user and (self.snowflake.private_key_path or self.snowflake.password)
         )
         summary["openrouter"]["credentials_configured"] = self.openrouter.api_key is not None
+        summary["chroma"]["token_configured"] = self.chroma.auth_token is not None
         summary["app"]["token_configured"] = self.app.auth_token is not None
         return summary
 
@@ -190,12 +296,30 @@ ENV_OVERRIDES: dict[str, tuple[str, str]] = {
     "SNOWFLAKE_PRIVATE_KEY_PATH": ("snowflake", "private_key_path"),
     "SNOWFLAKE_PASSWORD": ("snowflake", "password"),
     "OPENROUTER_API_KEY": ("openrouter", "api_key"),
+    "CHROMA_AUTH_TOKEN": ("chroma", "auth_token"),
     "APP_AUTH_TOKEN": ("app", "auth_token"),
 }
 
 
 def project_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def load_environment_values(
+    *,
+    environ: Mapping[str, str] | None = None,
+    env_file: Path | None = None,
+) -> dict[str, str]:
+    """Load secret-bearing environment values; callers must never log the result."""
+
+    selected_env_file = env_file or project_root() / ".env"
+    file_values = {
+        key: value
+        for key, value in dotenv_values(selected_env_file).items()
+        if isinstance(value, str)
+    }
+    process_values = os.environ if environ is None else environ
+    return {**file_values, **process_values}
 
 
 def load_settings(
@@ -209,13 +333,7 @@ def load_settings(
     root = project_root()
     selected_config = config_path or root / "config" / "config.toml"
     selected_env_file = env_file or root / ".env"
-    file_values = {
-        key: value
-        for key, value in dotenv_values(selected_env_file).items()
-        if isinstance(value, str)
-    }
-    process_values = os.environ if environ is None else environ
-    source_env = {**file_values, **process_values}
+    source_env = load_environment_values(environ=environ, env_file=selected_env_file)
     with selected_config.open("rb") as handle:
         payload: dict[str, Any] = tomllib.load(handle)
     for env_name, (section, field_name) in ENV_OVERRIDES.items():

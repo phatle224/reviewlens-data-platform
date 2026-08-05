@@ -55,3 +55,79 @@ collection_prefix = "reviewlens"
 bind_host = "127.0.0.1"
 port = 8501
 auth_required = true
+
+[identities]
+snowflake_key_pair_name = "REVIEWLENS_RUNTIME"
+credential_max_age_days = 90
+rotation_grace_hours = 24
+r2_ingest_access_key_env = "R2_INGEST_ACCESS_KEY_ID"
+r2_ingest_secret_key_env = "R2_INGEST_SECRET_ACCESS_KEY"
+r2_stage_access_key_env = "R2_STAGE_ACCESS_KEY_ID"
+r2_stage_secret_key_env = "R2_STAGE_SECRET_ACCESS_KEY"
+openrouter_api_key_env = "OPENROUTER_API_KEY"
+chroma_auth_token_env = "CHROMA_AUTH_TOKEN"
+app_auth_token_env = "APP_AUTH_TOKEN"
+
+[[identities.snowflake_services]]
+service = "ingestion"
+user = "REVIEWLENS_INGEST_SVC"
+role = "INGEST_ROLE"
+warehouse = "REVIEWLENS_WH"
+private_key_path_env = "SNOWFLAKE_INGEST_PRIVATE_KEY_PATH"
+private_key_passphrase_env = "SNOWFLAKE_INGEST_PRIVATE_KEY_PASSPHRASE"
+
+[[identities.snowflake_services]]
+service = "transform"
+user = "REVIEWLENS_TRANSFORM_SVC"
+role = "TRANSFORMER_ROLE"
+warehouse = "REVIEWLENS_WH"
+private_key_path_env = "SNOWFLAKE_TRANSFORM_PRIVATE_KEY_PATH"
+private_key_passphrase_env = "SNOWFLAKE_TRANSFORM_PRIVATE_KEY_PASSPHRASE"
+
+[[identities.snowflake_services]]
+service = "ai_enrich"
+user = "REVIEWLENS_AI_ENRICH_SVC"
+role = "AI_ENRICH_ROLE"
+warehouse = "REVIEWLENS_WH"
+private_key_path_env = "SNOWFLAKE_AI_ENRICH_PRIVATE_KEY_PATH"
+private_key_passphrase_env = "SNOWFLAKE_AI_ENRICH_PRIVATE_KEY_PASSPHRASE"
+
+[[identities.snowflake_services]]
+service = "vector_index"
+user = "REVIEWLENS_VECTOR_INDEXER_SVC"
+role = "VECTOR_INDEXER_ROLE"
+warehouse = "REVIEWLENS_WH"
+private_key_path_env = "SNOWFLAKE_VECTOR_INDEXER_PRIVATE_KEY_PATH"
+private_key_passphrase_env = "SNOWFLAKE_VECTOR_INDEXER_PRIVATE_KEY_PASSPHRASE"
+
+[[identities.snowflake_services]]
+service = "gold_build"
+user = "REVIEWLENS_GOLD_BUILDER_SVC"
+role = "GOLD_BUILDER_ROLE"
+warehouse = "REVIEWLENS_WH"
+private_key_path_env = "SNOWFLAKE_GOLD_BUILDER_PRIVATE_KEY_PATH"
+private_key_passphrase_env = "SNOWFLAKE_GOLD_BUILDER_PRIVATE_KEY_PASSPHRASE"
+
+[[identities.snowflake_services]]
+service = "analytics"
+user = "REVIEWLENS_ANALYTICS_SVC"
+role = "ANALYST_ROLE"
+warehouse = "REVIEWLENS_WH"
+private_key_path_env = "SNOWFLAKE_ANALYTICS_PRIVATE_KEY_PATH"
+private_key_passphrase_env = "SNOWFLAKE_ANALYTICS_PRIVATE_KEY_PASSPHRASE"
+
+[[identities.snowflake_services]]
+service = "text_to_sql"
+user = "REVIEWLENS_TEXT_TO_SQL_SVC"
+role = "TEXT_TO_SQL_ROLE"
+warehouse = "REVIEWLENS_SQL_WH"
+private_key_path_env = "SNOWFLAKE_TEXT_TO_SQL_PRIVATE_KEY_PATH"
+private_key_passphrase_env = "SNOWFLAKE_TEXT_TO_SQL_PRIVATE_KEY_PASSPHRASE"
+
+[[identities.snowflake_services]]
+service = "rag"
+user = "REVIEWLENS_RAG_SVC"
+role = "RAG_ROLE"
+warehouse = "REVIEWLENS_WH"
+private_key_path_env = "SNOWFLAKE_RAG_PRIVATE_KEY_PATH"
+private_key_passphrase_env = "SNOWFLAKE_RAG_PRIVATE_KEY_PASSPHRASE"

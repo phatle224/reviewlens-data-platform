@@ -13,8 +13,9 @@ portfolio runtime. It creates:
   Brazilian e-commerce source contract.
 
 The R2 external stage is deliberately not stored as rendered SQL. The Python
-adapter builds `REVIEWLENS.BRONZE.R2_STAGE` in memory from local environment
-credentials and sends it directly to Snowflake. It uses the Snowflake
+adapter builds `REVIEWLENS.BRONZE.R2_STAGE` in memory from the dedicated
+read-only `R2_STAGE_*` environment credentials and sends it directly to
+Snowflake. It uses the Snowflake
 `s3compat://` contract, the Cloudflare R2 account endpoint, and
 `AUTO_REFRESH=FALSE`. Never paste or save the rendered statement.
 
@@ -75,3 +76,30 @@ only synthetic test objects, re-applies the role DDL to verify idempotency,
 checks allowed and denied operations, drops the probes and suspends both
 warehouses. The bootstrap connection uses `ACCOUNTADMIN` only to provision and
 test roles; no runtime credential is assigned an admin role.
+
+`003_service_identities.sql` creates eight dedicated `TYPE=SERVICE` users. New
+users are disabled by default, have empty default secondary roles and receive
+exactly one corresponding service role. Re-applying the file does not disable an
+already activated user. It contains no password, private/public key or rendered
+credential. Register the recommended role-restricted named key pair and perform
+rotation/revocation using the
+[M1 credential runbook](../../docs/runbooks/M1_CREDENTIAL_ROTATION.md).
+
+Run the static service-identity contract:
+
+```powershell
+.venv\Scripts\pytest.exe tests\test_service_identities.py -q
+```
+
+Run the opt-in named-key authentication suite:
+
+```powershell
+$env:REVIEWLENS_RUN_LIVE_SNOWFLAKE_IDENTITIES='1'
+.venv\Scripts\pytest.exe tests\live\test_snowflake_service_identities_live.py -q -rs -p no:cacheprovider
+```
+
+The suite verifies each named key is active and role-restricted, then logs in as
+all eight service users and checks the exact current user, primary role,
+warehouse and database. Runtime connection fails closed unless
+`CURRENT_SECONDARY_ROLES()` reports no active/requested secondary role. Both
+warehouses are suspended in cleanup.

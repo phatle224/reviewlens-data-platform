@@ -6,7 +6,8 @@ Mục tiêu M1 là tạo nền móng có thể bootstrap, test và chạy trong 
 |---|---|
 | [M1 checklist](./M1_CHECKLIST.md) | Trạng thái 20 implementation work items và evidence |
 | [M1 test cases](./M1_TEST_CASES.md) | Test matrix, command, result và live/deferred gates |
-| [Foundation runbook](../../runbooks/M1_FOUNDATION.md) | Bootstrap, local services, credentials, cost-stop và recovery |
+| Foundation runbook — planned in `IMP-M1-019` | Bootstrap, local services, credentials, cost-stop và recovery |
+| [Credential rotation runbook](../../runbooks/M1_CREDENTIAL_ROTATION.md) | Dedicated runtime identities, activation, rotation, revocation và recovery |
 | [Final entry inputs](../M0/M0_USER_INPUTS.md) | Deployment, budget, models, account và license facts |
 
 Phase status hiện tại: `IN_PROGRESS`.

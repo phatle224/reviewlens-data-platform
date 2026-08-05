@@ -7,8 +7,8 @@ from uuid import uuid4
 
 import pytest
 
-from reviewlens.config import DataMode, load_settings
-from reviewlens.providers.r2 import R2Client
+from reviewlens.config import DataMode, load_environment_values, load_settings
+from reviewlens.providers.r2 import R2Client, R2RuntimePurpose
 from reviewlens.providers.snowflake import SnowflakeClient
 
 pytestmark = pytest.mark.live
@@ -20,8 +20,14 @@ pytestmark = pytest.mark.live
 )
 def test_snowflake_foundation_and_r2_stage_copy_synthetic_row() -> None:
     settings = load_settings()
+    credentials = load_environment_values()
     assert settings.data_mode is DataMode.SYNTHETIC
-    r2 = R2Client.from_config(settings.r2)
+    r2 = R2Client.from_runtime_identity(
+        settings.r2,
+        settings.identities,
+        R2RuntimePurpose.INGESTION,
+        credential_values=credentials,
+    )
     snowflake = SnowflakeClient.connect_bootstrap(settings.snowflake)
     object_id = uuid4()
     key = f"manifests/_snowflake_smoke/{object_id}.json"
@@ -45,7 +51,12 @@ def test_snowflake_foundation_and_r2_stage_copy_synthetic_row() -> None:
             metadata={"data-class": "synthetic"},
         )
         snowflake.apply_foundation(Path("infra/snowflake/001_foundation.sql"))
-        snowflake.create_or_replace_r2_stage(snowflake=settings.snowflake, r2=settings.r2)
+        snowflake.create_or_replace_r2_runtime_stage(
+            snowflake=settings.snowflake,
+            r2=settings.r2,
+            identities=settings.identities,
+            credential_values=credentials,
+        )
 
         listed = snowflake.list_stage_path(database=database, key=key)
         assert len(listed) == 1
