@@ -1,0 +1,48 @@
+version: 2
+
+sources:
+  - name: bronze_olist
+    description: >-
+      Immutable Olist Bronze relations loaded by the ingestion service. M1 only
+      declares this interface; M2 owns creation, load and reconciliation.
+    database: REVIEWLENS
+    schema: BRONZE
+    loader: reviewlens_ingestion
+    config:
+      meta:
+        source_system: olist_brazilian_ecommerce
+        license: CC-BY-NC-SA-4.0
+        data_access: private
+        raw_payload_allowed_in_public_artifacts: false
+    tables:
+      - name: customers
+        identifier: BRZ_OLIST_CUSTOMERS_RAW
+        description: One immutable source customer row plus canonical lineage metadata.
+      - name: geolocation
+        identifier: BRZ_OLIST_GEOLOCATION_RAW
+        description: One immutable source geolocation occurrence plus canonical lineage metadata.
+      - name: order_items
+        identifier: BRZ_OLIST_ORDER_ITEMS_RAW
+        description: One immutable source order-item row plus canonical lineage metadata.
+      - name: order_payments
+        identifier: BRZ_OLIST_ORDER_PAYMENTS_RAW
+        description: One immutable source payment row plus canonical lineage metadata.
+      - name: order_reviews
+        identifier: BRZ_OLIST_ORDER_REVIEWS_RAW
+        description: One immutable restricted review row plus canonical lineage metadata.
+        config:
+          meta:
+            contains_restricted_ugc: true
+            external_ai_requires_dlp_projection: true
+      - name: orders
+        identifier: BRZ_OLIST_ORDERS_RAW
+        description: One immutable source order row plus canonical lineage metadata.
+      - name: products
+        identifier: BRZ_OLIST_PRODUCTS_RAW
+        description: One immutable source product row plus canonical lineage metadata.
+      - name: sellers
+        identifier: BRZ_OLIST_SELLERS_RAW
+        description: One immutable source seller row plus canonical lineage metadata.
+      - name: category_translation
+        identifier: BRZ_PRODUCT_CATEGORY_TRANSLATION_RAW
+        description: One immutable category-translation row plus canonical lineage metadata.

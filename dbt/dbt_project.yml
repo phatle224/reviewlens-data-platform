@@ -1,0 +1,27 @@
+name: reviewlens
+version: 1.0.0
+config-version: 2
+
+profile: reviewlens
+require-dbt-version: [">=1.10.0", "<2.0.0"]
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
+
+target-path: target
+clean-targets: ["target", "dbt_packages", "logs"]
+
+flags:
+  send_anonymous_usage_stats: false
+
+models:
+  reviewlens:
+    foundation:
+      +materialized: view
+      +contract:
+        enforced: true
+      +tags: ["m1_foundation", "synthetic_safe"]

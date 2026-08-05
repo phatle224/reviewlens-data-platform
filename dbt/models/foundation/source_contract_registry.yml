@@ -1,0 +1,48 @@
+version: 2
+
+models:
+  - name: source_contract_registry
+    description: >-
+      Metadata-only registry proving that the nine Olist source interfaces, files
+      and grains stay synchronized. It contains no Olist rows or review text.
+    config:
+      alias: DBT_SOURCE_CONTRACT_REGISTRY
+      contract:
+        enforced: true
+      meta:
+        data_class: synthetic_metadata
+        phase_owner: M1
+    columns:
+      - name: source_name
+        description: Stable dbt source table name.
+        data_type: varchar
+        data_tests:
+          - not_null
+          - unique
+      - name: relation_name
+        description: Exact immutable Bronze relation identifier.
+        data_type: varchar
+        data_tests:
+          - not_null
+          - unique
+      - name: source_file_name
+        description: Exact Olist source filename from the manifest contract.
+        data_type: varchar
+        data_tests:
+          - not_null
+          - unique
+      - name: expected_grain
+        description: Declared source grain; not an additive metric.
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: source_ordinal
+        description: Stable order from one through nine for deterministic evidence.
+        data_type: number(38, 0)
+        data_tests:
+          - not_null
+          - unique
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments:
+            combination_of_columns: [source_name, relation_name]

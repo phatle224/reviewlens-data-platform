@@ -7,7 +7,7 @@
 | TC-M1-001 | Bootstrap | Lockfile và local Python environment reproducible | `uv sync --locked` thành công | `PASS` | `uv sync --locked --offline --cache-dir .uv-cache`: project built/installed successfully |
 | TC-M1-002 | Static | Ruff format/lint | Không lỗi | `PASS` | `ruff format --check src tests`; `ruff check src tests` |
 | TC-M1-003 | Static | Mypy strict | Không lỗi | `PASS` | `mypy src tests`: 0 issues |
-| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | 91 passed, 5 expected live skips, 90.09% branch-aware coverage |
+| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | 99 passed, 5 expected live skips, 90.09% branch-aware coverage |
 | TC-M1-005 | Config | Single-local config + `.env` precedence/ignore | `config/config.toml` không có secret/profile selector; process env ghi đè `.env`; `.env` bị ignore | `PASS` | Unit tests pass; `git check-ignore -v .env` → `.gitignore:2` ; old-profile scan 0 match |
 | TC-M1-006 | Compliance | Olist source/license configuration | CC BY-NC-SA, NonCommercial, attribution và ShareAlike không thể bị làm yếu | `PASS` | Olist config contract + three weakened-license negative tests pass |
 | TC-M1-007 | Security | Secret-safe config summary | Không lộ secret | `PASS` | Secret-field scan 0 match; safe-summary unit test pass |
@@ -22,8 +22,8 @@
 | TC-M1-016 | Snowflake live | Account facts + dedicated R2 stage `LIST`/`COPY INTO` | Synthetic row load/reconcile pass using ingest write + stage read-only identities | `PASS` | Live test 1 pass in 15.96s: ingest upload, runtime stage recreate, exact-key `LIST`, one-row JSON `COPY INTO`/reconcile, R2 delete và warehouse suspend |
 | TC-M1-017 | RBAC | Static positive/negative grant matrix | Forbidden grants absent | `PASS` | 7 contract tests: complete hierarchy, isolated SQL warehouse, ingest/transform boundaries, exact-only consumers, no PUBLIC/account/all-privilege/user grants |
 | TC-M1-018 | RBAC live | Service-role positive/negative queries | Least privilege pass | `PASS` | 1 live suite pass in 40.25s: 8 primary roles, `USE SECONDARY ROLES NONE`, allowed operations pass, 25 cross-layer/write probes denied, fixture cleanup and two-warehouse suspend |
-| TC-M1-019 | dbt | `dbt parse` Snowflake-only | Parse pass; không DuckDB profile | `PENDING` | Chưa chạy |
-| TC-M1-020 | Airflow | DAG import/task graph | Import không side effect; expected task IDs | `PENDING` | Chưa chạy |
+| TC-M1-019 | dbt | Snowflake-only `dbt parse/compile` | Nine Olist sources, model contract and tests parse; compile pass without introspection; no DuckDB/multi-env/password fallback | `PASS` | dbt-core 1.12.0 + dbt-snowflake 1.10.5: parse and selected compile pass with `--warn-error`, synthetic placeholder credentials and no provider connection; manifest contract pytest 3/3 pass |
+| TC-M1-020 | Airflow | DAG import/task graph | Import không side effect; expected task IDs | `PASS` | 5 contract tests: real `airflow.sdk` DAG import in isolated subprocess, exact 11-task/10-edge graph, manual/single-run policy, per-task retry/timeout/pool, pool manifest and static provider/credential-access denial; no service or provider call |
 | TC-M1-021 | App | Anonymous/authenticated shell behavior | Anonymous denied; valid token allowed | `PENDING` | Chưa chạy |
 | TC-M1-022 | Audit | Migration up/down/static compatibility | Required schemas/tables, dev-only down guard | `PENDING` | Chưa chạy |
 | TC-M1-023 | CI | Workflow required gates | Static workflow contract pass | `PENDING` | Chưa chạy |
@@ -130,3 +130,22 @@
 - Chroma query validates source table, data release and index version before returning only `chunk_id + distance`; wrong authority metadata fails closed. All Chroma tests use an in-memory backend, so no local collection was created.
 - Added an audit sink protocol, immutable event contract, secret-key metadata denial, in-memory fake, UTC system clock and frozen test clock. The Snowflake audit ledger remains correctly scoped to dependent `IMP-M1-013`.
 - Focused suite: 30/30 pass. Full gate: Ruff format/lint pass, mypy strict pass, pytest 91 pass + 5 expected live skips, 90.09% branch-aware coverage; `uv lock --check` và locked offline sync pass. No OpenRouter call, Chroma write, managed-resource mutation or Olist source access occurred.
+
+### Snowflake-only dbt foundation slice
+
+- Added a single-local dbt Core project under `dbt/` with one `local` Snowflake target. The profile pins `REVIEWLENS_TRANSFORM_SVC`, `TRANSFORMER_ROLE`, `REVIEWLENS_WH`, `REVIEWLENS.SILVER` and key-pair environment references; it has no password, admin role, DuckDB adapter, staging or production target.
+- Declared all nine exact immutable Bronze source identifiers and privacy/license metadata. Review source metadata explicitly records restricted UGC and DLP-before-external-AI policy.
+- Added a metadata-only `DBT_SOURCE_CONTRACT_REGISTRY` view contract for the nine filenames, relations and grains, plus a reusable compound-uniqueness generic test and M1 selector. It contains no Olist rows or review text; M2 still owns Bronze creation/load and M3 owns conformed models.
+- `dbt parse` is the offline project/YAML/Jinja gate per [dbt command documentation](https://docs.getdbt.com/reference/commands/parse). Selected `dbt compile --no-introspect --no-populate-cache` follows the documented introspection controls and compiled successfully with placeholder account/key values, proving that this slice did not connect to Snowflake ([compile documentation](https://docs.getdbt.com/reference/commands/compile)).
+- dbt focused evidence: 3/3 pytest contracts pass; parse and compile find 1 contracted model, 10 data tests and 9 sources with warnings promoted to errors. Full gate: Ruff format/lint, mypy strict, 94 pytest pass + 5 expected live skips, 90.09% branch-aware coverage, uv lock check and locked offline dbt-group sync pass.
+- No warehouse was resumed, no Snowflake/R2/OpenRouter/Chroma operation ran, and no Olist source data was read.
+
+### Airflow 3 orchestration scaffold slice
+
+- Added the public `airflow.sdk` `olist_pipeline` DAG with the stable 11-task path from source validation through R2/Bronze, dbt Silver, enrichment, embeddings, dbt Gold and publish. It is manual-only, fixed-start, non-catchup and limited to one active run.
+- Every task has an explicit one-slot resource pool, one or two retries with five-minute delay, and a 10-60 minute execution timeout. The `reviewlens_ai` pool serializes paid OpenRouter work; all four one-slot pools are versioned in `airflow/pools.json` but are not created as an import side effect.
+- Task bodies intentionally fail closed in M1. An accidental trigger stops before reading credentials, accessing Olist data, changing managed resources or spending OpenRouter budget; M2-M5 replace guards only with their owning tested implementations.
+- The real DAG imports in an isolated subprocess with network connect and dotenv access blocked. Tests assert the exact 11 tasks/10 edges, retry/timeout/pool policies, manual/single-run controls, pool manifest and a static allowlist of import-safe modules.
+- Native Windows is not an Airflow runtime target; the import-only test adds the missing POSIX fork hook inside its isolated process. The supported local runtime remains the Linux Compose service planned by `IMP-M1-016`.
+- Focused Airflow suite: 5/5 pass. Full gate: Ruff format/lint plus Airflow 3 rules pass, mypy strict pass, pytest 99 pass + 5 expected live skips, 90.09% branch-aware coverage; uv lock check, locked offline Airflow+dbt sync and dbt warnings-as-errors parse/compile pass.
+- No `.env` value was exposed, no live service/provider was called, no warehouse was resumed, no object was uploaded and no Olist source row was read.

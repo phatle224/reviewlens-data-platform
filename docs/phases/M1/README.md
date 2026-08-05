@@ -8,6 +8,8 @@ Mục tiêu M1 là tạo nền móng có thể bootstrap, test và chạy trong 
 | [M1 test cases](./M1_TEST_CASES.md) | Test matrix, command, result và live/deferred gates |
 | Foundation runbook — planned in `IMP-M1-019` | Bootstrap, local services, credentials, cost-stop và recovery |
 | [Credential rotation runbook](../../runbooks/M1_CREDENTIAL_ROTATION.md) | Dedicated runtime identities, activation, rotation, revocation và recovery |
+| [dbt foundation](../../../dbt/README.md) | Snowflake-only single-local profile, nine Bronze sources, contracts, macros và verification commands |
+| [Airflow scaffold](../../../airflow/README.md) | Airflow 3 `olist_pipeline`, fail-closed task graph, resource pools và offline verification |
 | [Final entry inputs](../M0/M0_USER_INPUTS.md) | Deployment, budget, models, account và license facts |
 
 Phase status hiện tại: `IN_PROGRESS`.

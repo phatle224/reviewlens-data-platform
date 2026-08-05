@@ -1,0 +1,23 @@
+{
+  "reviewlens_ai": {
+    "slots": 1,
+    "description": "Serializes paid OpenRouter enrichment and embedding work.",
+    "include_deferred": false
+  },
+  "reviewlens_control": {
+    "slots": 1,
+    "description": "Runs validation and publish gates without provider fan-out.",
+    "include_deferred": false
+  },
+  "reviewlens_r2": {
+    "slots": 1,
+    "description": "Limits private Cloudflare R2 source transfer concurrency.",
+    "include_deferred": false
+  },
+  "reviewlens_snowflake": {
+    "slots": 1,
+    "description": "Prevents concurrent portfolio workloads from resuming Snowflake compute.",
+    "include_deferred": false
+  }
+}
+

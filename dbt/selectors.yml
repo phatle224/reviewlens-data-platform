@@ -1,0 +1,9 @@
+selectors:
+  - name: m1_foundation
+    description: Parse/compile-safe M1 dbt foundation without business-data execution.
+    definition:
+      union:
+        - method: tag
+          value: m1_foundation
+        - method: source
+          value: bronze_olist
