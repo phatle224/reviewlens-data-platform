@@ -1,0 +1,33 @@
+-- DESTRUCTIVE local-only rollback for IMP-M1-013.
+-- Applying this file without both exact session variables fails before any DROP:
+--   SET REVIEWLENS_RUNTIME = 'local';
+--   SET REVIEWLENS_AUDIT_DOWN_CONFIRMATION = 'DROP_REVIEWLENS_AUDIT_LEDGERS';
+-- Run the EXECUTE IMMEDIATE block as one statement; do not use the simple SQL splitter.
+
+EXECUTE IMMEDIATE $$
+DECLARE
+  destructive_down_denied EXCEPTION (
+    -20013,
+    'Audit rollback denied: require local runtime and exact destructive confirmation'
+  );
+  runtime_name VARCHAR DEFAULT GETVARIABLE('REVIEWLENS_RUNTIME');
+  confirmation VARCHAR DEFAULT GETVARIABLE('REVIEWLENS_AUDIT_DOWN_CONFIRMATION');
+BEGIN
+  IF (
+    COALESCE(runtime_name, '') <> 'local'
+    OR COALESCE(confirmation, '') <> 'DROP_REVIEWLENS_AUDIT_LEDGERS'
+  ) THEN
+    RAISE destructive_down_denied;
+  END IF;
+
+  DROP VIEW IF EXISTS REVIEWLENS.AUDIT.SCHEMA_COMPATIBILITY;
+  DROP TABLE IF EXISTS REVIEWLENS.AUDIT.AI_INVOCATION_EVENT;
+  DROP TABLE IF EXISTS REVIEWLENS.AUDIT.ACTIVE_RELEASE_POINTER;
+  DROP TABLE IF EXISTS REVIEWLENS.AUDIT.RELEASE_EVENT;
+  DROP TABLE IF EXISTS REVIEWLENS.AUDIT.PROCESS_EVENT;
+  DROP TABLE IF EXISTS REVIEWLENS.AUDIT.SOURCE_FILE_EVENT;
+  DROP TABLE IF EXISTS REVIEWLENS.AUDIT.INGESTION_EVENT;
+
+  RETURN 'Dropped ReviewLens local audit ledgers';
+END;
+$$;

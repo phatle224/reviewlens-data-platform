@@ -8,9 +8,9 @@
 |---|---|
 | Trạng thái tổng thể | `ON_TRACK` |
 | Phase hiện tại | `M1` — Foundation and developer platform |
-| Trạng thái phase hiện tại | `IN_PROGRESS` — 11 done, 1 partial, 8 not started |
+| Trạng thái phase hiện tại | `IN_PROGRESS` — 12 done, 1 partial, 7 not started |
 | Phase gần nhất hoàn tất | `M0` — 19/19 work items, re-baselined for Olist |
-| Cập nhật lần cuối | 2026-08-05 |
+| Cập nhật lần cuối | 2026-08-06 |
 | Người thực hiện | Solo Developer |
 | Active source | Olist Brazilian E-Commerce dataset — nine relational CSVs, CC BY-NC-SA 4.0 |
 | Data policy hiện hành | Raw CSV/review/row-level/embedding artifacts outside Git; private R2/Snowflake after manifest/privacy gate; external AI only after DLP/minimization; public evidence synthetic/aggregate/redacted |
@@ -21,7 +21,7 @@
 | Phase | Trạng thái | Tóm tắt | Evidence |
 |---|---|---|---|
 | M0 | `COMPLETE` | Olist product/data/license/security/architecture baseline | [Checklist](./phases/M0/M0_CHECKLIST.md) · [Tests](./phases/M0/M0_TEST_CASES.md) |
-| M1 | `IN_PROGRESS` | Config, Olist fixtures, R2/Snowflake/RBAC identities, provider/dbt boundaries and Airflow 3 orchestration scaffold | [Overview](./phases/M1/README.md) · [Checklist](./phases/M1/M1_CHECKLIST.md) · [Tests](./phases/M1/M1_TEST_CASES.md) |
+| M1 | `IN_PROGRESS` | Config, identities, provider/dbt/Airflow boundaries and versioned Snowflake audit ledgers | [Overview](./phases/M1/README.md) · [Checklist](./phases/M1/M1_CHECKLIST.md) · [Tests](./phases/M1/M1_TEST_CASES.md) |
 | M2 | `NOT_STARTED` | Nine-file Olist ingestion, R2 and Bronze | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M3 | `NOT_STARTED` | Conformed Silver, Gold and atomic release | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M4 | `NOT_STARTED` | DLP-approved review enrichment | [Plan](./IMPLEMENTATION_PLAN.md) |
@@ -34,19 +34,19 @@ Milestone completion: **1/9**. Đây là số gate đã đóng, không phải ph
 
 ## Kết quả phiên gần nhất
 
-- Hoàn tất `IMP-M1-010`: Airflow 3 public SDK `olist_pipeline` scaffold có 11 task/10 dependency edges, manual schedule, fixed start, non-catchup và tối đa một active run.
-- Mọi task có retry, timeout và one-slot pool; paid AI chỉ chạy tuần tự. Pool manifest được version nhưng không tự mutate Airflow metadata khi import.
-- M1 task bodies fail closed: accidental trigger dừng trước credential/provider/data/cost side effect. M2-M5 sẽ thay từng guard theo dependency và gate riêng.
-- Real DAG import, exact graph/policy, no-network/no-dotenv và static safe-import contracts pass 5/5 trong isolated subprocess; native Windows không được dùng làm Airflow runtime, Linux Compose vẫn thuộc `IMP-M1-016`.
-- dbt foundation và provider/RBAC/credential evidence từ các phiên trước vẫn xanh; controlled rotation/revocation là phần `IMP-M1-008` duy nhất còn partial.
-- Full offline gate: 99 pass, 5 expected live skips, 90.09% coverage; Ruff + Airflow 3 rules, mypy, dbt warnings-as-errors, lock check và locked offline Airflow+dbt sync pass.
+- Hoàn tất `IMP-M1-013`: DDL-only Snowflake migration tạo versioned ingestion/file/process/release/AI ledgers, guarded active pointer và constant compatibility view.
+- Exact grants cho phép producer chỉ `SELECT, INSERT`; không event update/delete/truncate, không future-table grant và chưa có pointer writer trước guarded release procedure ở M3.
+- AI ledger chỉ lưu hashes/version/token/cost/latency/sanitized error code; không raw payload, review/prompt/response text hoặc credential field.
+- Local-only down migration cần đúng hai session guards và raise trước mọi DROP; deterministic up plan replay hai lần qua adapter pass.
+- Không apply live vì acceptance hiện là static migration compatibility và up migration không cần compute; provider/RBAC/Airflow/dbt evidence trước vẫn xanh.
+- Full offline gate: 107 pass, 5 expected live skips, 90.09% coverage; Ruff + Airflow 3 rules, mypy, dbt warnings-as-errors, lock check và locked offline Airflow+dbt sync pass.
 
 ## Kiểm thử
 
 | Phạm vi | Kết quả | Chi tiết |
 |---|---|---|
 | M0 | 18 `PASS`, 3 `DEFERRED`, 0 `FAIL` | [M0 test cases](./phases/M0/M0_TEST_CASES.md) |
-| M1 | 30 `PASS`, 11 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 99 pass/5 live skip; Airflow DAG + dbt parse/compile plus provider, synthetic R2, dedicated stage/RBAC and 8-key JWT live evidence |
+| M1 | 31 `PASS`, 10 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 107 pass/5 live skip; audit migration + Airflow DAG + dbt parse/compile plus provider, R2/stage/RBAC and JWT live evidence |
 | Quality | `PASS` | Ruff format/lint + Airflow 3 rules, mypy strict, dbt warnings-as-errors, 90.09% branch-aware coverage, uv lock check và locked offline Airflow+dbt sync |
 | Status validator | `PASS` — 0 errors, 0 warnings | M0: 19 done/21 tests; M1: 20 work items/41 tests synchronized |
 
@@ -64,7 +64,7 @@ Milestone completion: **1/9**. Đây là số gate đã đóng, không phải ph
 | Dịch vụ | Budget/gate hiện tại | Usage đã xác minh |
 |---|---|---|
 | OpenRouter | 5 USD/project; warning 0.50 USD/day | Không gọi trong phiên migration; 0 USD phát sinh từ code path project |
-| Snowflake | ≤10 credits/month; X-Small, auto-suspend 60s | Airflow tests không gọi provider; dbt parse/compile dùng placeholder/no-introspect; prior 8 JWT sessions pass; warehouses remain suspended |
+| Snowflake | ≤10 credits/month; X-Small, auto-suspend 60s | Audit migration tests offline; up artifact is DDL-only/no warehouse; dbt placeholder compile and prior JWT evidence remain pass |
 | Cloudflare R2 | Standard; target ≤15 GB; private/lifecycle | Dedicated ingest/stage synthetic live pass; smoke object cleaned up; không upload Olist |
 | ChromaDB | ≤5 GB local | Typed/in-memory adapter tests only; chưa provision/index và 0 byte project data được ghi |
 
@@ -77,9 +77,9 @@ rotation/revocation smoke vì bước này chủ động thay đổi live authen
 
 ## Việc tiếp theo
 
-1. `IMP-M1-013`: audit schema migrations, rồi `IMP-M1-014` structured logging/redaction.
+1. `IMP-M1-014`: structured logging, trace/correlation IDs và seeded secret/PII/review-text redaction tests.
 2. `IMP-M1-012`: authenticated loopback-only Streamlit shell and health/error states.
-3. `IMP-M1-015`: CI quality/security/data-leak gates sau khi audit/logging/app shell có contract ổn định.
+3. `IMP-M1-015`: CI quality/security/data-leak gates sau khi logging/app shell có contract ổn định.
 4. Khi owner xác nhận maintenance window: chạy controlled key rotation/revocation smoke để đóng `IMP-M1-008`.
 5. Chỉ bắt đầu real Olist upload ở M2 sau machine-readable contract/manifest/privacy preflight.
 

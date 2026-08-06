@@ -7,7 +7,7 @@
 | TC-M1-001 | Bootstrap | Lockfile và local Python environment reproducible | `uv sync --locked` thành công | `PASS` | `uv sync --locked --offline --cache-dir .uv-cache`: project built/installed successfully |
 | TC-M1-002 | Static | Ruff format/lint | Không lỗi | `PASS` | `ruff format --check src tests`; `ruff check src tests` |
 | TC-M1-003 | Static | Mypy strict | Không lỗi | `PASS` | `mypy src tests`: 0 issues |
-| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | 99 passed, 5 expected live skips, 90.09% branch-aware coverage |
+| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | 107 passed, 5 expected live skips, 90.09% branch-aware coverage |
 | TC-M1-005 | Config | Single-local config + `.env` precedence/ignore | `config/config.toml` không có secret/profile selector; process env ghi đè `.env`; `.env` bị ignore | `PASS` | Unit tests pass; `git check-ignore -v .env` → `.gitignore:2` ; old-profile scan 0 match |
 | TC-M1-006 | Compliance | Olist source/license configuration | CC BY-NC-SA, NonCommercial, attribution và ShareAlike không thể bị làm yếu | `PASS` | Olist config contract + three weakened-license negative tests pass |
 | TC-M1-007 | Security | Secret-safe config summary | Không lộ secret | `PASS` | Secret-field scan 0 match; safe-summary unit test pass |
@@ -25,7 +25,7 @@
 | TC-M1-019 | dbt | Snowflake-only `dbt parse/compile` | Nine Olist sources, model contract and tests parse; compile pass without introspection; no DuckDB/multi-env/password fallback | `PASS` | dbt-core 1.12.0 + dbt-snowflake 1.10.5: parse and selected compile pass with `--warn-error`, synthetic placeholder credentials and no provider connection; manifest contract pytest 3/3 pass |
 | TC-M1-020 | Airflow | DAG import/task graph | Import không side effect; expected task IDs | `PASS` | 5 contract tests: real `airflow.sdk` DAG import in isolated subprocess, exact 11-task/10-edge graph, manual/single-run policy, per-task retry/timeout/pool, pool manifest and static provider/credential-access denial; no service or provider call |
 | TC-M1-021 | App | Anonymous/authenticated shell behavior | Anonymous denied; valid token allowed | `PENDING` | Chưa chạy |
-| TC-M1-022 | Audit | Migration up/down/static compatibility | Required schemas/tables, dev-only down guard | `PENDING` | Chưa chạy |
+| TC-M1-022 | Audit | Migration up/down/static compatibility | Required schemas/tables, dev-only down guard | `PASS` | 8 tests: exact six-table/versioned-column contract, DDL-only deterministic replay through adapter, AI privacy/cost fields, append-only exact grants, read-only release pointer, stable compatibility view and two-factor local rollback guard |
 | TC-M1-023 | CI | Workflow required gates | Static workflow contract pass | `PENDING` | Chưa chạy |
 | TC-M1-024 | Container | App image build/non-root | Build pass; runtime user non-root | `PENDING` | Chưa chạy |
 | TC-M1-025 | Container | Airflow/Chroma single-local Compose config | `docker compose config` pass và chỉ dùng `config/config.toml` + `.env` | `PENDING` | Chưa chạy |
@@ -149,3 +149,15 @@
 - Native Windows is not an Airflow runtime target; the import-only test adds the missing POSIX fork hook inside its isolated process. The supported local runtime remains the Linux Compose service planned by `IMP-M1-016`.
 - Focused Airflow suite: 5/5 pass. Full gate: Ruff format/lint plus Airflow 3 rules pass, mypy strict pass, pytest 99 pass + 5 expected live skips, 90.09% branch-aware coverage; uv lock check, locked offline Airflow+dbt sync and dbt warnings-as-errors parse/compile pass.
 - No `.env` value was exposed, no live service/provider was called, no warehouse was resumed, no object was uploaded and no Olist source row was read.
+
+## Execution log — 2026-08-06
+
+### Snowflake audit-ledger migration slice
+
+- Added `004_audit_ledgers.sql` with six versioned objects: append-only ingestion, source-file, process, release and AI invocation ledgers plus the guarded active-release pointer. A constant `SCHEMA_COMPATIBILITY` view exposes migration ID/version/artifact without storing source data.
+- Ledger columns cover source/batch/run/attempt/release lineage, checksums, reconciliation counts, model/prompt/schema/policy versions, tokens, latency, cost, hashes and sanitized error codes. No raw payload, review text, prompt text, response body or credential field exists.
+- Runtime access is exact-table only. Producers receive `SELECT, INSERT` on their event ledgers with no update/delete/truncate/ownership/future-table grant. The active pointer remains read-only until M3 adds the owner-executed guarded release procedure.
+- The up migration is `CREATE ... IF NOT EXISTS` DDL only: no replace/drop/DML and no `USE WAREHOUSE`, so applying it does not resume compute. A deterministic adapter replay test executes the identical statement plan twice.
+- Added destructive `004_audit_ledgers_down.sql` as one Snowflake Scripting block. It reads two session variables and raises a declared exception before the first DROP unless runtime is exactly `local` and confirmation exactly matches the documented phrase.
+- Focused audit migration suite: 8/8 pass. Full gate: Ruff format/lint + Airflow rules pass, mypy strict pass, pytest 107 pass + 5 expected live skips, 90.09% branch-aware coverage; locked offline Airflow+dbt sync, uv lock check and dbt warnings-as-errors parse/compile pass.
+- No `.env` value was printed, no live Snowflake/R2/OpenRouter/Chroma call ran, no warehouse was resumed and no Olist data was read.

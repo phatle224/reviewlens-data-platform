@@ -103,3 +103,53 @@ all eight service users and checks the exact current user, primary role,
 warehouse and database. Runtime connection fails closed unless
 `CURRENT_SECONDARY_ROLES()` reports no active/requested secondary role. Both
 warehouses are suspended in cleanup.
+
+## Audit ledger migration
+
+`004_audit_ledgers.sql` creates versioned, append-only ingestion, source-file,
+processing, release and AI invocation ledgers plus the guarded local active
+release pointer. The tables contain IDs, hashes, counts, versions, cost and
+sanitized metadata; they intentionally contain no raw payload, review text,
+prompt text, response body or credential value.
+
+Snowflake standard-table primary/unique constraints are informational, while
+`NOT NULL` is enforced. Producers must therefore generate deterministic event
+IDs and use replay-safe writes; later M2-M5 implementations own those scenario
+tests. The migration itself uses only DDL `CREATE ... IF NOT EXISTS`, exposes a
+constant `SCHEMA_COMPATIBILITY` view, and never replaces an existing table or
+runs DML. Applying it therefore does not select/resume a virtual warehouse.
+
+Runtime grants are exact-table only. Event producers receive `SELECT, INSERT`
+without `UPDATE`, `DELETE`, `TRUNCATE`, ownership or future-table grants. The
+active pointer is read-only until M3 creates an owner-executed guarded publish
+procedure, so M1 code cannot bypass release gates.
+
+Run the offline migration contract:
+
+```powershell
+.venv\Scripts\pytest.exe tests\test_snowflake_audit.py -q
+```
+
+Apply the up migration only from the owner/bootstrap session:
+
+```powershell
+.venv\Scripts\dotenv.exe -f .env run -- `
+  .venv\Scripts\python.exe -c "from pathlib import Path; from reviewlens.config import load_settings; from reviewlens.providers.snowflake import SnowflakeClient; c=SnowflakeClient.connect_bootstrap(load_settings().snowflake); c.apply_sql_file(Path('infra/snowflake/004_audit_ledgers.sql'), operation='audit migration'); c.close()"
+```
+
+The down migration is destructive and is not part of normal setup. It fails
+closed unless both exact session variables are set in the same Snowflake owner
+session. Run `004_audit_ledgers_down.sql` as one Snowflake Scripting statement
+in Snowsight/Snowflake CLI, not through the repository's simple statement
+splitter:
+
+```sql
+SET REVIEWLENS_RUNTIME = 'local';
+SET REVIEWLENS_AUDIT_DOWN_CONFIRMATION = 'DROP_REVIEWLENS_AUDIT_LEDGERS';
+-- Then execute the complete EXECUTE IMMEDIATE block from 004_audit_ledgers_down.sql.
+```
+
+This design follows Snowflake's current
+[table/constraint semantics](https://docs.snowflake.com/en/sql-reference/constraints),
+[session-variable contract](https://docs.snowflake.com/en/sql-reference/session-variables),
+and [Snowflake Scripting exception handling](https://docs.snowflake.com/en/developer-guide/snowflake-scripting/exceptions).
