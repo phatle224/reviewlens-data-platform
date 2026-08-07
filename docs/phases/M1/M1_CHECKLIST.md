@@ -3,11 +3,11 @@
 | Thuộc tính | Giá trị |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 12/20 work items |
+| Completed | 13/20 work items |
 | Partial | 1/20 work items |
 | Blocked | 0/20 work items |
-| Not started | 7/20 work items |
-| Last updated | 2026-08-06 |
+| Not started | 6/20 work items |
+| Last updated | 2026-08-07 |
 
 ## Checklist theo implementation plan
 
@@ -26,7 +26,7 @@
 | IMP-M1-011 | `DONE` | Provider adapters + fakes | R2/Snowflake/OpenRouter/Chroma/audit/clock typed boundaries và deterministic fakes pass; external AI chỉ nhận typed synthetic/DLP-approved text, Chroma chỉ giữ vector/reference metadata trỏ `AI.RAG_DOCUMENT`, provider errors được sanitize; không có paid/live AI call |
 | IMP-M1-012 | `NOT_STARTED` | Authenticated Streamlit shell + health/error state | Chờ implementation |
 | IMP-M1-013 | `DONE` | Audit schema up/down/compatibility migrations | DDL-only `004_audit_ledgers.sql` creates six versioned ingestion/file/process/release/pointer/AI objects plus constant compatibility view; exact append/read grants deny event mutation and pointer writes; local-only down block requires two session guards before any DROP; 8 offline schema/idempotency/privacy/RBAC/rollback tests pass without warehouse/provider access |
-| IMP-M1-014 | `NOT_STARTED` | Structured logging, correlation và redaction | Chờ implementation |
+| IMP-M1-014 | `DONE` | Structured logging, correlation và redaction | `src/reviewlens/observability/logging.py`: JSONL stable events, context-local trace/source/batch/run/release IDs, fail-closed exception handling và recursive redaction cho secret/PII/URL/payment/restricted review text kể cả unsafe metadata keys; 11 focused tests và TC-M1-011 pass |
 | IMP-M1-015 | `NOT_STARTED` | CI lint/type/unit/contracts/dbt/security/container gates | Chờ implementation |
 | IMP-M1-016 | `NOT_STARTED` | Non-root Docker images/entrypoints | Chờ implementation |
 | IMP-M1-017 | `NOT_STARTED` | Local Compose/deploy skeleton + immutable artifact tags | Chờ implementation |

@@ -11,6 +11,7 @@ Mục tiêu M1 là tạo nền móng có thể bootstrap, test và chạy trong 
 | [dbt foundation](../../../dbt/README.md) | Snowflake-only single-local profile, nine Bronze sources, contracts, macros và verification commands |
 | [Airflow scaffold](../../../airflow/README.md) | Airflow 3 `olist_pipeline`, fail-closed task graph, resource pools và offline verification |
 | [Snowflake foundation](../../../infra/snowflake/README.md) | Foundation/RBAC/identity contracts và versioned append-only audit migrations |
+| [Observability logging](../../../src/reviewlens/observability/logging.py) | JSONL events, context-local correlation IDs và recursive secret/PII/restricted-text redaction |
 | [Final entry inputs](../M0/M0_USER_INPUTS.md) | Deployment, budget, models, account và license facts |
 
 Phase status hiện tại: `IN_PROGRESS`.

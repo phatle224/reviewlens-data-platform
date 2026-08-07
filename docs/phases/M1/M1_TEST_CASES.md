@@ -7,14 +7,14 @@
 | TC-M1-001 | Bootstrap | Lockfile và local Python environment reproducible | `uv sync --locked` thành công | `PASS` | `uv sync --locked --offline --cache-dir .uv-cache`: project built/installed successfully |
 | TC-M1-002 | Static | Ruff format/lint | Không lỗi | `PASS` | `ruff format --check src tests`; `ruff check src tests` |
 | TC-M1-003 | Static | Mypy strict | Không lỗi | `PASS` | `mypy src tests`: 0 issues |
-| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | 107 passed, 5 expected live skips, 90.09% branch-aware coverage |
+| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | 118 passed, 5 expected live skips, 90.15% branch-aware coverage |
 | TC-M1-005 | Config | Single-local config + `.env` precedence/ignore | `config/config.toml` không có secret/profile selector; process env ghi đè `.env`; `.env` bị ignore | `PASS` | Unit tests pass; `git check-ignore -v .env` → `.gitignore:2` ; old-profile scan 0 match |
 | TC-M1-006 | Compliance | Olist source/license configuration | CC BY-NC-SA, NonCommercial, attribution và ShareAlike không thể bị làm yếu | `PASS` | Olist config contract + three weakened-license negative tests pass |
 | TC-M1-007 | Security | Secret-safe config summary | Không lộ secret | `PASS` | Secret-field scan 0 match; safe-summary unit test pass |
 | TC-M1-008 | Fixture | Deterministic regenerate | File checksums giống nhau | `PASS` | `test_generator_is_deterministic` pass |
 | TC-M1-009 | Fixture | Synthetic Olist source contract | 9 required CSVs + manifest, exact headers và valid relational FKs | `PASS` | Determinism/header/FK/source-directory/synthetic-content tests pass |
 | TC-M1-010 | Adapter | Provider boundaries với fakes | Không hard-code secret/model; deterministic offline failures fail closed | `PASS` | R2/Snowflake/OpenRouter/Chroma/audit/clock adapter suites pass; configured models/secrets remain outside code and provider errors are sanitized |
-| TC-M1-011 | Logging | Seeded token/email/phone redaction | Log không chứa seeded values | `PENDING` | Chưa chạy |
+| TC-M1-011 | Logging | Seeded secret/PII/review-text redaction | JSONL không chứa token, email, phone, URL, payment-like value, restricted text hoặc unsafe key đã seed | `PASS` | `tests/test_logging.py`: 11/11 pass; covers nested values/keys, exceptions, invalid events, context isolation/spoofing, bounds and level filtering |
 | TC-M1-012 | Metrics | Synthetic health metric | Prometheus sample quan sát được | `PENDING` | Chưa chạy |
 | TC-M1-013 | R2 contract | Bucket/prefix/private/lifecycle config | Static contract pass | `PASS` | Typed config + `infra/cloudflare_r2/lifecycle.json` + adapter contract tests pass |
 | TC-M1-014 | R2 live | Put/head/get/list/delete synthetic object + anonymous deny | Tất cả pass, object được cleanup | `PASS` | Bucket-scoped credential, checksum, list, anonymous/account denial và post-delete absence pass |
@@ -161,3 +161,14 @@
 - Added destructive `004_audit_ledgers_down.sql` as one Snowflake Scripting block. It reads two session variables and raises a declared exception before the first DROP unless runtime is exactly `local` and confirmation exactly matches the documented phrase.
 - Focused audit migration suite: 8/8 pass. Full gate: Ruff format/lint + Airflow rules pass, mypy strict pass, pytest 107 pass + 5 expected live skips, 90.09% branch-aware coverage; locked offline Airflow+dbt sync, uv lock check and dbt warnings-as-errors parse/compile pass.
 - No `.env` value was printed, no live Snowflake/R2/OpenRouter/Chroma call ran, no warehouse was resumed and no Olist data was read.
+
+## Execution log — 2026-08-07
+
+### Structured logging, correlation and redaction slice
+
+- Added a direct `structlog` JSONL boundary with stable event/component names, UTC timestamps and minimum-level filtering. Reconfiguration is deterministic for CLI, Airflow task and local app entrypoints.
+- Added context-local `trace_id`, `source_release_id`, `ingestion_batch_id`, `dataset_run_id`, `process_run_id` and `release_id`. Call-site fields cannot spoof correlation context; a valid fallback trace is generated when no context is bound.
+- Added recursive fail-closed redaction for configured secret canaries, protected field names, email, phone, URL, payment-like strings, raw/review/prompt/query fields, binary values, unsafe mapping keys, oversized/deep collections and unknown objects.
+- Exception logs retain only the exception type; raw exception message and traceback values are dropped before JSON rendering. Raw free text cannot be used as an event name.
+- Focused logging suite: 11/11 pass. Full offline gate: Ruff format/lint plus Airflow rules pass, mypy strict pass, pytest 118 pass + 5 expected live skips, 90.15% branch-aware coverage; locked offline Airflow+dbt sync, lock check and dbt warnings-as-errors parse/compile pass.
+- No `.env` value or Olist source row was read; no Snowflake/R2/OpenRouter/Chroma call ran, no warehouse resumed and no paid usage occurred.
