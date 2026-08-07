@@ -262,6 +262,8 @@ class AppSettings(BaseModel, frozen=True, extra="forbid"):
             "::1",
         }:
             raise ValueError("local demo must bind only to loopback")
+        if not self.app.auth_required:
+            raise ValueError("local demo requires application authentication")
         return self
 
     def safe_summary(self) -> dict[str, Any]:

@@ -40,6 +40,16 @@ Generate deterministic synthetic source fixtures:
 uv run reviewlens-fixtures --output tests/fixtures/synthetic/olist/v1
 ```
 
+Start the authenticated loopback-only foundation shell:
+
+```powershell
+uv run reviewlens-app
+```
+
+Open `http://127.0.0.1:8501` and enter the local `APP_AUTH_TOKEN`. The M1 page
+shows configuration readiness only; it does not call managed providers or expose
+Olist rows. Stop it with `Ctrl+C`.
+
 ## Quality checks
 
 ```powershell

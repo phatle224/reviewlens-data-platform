@@ -7,7 +7,7 @@
 | TC-M1-001 | Bootstrap | Lockfile và local Python environment reproducible | `uv sync --locked` thành công | `PASS` | `uv sync --locked --offline --cache-dir .uv-cache`: project built/installed successfully |
 | TC-M1-002 | Static | Ruff format/lint | Không lỗi | `PASS` | `ruff format --check src tests`; `ruff check src tests` |
 | TC-M1-003 | Static | Mypy strict | Không lỗi | `PASS` | `mypy src tests`: 0 issues |
-| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | 118 passed, 5 expected live skips, 90.15% branch-aware coverage |
+| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | 133 passed, 5 expected live skips, 91.06% branch-aware coverage |
 | TC-M1-005 | Config | Single-local config + `.env` precedence/ignore | `config/config.toml` không có secret/profile selector; process env ghi đè `.env`; `.env` bị ignore | `PASS` | Unit tests pass; `git check-ignore -v .env` → `.gitignore:2` ; old-profile scan 0 match |
 | TC-M1-006 | Compliance | Olist source/license configuration | CC BY-NC-SA, NonCommercial, attribution và ShareAlike không thể bị làm yếu | `PASS` | Olist config contract + three weakened-license negative tests pass |
 | TC-M1-007 | Security | Secret-safe config summary | Không lộ secret | `PASS` | Secret-field scan 0 match; safe-summary unit test pass |
@@ -24,7 +24,7 @@
 | TC-M1-018 | RBAC live | Service-role positive/negative queries | Least privilege pass | `PASS` | 1 live suite pass in 40.25s: 8 primary roles, `USE SECONDARY ROLES NONE`, allowed operations pass, 25 cross-layer/write probes denied, fixture cleanup and two-warehouse suspend |
 | TC-M1-019 | dbt | Snowflake-only `dbt parse/compile` | Nine Olist sources, model contract and tests parse; compile pass without introspection; no DuckDB/multi-env/password fallback | `PASS` | dbt-core 1.12.0 + dbt-snowflake 1.10.5: parse and selected compile pass with `--warn-error`, synthetic placeholder credentials and no provider connection; manifest contract pytest 3/3 pass |
 | TC-M1-020 | Airflow | DAG import/task graph | Import không side effect; expected task IDs | `PASS` | 5 contract tests: real `airflow.sdk` DAG import in isolated subprocess, exact 11-task/10-edge graph, manual/single-run policy, per-task retry/timeout/pool, pool manifest and static provider/credential-access denial; no service or provider call |
-| TC-M1-021 | App | Anonymous/authenticated shell behavior | Anonymous denied; valid token allowed | `PENDING` | Chưa chạy |
+| TC-M1-021 | App | Anonymous/authenticated shell behavior | Anonymous/invalid/missing token and remote bind denied; valid local token allowed; ready/degraded/unavailable/config-error states explicit | `PASS` | `tests/test_app.py`: 15/15 pass with Streamlit 1.60 `AppTest`; token never appears in rendered evidence, sign-out returns to gate, launcher uses canonical loopback config and readiness performs no provider call |
 | TC-M1-022 | Audit | Migration up/down/static compatibility | Required schemas/tables, dev-only down guard | `PASS` | 8 tests: exact six-table/versioned-column contract, DDL-only deterministic replay through adapter, AI privacy/cost fields, append-only exact grants, read-only release pointer, stable compatibility view and two-factor local rollback guard |
 | TC-M1-023 | CI | Workflow required gates | Static workflow contract pass | `PENDING` | Chưa chạy |
 | TC-M1-024 | Container | App image build/non-root | Build pass; runtime user non-root | `PENDING` | Chưa chạy |
@@ -172,3 +172,15 @@
 - Exception logs retain only the exception type; raw exception message and traceback values are dropped before JSON rendering. Raw free text cannot be used as an event name.
 - Focused logging suite: 11/11 pass. Full offline gate: Ruff format/lint plus Airflow rules pass, mypy strict pass, pytest 118 pass + 5 expected live skips, 90.15% branch-aware coverage; locked offline Airflow+dbt sync, lock check and dbt warnings-as-errors parse/compile pass.
 - No `.env` value or Olist source row was read; no Snowflake/R2/OpenRouter/Chroma call ran, no warehouse resumed and no paid usage occurred.
+
+## Execution log — 2026-08-08
+
+### Authenticated Streamlit foundation-shell slice
+
+- Added `reviewlens-app`, which loads the single `config/config.toml` and launches Streamlit on the validated loopback host/port with headless mode, CORS/XSRF protection, hidden browser error details and telemetry disabled. No second environment profile or committed secret config was introduced.
+- Added a masked local token gate using SHA-256 digests plus constant-time comparison. Candidate tokens are removed from session state after each attempt; anonymous, wrong, missing and oversized credentials fail closed, while sign-out clears authenticated state.
+- Added boolean-only configuration readiness with explicit `ready`, `degraded` and `unavailable` states. It checks dedicated credential presence through the existing security boundary and clearly states that page load performs no Snowflake/R2/OpenRouter/Chroma request.
+- The authenticated M1 page labels its content as synthetic/configuration evidence and explicitly reports that no active analytics release exists, so partial/missing backends cannot be mistaken for real data.
+- Focused app suite: 15/15 pass using Streamlit 1.60 native `AppTest`, including anonymous/valid/invalid/missing auth, logout, remote-bind/auth-disable rejection, launcher flags, degraded/unavailable/config-error states and seeded token/error leak canaries.
+- Full offline gate: Ruff format/lint plus Airflow rules pass, mypy strict pass, pytest 133 pass + 5 expected live skips, 91.06% branch-aware coverage; `uv lock --check`, locked offline Airflow+dbt sync and dbt warnings-as-errors parse/compile pass.
+- Dependency download was limited to packages already pinned by the Streamlit extra in `uv.lock`; no `.env` value/Olist row was printed, no managed provider was called and no project service cost was incurred.

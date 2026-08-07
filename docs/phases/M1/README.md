@@ -12,6 +12,7 @@ Mục tiêu M1 là tạo nền móng có thể bootstrap, test và chạy trong 
 | [Airflow scaffold](../../../airflow/README.md) | Airflow 3 `olist_pipeline`, fail-closed task graph, resource pools và offline verification |
 | [Snowflake foundation](../../../infra/snowflake/README.md) | Foundation/RBAC/identity contracts và versioned append-only audit migrations |
 | [Observability logging](../../../src/reviewlens/observability/logging.py) | JSONL events, context-local correlation IDs và recursive secret/PII/restricted-text redaction |
+| [Authenticated app shell](../../../src/reviewlens/app/streamlit_app.py) | Loopback-only Streamlit entrypoint, local token gate và provider-free configuration readiness |
 | [Final entry inputs](../M0/M0_USER_INPUTS.md) | Deployment, budget, models, account và license facts |
 
 Phase status hiện tại: `IN_PROGRESS`.
