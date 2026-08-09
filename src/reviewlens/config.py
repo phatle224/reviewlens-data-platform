@@ -304,6 +304,8 @@ ENV_OVERRIDES: dict[str, tuple[str, str]] = {
 
 
 def project_root() -> Path:
+    if os.environ.get("REVIEWLENS_CONTAINER_RUNTIME") == "compose":
+        return Path("/opt/reviewlens")
     return Path(__file__).resolve().parents[2]
 
 

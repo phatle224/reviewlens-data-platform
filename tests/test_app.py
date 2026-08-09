@@ -18,7 +18,7 @@ from reviewlens.app.readiness import (
     ReadinessState,
     collect_readiness,
 )
-from reviewlens.config import AppSettings, ServiceName, load_settings
+from reviewlens.config import AppSettings, ServiceName, load_settings, project_root
 from reviewlens.security.credentials import CredentialReadiness
 
 APP_SCRIPT = Path("src/reviewlens/app/streamlit_app.py").resolve()
@@ -187,6 +187,24 @@ def test_launcher_uses_canonical_loopback_config_and_security_flags(tmp_path: Pa
     assert "--browser.gatherUsageStats=false" in command
     assert "0.0.0.0" not in rendered  # noqa: S104 - negative bind assertion
     assert APP_TOKEN not in rendered
+
+
+def test_launcher_allows_internal_bind_only_for_exact_compose_marker(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+
+    compose = build_streamlit_command(settings, container_runtime="compose")
+    arbitrary = build_streamlit_command(settings, container_runtime="docker")
+
+    assert "--server.address=0.0.0.0" in compose
+    assert "--server.address=127.0.0.1" in arbitrary
+
+
+def test_compose_marker_uses_fixed_container_project_root(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("REVIEWLENS_CONTAINER_RUNTIME", "compose")
+
+    assert project_root() == Path("/opt/reviewlens")
 
 
 def test_streamlit_shell_denies_anonymous_and_invalid_tokens(

@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1.18
+FROM apache/airflow:3.3.0-python3.13@sha256:fb2c895e33395e4224c3de041e1751b095ee2c214cdf2d330bbaf62fcce0f54b AS runtime
+
+USER root
+COPY --chown=airflow:root airflow/dags /opt/reviewlens/airflow/dags
+COPY --chown=airflow:root airflow/pools.json /opt/reviewlens/airflow/pools.json
+COPY --chown=airflow:root deploy/airflow-entrypoint.sh /opt/reviewlens/deploy/airflow-entrypoint.sh
+RUN mkdir -p /opt/airflow/runtime \
+    && chown airflow:root /opt/airflow/runtime \
+    && chmod 0755 /opt/reviewlens/deploy/airflow-entrypoint.sh
+
+USER airflow
+WORKDIR /opt/reviewlens
+USER 50000:0
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v2/monitor/health', timeout=3)" || exit 1
+
+ENTRYPOINT ["/opt/reviewlens/deploy/airflow-entrypoint.sh"]

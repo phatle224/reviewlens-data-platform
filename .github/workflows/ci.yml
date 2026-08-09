@@ -67,8 +67,47 @@ jobs:
             --project-dir dbt --profiles-dir dbt --no-introspect \
             --select source_contract_registry
 
-      - name: Enforce secret, raw-data and pre-container policy
+      - name: Enforce secret, raw-data and reviewed-container policy
         run: uv run --no-sync reviewlens-policy --root .
+
+      - name: Validate immutable local artifact metadata
+        run: |
+          uv run --no-sync reviewlens-artifacts --check
+          echo "REVIEWLENS_ARTIFACT_TAG=$(uv run --no-sync reviewlens-artifacts --print-tag)" >> "$GITHUB_ENV"
+
+      - name: Validate single-local Compose configuration
+        run: docker compose config --quiet
+
+      - name: Build pinned local images
+        run: docker compose build app airflow
+
+      - name: Verify final container users are non-root
+        run: |
+          test "$(docker image inspect --format '{{.Config.User}}' "reviewlens/app:${REVIEWLENS_ARTIFACT_TAG}")" = "10001:10001"
+          test "$(docker image inspect --format '{{.Config.User}}' "reviewlens/airflow:${REVIEWLENS_ARTIFACT_TAG}")" = "50000:0"
+
+      - name: Verify image dependency consistency
+        run: |
+          docker run --rm --entrypoint uv "reviewlens/app:${REVIEWLENS_ARTIFACT_TAG}" pip check --python /opt/reviewlens/.venv/bin/python
+          docker run --rm --entrypoint python "reviewlens/airflow:${REVIEWLENS_ARTIFACT_TAG}" -m pip check
+
+      - name: Scan app image for critical vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: reviewlens/app:${{ env.REVIEWLENS_ARTIFACT_TAG }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL
+          scanners: vuln
+
+      - name: Scan Airflow image for critical vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: reviewlens/airflow:${{ env.REVIEWLENS_ARTIFACT_TAG }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL
+          scanners: vuln
 
       - name: Audit locked environment dependencies
         run: |

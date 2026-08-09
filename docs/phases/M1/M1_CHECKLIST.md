@@ -3,11 +3,11 @@
 | Thuộc tính | Giá trị |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 15/20 work items |
-| Partial | 1/20 work items |
+| Completed | 17/20 work items |
+| Partial | 2/20 work items |
 | Blocked | 0/20 work items |
-| Not started | 4/20 work items |
-| Last updated | 2026-08-09 |
+| Not started | 1/20 work items |
+| Last updated | 2026-08-10 |
 
 ## Checklist theo implementation plan
 
@@ -24,13 +24,13 @@
 | IMP-M1-009 | `DONE` | Snowflake-only dbt scaffold | `dbt/` project/profile, nine exact Bronze sources, contracted metadata registry, custom generic test macro and selector; dbt 1.12 parse + no-introspect compile pass with warnings-as-errors and synthetic placeholder credentials; no warehouse connection or DuckDB/multi-env/password path |
 | IMP-M1-010 | `DONE` | Airflow 3 DAG scaffold không có parse side effect | Airflow 3 public SDK `olist_pipeline` với 11-task stable graph, manual schedule, fail-closed M1 guards, per-task retry/timeout/one-slot pool và versioned pool manifest; isolated real-DAG import + graph/policy/no-network/no-dotenv contract tests pass trên Windows mà không khởi động service |
 | IMP-M1-011 | `DONE` | Provider adapters + fakes | R2/Snowflake/OpenRouter/Chroma/audit/clock typed boundaries và deterministic fakes pass; external AI chỉ nhận typed synthetic/DLP-approved text, Chroma chỉ giữ vector/reference metadata trỏ `AI.RAG_DOCUMENT`, provider errors được sanitize; không có paid/live AI call |
-| IMP-M1-012 | `DONE` | Authenticated Streamlit shell + health/error state | `src/reviewlens/app/`: canonical-config launcher pins loopback/headless/CORS/XSRF/error-detail flags; masked token gate uses fixed-length digest comparison, stores no candidate and supports sign-out; boolean-only `ready/degraded/unavailable` states make no provider call; 15 AppTest/unit/security tests and TC-M1-021 pass |
+| IMP-M1-012 | `DONE` | Authenticated Streamlit shell + health/error state | `src/reviewlens/app/`: canonical-config launcher pins loopback/headless/CORS/XSRF/error-detail flags; masked token gate uses fixed-length digest comparison, stores no candidate and supports sign-out; boolean-only `ready/degraded/unavailable` states make no provider call; 16 AppTest/unit/security tests and TC-M1-021 pass |
 | IMP-M1-013 | `DONE` | Audit schema up/down/compatibility migrations | DDL-only `004_audit_ledgers.sql` creates six versioned ingestion/file/process/release/pointer/AI objects plus constant compatibility view; exact append/read grants deny event mutation and pointer writes; local-only down block requires two session guards before any DROP; 8 offline schema/idempotency/privacy/RBAC/rollback tests pass without warehouse/provider access |
 | IMP-M1-014 | `DONE` | Structured logging, correlation và redaction | `src/reviewlens/observability/logging.py`: JSONL stable events, context-local trace/source/batch/run/release IDs, fail-closed exception handling và recursive redaction cho secret/PII/URL/payment/restricted review text kể cả unsafe metadata keys; 11 focused tests và TC-M1-011 pass |
-| IMP-M1-015 | `DONE` | CI lint/type/unit/contracts/dbt/security/container gates | Least-privilege GitHub Actions workflow chạy locked sync, Ruff/Airflow rules, mypy, pytest coverage, dbt offline parse/compile, repository policy, dependency audit và status validator; 18 CI/policy contract + deliberate-failure tests pass. Pre-container gate chặn Docker/Compose artifact cho đến khi `IMP-M1-016` kích hoạt build/non-root checks |
-| IMP-M1-016 | `NOT_STARTED` | Non-root Docker images/entrypoints | Chờ implementation |
-| IMP-M1-017 | `NOT_STARTED` | Local Compose/deploy skeleton + immutable artifact tags | Chờ implementation |
-| IMP-M1-018 | `NOT_STARTED` | Metrics sink/health visibility | Chờ implementation |
+| IMP-M1-015 | `DONE` | CI lint/type/unit/contracts/dbt/security/container gates | Least-privilege GitHub Actions workflow chạy locked sync, Ruff/Airflow rules, mypy, pytest coverage, dbt offline parse/compile, repository policy, dependency audit, status validator và SHA-pinned Trivy image scans; reviewed-container policy thay pre-container rejection |
+| IMP-M1-016 | `DONE` | Non-root Docker images/entrypoints | Digest-pinned app/Airflow builds pass; image metadata và live `id -u` xác nhận `10001:10001`/`50000:0`; app `uv pip check` và Airflow `pip check` sạch; CI build/non-root/critical-CVE gates đã version |
+| IMP-M1-017 | `PARTIAL` | Local Compose/deploy skeleton + immutable artifact tags | `docker compose config`, deterministic `local-sha256-*` manifest và app/metrics/Airflow local deploy đều pass/healthy trên cùng tag; Airflow không nhận credential env. Còn Chroma service vì 1.5.9 chưa có bản vá cho advisory nghiêm trọng |
+| IMP-M1-018 | `DONE` | Metrics sink/health visibility | Provider-free `/healthz` và Prometheus `/metrics` có bounded labels, ready/integration/service-error bootstrap; unit HTTP và Compose end-to-end checks đều pass với `state=ready`, `provider_calls=false` |
 | IMP-M1-019 | `NOT_STARTED` | Foundation operations runbook | Chờ implementation |
 | IMP-M1-020 | `DONE` | Migrate active source baseline from Yelp to Olist | ADR-008; nine-file manifest; config/license, fixture, Snowflake CSV format, PRD/plan/M0/M1/RAG/diagram updates; TC-M1-031 pass |
 

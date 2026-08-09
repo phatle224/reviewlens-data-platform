@@ -1,0 +1,80 @@
+name: reviewlens-local
+
+x-reviewlens-common: &reviewlens-common
+  restart: "no"
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  app:
+    <<: *reviewlens-common
+    env_file:
+      - path: .env
+        required: false
+    image: reviewlens/app:${REVIEWLENS_ARTIFACT_TAG:?Run reviewlens-artifacts --print-tag}
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    environment:
+      HOME: /tmp
+      REVIEWLENS_CONTAINER_RUNTIME: compose
+    ports:
+      - "127.0.0.1:8501:8501"
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    user: "10001:10001"
+
+  metrics:
+    <<: *reviewlens-common
+    env_file:
+      - path: .env
+        required: false
+    image: reviewlens/app:${REVIEWLENS_ARTIFACT_TAG:?Run reviewlens-artifacts --print-tag}
+    environment:
+      HOME: /tmp
+      REVIEWLENS_CONTAINER_RUNTIME: compose
+    entrypoint: ["reviewlens-health", "--host", "0.0.0.0", "--port", "9108"]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9108/healthz', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    ports:
+      - "127.0.0.1:9108:9108"
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    user: "10001:10001"
+    depends_on:
+      app:
+        condition: service_healthy
+
+  airflow:
+    <<: *reviewlens-common
+    image: reviewlens/airflow:${REVIEWLENS_ARTIFACT_TAG:?Run reviewlens-artifacts --print-tag}
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    environment:
+      AIRFLOW_HOME: /opt/airflow/runtime
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/reviewlens/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAG_DISCOVERY_SAFE_MODE: "true"
+    ports:
+      - "127.0.0.1:8080:8080"
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    volumes:
+      - airflow-runtime:/opt/airflow/runtime
+    user: "50000:0"
+
+volumes:
+  airflow-runtime:
+    name: reviewlens-local-airflow-runtime

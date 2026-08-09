@@ -23,7 +23,7 @@ and one-slot resource pool.
 create that pool. Once the local Linux Airflow service exists, import the manifest:
 
 ```powershell
-docker compose exec airflow-scheduler airflow pools import /opt/airflow/pools.json
+docker compose exec airflow airflow pools import /opt/reviewlens/airflow/pools.json
 ```
 
 All pools have one slot. This is deliberate for a solo portfolio demo: R2 and
@@ -45,4 +45,3 @@ the pool manifest. It does not need credentials or a metadata database.
 References: [Airflow 3 public Task SDK](https://airflow.apache.org/docs/task-sdk/stable/api.html),
 [DAG top-level-code guidance](https://airflow.apache.org/docs/apache-airflow/stable/best-practices.html#top-level-python-code),
 and [pool behavior](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/pools.html).
-

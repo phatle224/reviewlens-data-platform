@@ -56,6 +56,7 @@ def test_ci_workflow_pins_bootstrap_and_runs_all_m1_gates() -> None:
     assert "actions/checkout@v7" in uses
     setup_uv = next(item for item in uses if item.startswith("astral-sh/setup-uv@"))
     assert re.fullmatch(r"astral-sh/setup-uv@[0-9a-f]{40}", setup_uv)
+    assert uses.count("aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25") == 2
 
     checkout = next(step for step in steps if step.get("uses") == "actions/checkout@v7")
     assert _mapping(checkout["with"])["persist-credentials"] == "false"
@@ -78,6 +79,11 @@ def test_ci_workflow_pins_bootstrap_and_runs_all_m1_gates() -> None:
         "pip-audit",
         "--strict --require-hashes --disable-pip",
         "validate_project_status.py",
+        "reviewlens-artifacts --check",
+        "docker compose config --quiet",
+        "docker compose build app airflow",
+        'uv "reviewlens/app:${REVIEWLENS_ARTIFACT_TAG}" pip check',
+        'python "reviewlens/airflow:${REVIEWLENS_ARTIFACT_TAG}" -m pip check',
         "uv cache prune --ci",
     )
     assert all(command in commands for command in required_commands)
@@ -107,8 +113,8 @@ def test_ci_workflow_cannot_use_live_credentials_or_silence_failures() -> None:
         ("archive/manifest.txt", "private-generated-directory"),
         ("olist_order_reviews_dataset.csv", "olist-source-file"),
         ("exports/orders.parquet", "row-level-data-artifact"),
-        ("Dockerfile", "container-gate-not-activated"),
-        ("compose.yaml", "container-gate-not-activated"),
+        ("Dockerfile", "unreviewed-container-artifact"),
+        ("nested/compose.yaml", "unreviewed-container-artifact"),
     ],
 )
 def test_repository_policy_blocks_forbidden_paths(
@@ -164,6 +170,16 @@ def test_repository_policy_allows_only_explicit_synthetic_row_fixtures(tmp_path:
     candidate = tmp_path / relative_path
     candidate.parent.mkdir(parents=True)
     candidate.write_text("order_id\nsynthetic_order_1\n", encoding="utf-8")
+
+    assert policy.scan_repository_paths(tmp_path, [relative_path]) == ()
+
+
+@pytest.mark.parametrize("relative_path", ["Dockerfile.app", "Dockerfile.airflow", "compose.yaml"])
+def test_repository_policy_allows_reviewed_root_container_files(
+    tmp_path: Path, relative_path: str
+) -> None:
+    candidate = tmp_path / relative_path
+    candidate.write_text("synthetic container contract", encoding="utf-8")
 
     assert policy.scan_repository_paths(tmp_path, [relative_path]) == ()
 

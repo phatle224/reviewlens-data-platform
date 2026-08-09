@@ -1,0 +1,10 @@
+{
+  "artifact_tag": "local-sha256-2c8290023e540a1c",
+  "deployment_scope": "local-demo-only",
+  "images": {
+    "airflow": "reviewlens/airflow:local-sha256-2c8290023e540a1c",
+    "app": "reviewlens/app:local-sha256-2c8290023e540a1c"
+  },
+  "schema_version": 1,
+  "source_sha256": "2c8290023e540a1c9b4deeebf896b1c9923adcd418a3ba56e8eda95f544cc57d"
+}

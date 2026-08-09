@@ -28,9 +28,10 @@ _FORBIDDEN_KEY_SUFFIXES = frozenset({".key", ".p8", ".pem"})
 _FORBIDDEN_ROW_ARTIFACT_SUFFIXES = frozenset(
     {".csv", ".feather", ".jsonl", ".ndjson", ".npy", ".npz", ".parquet"}
 )
-_CONTAINER_FILE_NAMES = frozenset(
+_COMPOSE_FILE_NAMES = frozenset(
     {"compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml"}
 )
+_REVIEWED_CONTAINER_FILES = frozenset({"Dockerfile.app", "Dockerfile.airflow", "compose.yaml"})
 _SECRET_PATTERNS: tuple[tuple[str, re.Pattern[bytes]], ...] = (
     (
         "private-key-material",
@@ -91,8 +92,9 @@ def _path_findings(path: PurePosixPath) -> list[PolicyFinding]:
         findings.append(PolicyFinding(path_text, "row-level-data-artifact"))
     if path.name in REQUIRED_FILES and not _is_synthetic_fixture(path):
         findings.append(PolicyFinding(path_text, "olist-source-file"))
-    if name_lower.startswith("dockerfile") or name_lower in _CONTAINER_FILE_NAMES:
-        findings.append(PolicyFinding(path_text, "container-gate-not-activated"))
+    is_container_file = name_lower.startswith("dockerfile") or name_lower in _COMPOSE_FILE_NAMES
+    if is_container_file and path_text not in _REVIEWED_CONTAINER_FILES:
+        findings.append(PolicyFinding(path_text, "unreviewed-container-artifact"))
     return findings
 
 
