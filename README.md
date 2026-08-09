@@ -57,6 +57,9 @@ uv run ruff format --check src tests
 uv run ruff check src tests
 uv run mypy src tests
 uv run pytest --cov=reviewlens --cov-report=term-missing
+uv run reviewlens-policy --root .
+uv export --locked --all-groups --all-extras --no-emit-project --no-annotate --output-file .uv-cache/audit-requirements.txt
+uv run pip-audit --requirement .uv-cache/audit-requirements.txt --strict --require-hashes --disable-pip --progress-spinner=off
 ```
 
 Live tests are opt-in and may only use synthetic payloads. See the active [M1 test matrix](docs/phases/M1/M1_TEST_CASES.md) for exact commands and evidence.

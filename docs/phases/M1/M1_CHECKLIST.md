@@ -3,11 +3,11 @@
 | Thuộc tính | Giá trị |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 14/20 work items |
+| Completed | 15/20 work items |
 | Partial | 1/20 work items |
 | Blocked | 0/20 work items |
-| Not started | 5/20 work items |
-| Last updated | 2026-08-08 |
+| Not started | 4/20 work items |
+| Last updated | 2026-08-09 |
 
 ## Checklist theo implementation plan
 
@@ -27,7 +27,7 @@
 | IMP-M1-012 | `DONE` | Authenticated Streamlit shell + health/error state | `src/reviewlens/app/`: canonical-config launcher pins loopback/headless/CORS/XSRF/error-detail flags; masked token gate uses fixed-length digest comparison, stores no candidate and supports sign-out; boolean-only `ready/degraded/unavailable` states make no provider call; 15 AppTest/unit/security tests and TC-M1-021 pass |
 | IMP-M1-013 | `DONE` | Audit schema up/down/compatibility migrations | DDL-only `004_audit_ledgers.sql` creates six versioned ingestion/file/process/release/pointer/AI objects plus constant compatibility view; exact append/read grants deny event mutation and pointer writes; local-only down block requires two session guards before any DROP; 8 offline schema/idempotency/privacy/RBAC/rollback tests pass without warehouse/provider access |
 | IMP-M1-014 | `DONE` | Structured logging, correlation và redaction | `src/reviewlens/observability/logging.py`: JSONL stable events, context-local trace/source/batch/run/release IDs, fail-closed exception handling và recursive redaction cho secret/PII/URL/payment/restricted review text kể cả unsafe metadata keys; 11 focused tests và TC-M1-011 pass |
-| IMP-M1-015 | `NOT_STARTED` | CI lint/type/unit/contracts/dbt/security/container gates | Chờ implementation |
+| IMP-M1-015 | `DONE` | CI lint/type/unit/contracts/dbt/security/container gates | Least-privilege GitHub Actions workflow chạy locked sync, Ruff/Airflow rules, mypy, pytest coverage, dbt offline parse/compile, repository policy, dependency audit và status validator; 18 CI/policy contract + deliberate-failure tests pass. Pre-container gate chặn Docker/Compose artifact cho đến khi `IMP-M1-016` kích hoạt build/non-root checks |
 | IMP-M1-016 | `NOT_STARTED` | Non-root Docker images/entrypoints | Chờ implementation |
 | IMP-M1-017 | `NOT_STARTED` | Local Compose/deploy skeleton + immutable artifact tags | Chờ implementation |
 | IMP-M1-018 | `NOT_STARTED` | Metrics sink/health visibility | Chờ implementation |
