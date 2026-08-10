@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
+import tomllib
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -32,6 +34,9 @@ _COMPOSE_FILE_NAMES = frozenset(
     {"compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml"}
 )
 _REVIEWED_CONTAINER_FILES = frozenset({"Dockerfile.app", "Dockerfile.airflow", "compose.yaml"})
+_CHROMA_SECURITY_POLICY = Path("deploy/chroma-security-policy.json")
+_CHROMA_ADVISORY_ID = "GHSA-f4j7-r4q5-qw2c"
+_CHROMA_CVE = "CVE-2026-45829"
 _SECRET_PATTERNS: tuple[tuple[str, re.Pattern[bytes]], ...] = (
     (
         "private-key-material",
@@ -66,6 +71,91 @@ _SECRET_PATTERNS: tuple[tuple[str, re.Pattern[bytes]], ...] = (
 class PolicyFinding:
     path: str
     rule: str
+
+
+def _dependency_names(project: dict[str, object]) -> frozenset[str]:
+    specifications: list[str] = []
+    project_table = project.get("project")
+    if isinstance(project_table, dict):
+        dependencies = project_table.get("dependencies", [])
+        if isinstance(dependencies, list):
+            specifications.extend(item for item in dependencies if isinstance(item, str))
+        optional = project_table.get("optional-dependencies", {})
+        if isinstance(optional, dict):
+            for group in optional.values():
+                if isinstance(group, list):
+                    specifications.extend(item for item in group if isinstance(item, str))
+    groups = project.get("dependency-groups", {})
+    if isinstance(groups, dict):
+        for group in groups.values():
+            if isinstance(group, list):
+                specifications.extend(item for item in group if isinstance(item, str))
+    names = {
+        match.group(0).lower().replace("_", "-")
+        for specification in specifications
+        if (match := re.match(r"[A-Za-z0-9_.-]+", specification)) is not None
+    }
+    return frozenset(names)
+
+
+def chroma_security_findings(root: Path) -> tuple[PolicyFinding, ...]:
+    """Fail closed while the reviewed Chroma release range has no patch."""
+
+    root = root.resolve()
+    relative = _CHROMA_SECURITY_POLICY.as_posix()
+    target = root / _CHROMA_SECURITY_POLICY
+    if not target.is_file():
+        return (PolicyFinding(relative, "chroma-security-policy-missing"),)
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return (PolicyFinding(relative, "chroma-security-policy-invalid"),)
+    if not isinstance(payload, dict):
+        return (PolicyFinding(relative, "chroma-security-policy-invalid"),)
+    advisory = payload.get("advisory")
+    sources = payload.get("sources")
+    valid = (
+        payload.get("schema_version") == 1
+        and payload.get("component") == "chromadb"
+        and payload.get("status") == "blocked"
+        and payload.get("compose_service_allowed") is False
+        and payload.get("latest_observed_version") == "1.5.9"
+        and payload.get("last_reviewed_at") == "2026-08-11"
+        and isinstance(advisory, dict)
+        and advisory.get("id") == _CHROMA_ADVISORY_ID
+        and advisory.get("cve") == _CHROMA_CVE
+        and advisory.get("severity") == "critical"
+        and advisory.get("affected_versions") == ">=1.0.0,<=1.5.9"
+        and advisory.get("patched_versions") == []
+        and isinstance(sources, list)
+        and f"https://github.com/advisories/{_CHROMA_ADVISORY_ID}" in sources
+        and "https://pypi.org/project/chromadb/" in sources
+        and "https://github.com/chroma-core/chroma/releases" in sources
+    )
+    if not valid:
+        return (PolicyFinding(relative, "chroma-security-policy-invalid"),)
+
+    findings: set[PolicyFinding] = set()
+    compose_path = root / "compose.yaml"
+    if compose_path.is_file() and re.search(
+        r"(?m)^  chroma:\s*(?:#.*)?$", compose_path.read_text(encoding="utf-8")
+    ):
+        findings.add(PolicyFinding("compose.yaml", "blocked-chroma-service"))
+    pyproject_path = root / "pyproject.toml"
+    if pyproject_path.is_file():
+        try:
+            project = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+            findings.add(PolicyFinding("pyproject.toml", "project-metadata-invalid"))
+        else:
+            if "chromadb" in _dependency_names(project):
+                findings.add(PolicyFinding("pyproject.toml", "blocked-chroma-dependency"))
+    lock_path = root / "uv.lock"
+    if lock_path.is_file() and re.search(
+        r'(?m)^name = "chromadb"$', lock_path.read_text(encoding="utf-8")
+    ):
+        findings.add(PolicyFinding("uv.lock", "blocked-chroma-lock-entry"))
+    return tuple(sorted(findings))
 
 
 def _normalized_path(path: str | Path) -> PurePosixPath:
@@ -179,7 +269,14 @@ def main(argv: Sequence[str] | None = None) -> None:
     )
     parser.add_argument("--root", type=Path, default=Path.cwd())
     args = parser.parse_args(argv)
-    findings = scan_repository_paths(args.root, git_visible_paths(args.root))
+    findings = tuple(
+        sorted(
+            {
+                *scan_repository_paths(args.root, git_visible_paths(args.root)),
+                *chroma_security_findings(args.root),
+            }
+        )
+    )
     if findings:
         print(f"ReviewLens repository policy: FAIL ({len(findings)} finding(s))")
         for finding in findings:

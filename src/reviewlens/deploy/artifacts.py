@@ -20,6 +20,7 @@ INPUT_FILES = (
     Path("uv.lock"),
     Path("README.md"),
     Path("deploy/airflow-entrypoint.sh"),
+    Path("deploy/chroma-security-policy.json"),
 )
 INPUT_DIRECTORIES = (Path("src"), Path("config"), Path("airflow/dags"))
 

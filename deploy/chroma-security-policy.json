@@ -1,0 +1,22 @@
+{
+  "advisory": {
+    "affected_versions": ">=1.0.0,<=1.5.9",
+    "cve": "CVE-2026-45829",
+    "id": "GHSA-f4j7-r4q5-qw2c",
+    "patched_versions": [],
+    "severity": "critical"
+  },
+  "component": "chromadb",
+  "compose_service_allowed": false,
+  "decision": "Defer persistent local provisioning to IMP-M5-001 after a patched release passes dependency and container audit.",
+  "last_reviewed_at": "2026-08-11",
+  "latest_observed_version": "1.5.9",
+  "review_trigger": "Before IMP-M5-001 or any change that adds a Chroma service, image, package, or lock entry.",
+  "schema_version": 1,
+  "sources": [
+    "https://github.com/advisories/GHSA-f4j7-r4q5-qw2c",
+    "https://pypi.org/project/chromadb/",
+    "https://github.com/chroma-core/chroma/releases"
+  ],
+  "status": "blocked"
+}

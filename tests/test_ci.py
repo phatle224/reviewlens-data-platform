@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
 from pathlib import Path
@@ -212,5 +213,90 @@ def test_policy_cli_returns_nonzero_for_deliberate_failing_fixture(
 
 def test_current_git_visible_repository_passes_policy() -> None:
     root = Path.cwd()
-    findings = policy.scan_repository_paths(root, policy.git_visible_paths(root))
+    findings = tuple(
+        sorted(
+            {
+                *policy.scan_repository_paths(root, policy.git_visible_paths(root)),
+                *policy.chroma_security_findings(root),
+            }
+        )
+    )
     assert findings == ()
+
+
+def _write_chroma_policy(root: Path) -> None:
+    source = Path("deploy/chroma-security-policy.json")
+    target = root / source
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(source.read_bytes())
+
+
+def test_chroma_security_policy_is_machine_readable_and_current() -> None:
+    payload = json.loads(Path("deploy/chroma-security-policy.json").read_text(encoding="utf-8"))
+
+    assert payload["status"] == "blocked"
+    assert payload["compose_service_allowed"] is False
+    assert payload["latest_observed_version"] == "1.5.9"
+    assert payload["last_reviewed_at"] == "2026-08-11"
+    assert payload["advisory"] == {
+        "affected_versions": ">=1.0.0,<=1.5.9",
+        "cve": "CVE-2026-45829",
+        "id": "GHSA-f4j7-r4q5-qw2c",
+        "patched_versions": [],
+        "severity": "critical",
+    }
+    assert policy.chroma_security_findings(Path.cwd()) == ()
+
+
+@pytest.mark.parametrize(
+    ("filename", "content", "expected_rule"),
+    [
+        (
+            "compose.yaml",
+            "services:\n  chroma:\n    image: chromadb/chroma:1.5.9\n",
+            "blocked-chroma-service",
+        ),
+        (
+            "pyproject.toml",
+            '[project]\nname = "synthetic"\nversion = "0.0.0"\n'
+            'dependencies = ["chromadb==1.5.9"]\n',
+            "blocked-chroma-dependency",
+        ),
+        (
+            "uv.lock",
+            'version = 1\n[[package]]\nname = "chromadb"\nversion = "1.5.9"\n',
+            "blocked-chroma-lock-entry",
+        ),
+    ],
+)
+def test_chroma_security_policy_blocks_unpatched_runtime_changes(
+    tmp_path: Path,
+    filename: str,
+    content: str,
+    expected_rule: str,
+) -> None:
+    _write_chroma_policy(tmp_path)
+    (tmp_path / filename).write_text(content, encoding="utf-8")
+
+    findings = policy.chroma_security_findings(tmp_path)
+
+    assert expected_rule in {finding.rule for finding in findings}
+
+
+def test_chroma_security_policy_fails_closed_when_missing_or_weakened(tmp_path: Path) -> None:
+    assert policy.chroma_security_findings(tmp_path) == (
+        policy.PolicyFinding(
+            "deploy/chroma-security-policy.json", "chroma-security-policy-missing"
+        ),
+    )
+    _write_chroma_policy(tmp_path)
+    target = tmp_path / "deploy/chroma-security-policy.json"
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    payload["compose_service_allowed"] = True
+    target.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert policy.chroma_security_findings(tmp_path) == (
+        policy.PolicyFinding(
+            "deploy/chroma-security-policy.json", "chroma-security-policy-invalid"
+        ),
+    )

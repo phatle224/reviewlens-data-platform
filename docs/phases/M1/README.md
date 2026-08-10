@@ -13,7 +13,8 @@ Mục tiêu M1 là tạo nền móng có thể bootstrap, test và chạy trong 
 | [Snowflake foundation](../../../infra/snowflake/README.md) | Foundation/RBAC/identity contracts và versioned append-only audit migrations |
 | [Observability logging](../../../src/reviewlens/observability/logging.py) | JSONL events, context-local correlation IDs và recursive secret/PII/restricted-text redaction |
 | [Authenticated app shell](../../../src/reviewlens/app/streamlit_app.py) | Loopback-only Streamlit entrypoint, local token gate và provider-free configuration readiness |
-| [Single-local Compose](../../../compose.yaml) | Hardened loopback-only app, metrics và Airflow runtime; Chroma withheld until a patched version exists |
+| [Single-local Compose](../../../compose.yaml) | Hardened loopback-only app, metrics và Airflow runtime; Chroma provisioning thuộc M5 sau patched audit |
+| [Chroma security policy](../../../deploy/chroma-security-policy.json) | Machine-readable critical-advisory quarantine; repository gate chặn service/dependency/lock entry khi chưa có bản vá |
 | [Immutable artifact metadata](../../../deploy/artifacts.lock.json) | Source-derived local image tags và stale-build detection |
 | [Health/metrics endpoint](../../../src/reviewlens/observability/health.py) | Provider-free JSON health và bounded Prometheus metrics |
 | [Foundation CI](../../../.github/workflows/ci.yml) | Locked quality, dbt, repository-policy, dependency-audit và status gates |

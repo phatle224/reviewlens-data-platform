@@ -3,11 +3,11 @@
 | Thuộc tính | Giá trị |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 18/20 work items |
-| Partial | 2/20 work items |
+| Completed | 19/20 work items |
+| Partial | 1/20 work items |
 | Blocked | 0/20 work items |
 | Not started | 0/20 work items |
-| Last updated | 2026-08-10 |
+| Last updated | 2026-08-11 |
 
 ## Checklist theo implementation plan
 
@@ -29,7 +29,7 @@
 | IMP-M1-014 | `DONE` | Structured logging, correlation và redaction | `src/reviewlens/observability/logging.py`: JSONL stable events, context-local trace/source/batch/run/release IDs, fail-closed exception handling và recursive redaction cho secret/PII/URL/payment/restricted review text kể cả unsafe metadata keys; 11 focused tests và TC-M1-011 pass |
 | IMP-M1-015 | `DONE` | CI lint/type/unit/contracts/dbt/security/container gates | Least-privilege GitHub Actions workflow chạy locked sync, Ruff/Airflow rules, mypy, pytest coverage, dbt offline parse/compile, repository policy, dependency audit, status validator và SHA-pinned Trivy image scans; reviewed-container policy thay pre-container rejection |
 | IMP-M1-016 | `DONE` | Non-root Docker images/entrypoints | Digest-pinned app/Airflow builds pass; image metadata và live `id -u` xác nhận `10001:10001`/`50000:0`; app `uv pip check` và Airflow `pip check` sạch; CI build/non-root/critical-CVE gates đã version |
-| IMP-M1-017 | `PARTIAL` | Local Compose/deploy skeleton + immutable artifact tags | `docker compose config`, deterministic `local-sha256-*` manifest và app/metrics/Airflow local deploy đều pass/healthy trên cùng tag; Airflow không nhận credential env. Còn Chroma service vì 1.5.9 chưa có bản vá cho advisory nghiêm trọng |
+| IMP-M1-017 | `DONE` | Local Compose/deploy skeleton + immutable artifact tags + Chroma security quarantine | App/metrics/Airflow Compose build/deploy/health và deterministic artifact tag pass; Airflow không nhận credential env. `deploy/chroma-security-policy.json` cùng repository gate chặn Chroma service/dependency/lock entry trong khi GHSA-f4j7-r4q5-qw2c chưa có bản vá; persistent provisioning được chuyển đúng dependency sang IMP-M5-001 |
 | IMP-M1-018 | `DONE` | Metrics sink/health visibility | Provider-free `/healthz` và Prometheus `/metrics` có bounded labels, ready/integration/service-error bootstrap; unit HTTP và Compose end-to-end checks đều pass với `state=ready`, `provider_calls=false` |
 | IMP-M1-019 | `DONE` | Foundation operations runbook | `docs/runbooks/M1_FOUNDATION_OPERATIONS.md` bao phủ clean setup, secret-safe readiness, immutable build/image cleanup, start/stop, test tiers, cost-stop, recovery và break-glass; 6 contract/security tests pass. Clean-path solo dry run ngày 2026-08-10 pass toàn bộ checklist với locked offline bootstrap, reproducible two-image build, hardened healthy runtime, offline/dbt/audit gates và cost-stop cleanup |
 | IMP-M1-020 | `DONE` | Migrate active source baseline from Yelp to Olist | ADR-008; nine-file manifest; config/license, fixture, Snowflake CSV format, PRD/plan/M0/M1/RAG/diagram updates; TC-M1-031 pass |

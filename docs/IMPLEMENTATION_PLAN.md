@@ -144,7 +144,7 @@ Olist-shaped fixtures and test scoped provider foundations without real source d
 | IMP-M1-014 | Structured logging, trace IDs and redaction library | M1-011/013 | Seeded secret/PII/review-text leak tests |
 | IMP-M1-015 | CI lint/type/unit/contracts/dbt/security/dependency/container gates | M1-001/009/014 | Deliberate failing fixture blocks workflow |
 | IMP-M1-016 | Non-root Docker images/entrypoints | M1-010/012/015 | Reproducible build and non-root smoke |
-| IMP-M1-017 | Single-local Docker Compose and immutable artifact metadata | M1-016 | Compose config, local deploy and digest test |
+| IMP-M1-017 | Single-local Docker Compose, immutable artifact metadata and fail-closed Chroma quarantine | M1-016 | App/metrics/Airflow local deploy + digest test; machine-readable advisory gate blocks unpatched Chroma and defers persistent provisioning to M5-001 |
 | IMP-M1-018 | Metrics sink/health/service-error bootstrap | M1-014/017 | Synthetic metric visible end to end |
 | IMP-M1-019 | Foundation runbook: setup, credentials, tests, cost stop and break-glass | M1-001…018 | Clean-machine solo dry run |
 | IMP-M1-020 | Migrate active source baseline from Yelp to Olist across contract, config, fixtures, Snowflake, docs and diagram | ADR-008 | Nine-file manifest/license tests, no active Yelp contract, status/docs synchronized |
@@ -239,7 +239,7 @@ bounded pilot; failures remain auditable and do not remove base review facts.
 
 | Work item | Task | Dependency | Acceptance/evidence |
 |---|---|---|---|
-| IMP-M5-001 | Provision persistent local Chroma and writer/reader boundaries | M1-008/017 | Restart and negative access tests |
+| IMP-M5-001 | Re-audit Chroma advisory, then provision a patched persistent local release with writer/reader boundaries | M1-008/017 | Patched dependency/image audits, restart and negative access tests; blocked policy must be intentionally replaced, never bypassed |
 | IMP-M5-002 | Freeze chunk/embedding/index version keys and catalog dimension | M0-010/M4-004 | Dimension/version tests |
 | IMP-M5-003 | Build release-bound secure `AI.RAG_DOCUMENT` projection | M3-019/M4-011 | DLP/release leakage tests |
 | IMP-M5-004 | Deterministic short/long review chunker with offsets/citations | M5-002/003 | Stable IDs/checksums |

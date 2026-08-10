@@ -19,9 +19,12 @@ Local stack hiện có ba service:
 | Airflow | `http://127.0.0.1:8080` | Paused fail-closed DAG scaffold | Không nhận provider/app credential từ Compose |
 
 Chroma không nằm trong M1 Compose vì package/server 1.5.9 chưa có bản vá cho
-critical unauthenticated code-injection advisory. Không tự thêm Chroma image để
-làm checklist chuyển xanh. Snowflake `AI.RAG_DOCUMENT` vẫn là nguồn thẩm quyền
-và M5 sẽ chọn lại backend/version sau security audit.
+critical unauthenticated code-injection advisory `GHSA-f4j7-r4q5-qw2c`/
+`CVE-2026-45829` tại lần review 2026-08-11. Không tự thêm Chroma image để làm
+checklist chuyển xanh: [machine-readable security policy](../../deploy/chroma-security-policy.json)
+và `reviewlens-policy` sẽ fail closed nếu service/dependency/lock entry xuất hiện.
+Snowflake `AI.RAG_DOCUMENT` vẫn là nguồn thẩm quyền và M5 sẽ re-audit rồi mới
+provision một release đã vá.
 
 Trạng thái đúng sau khi start:
 
@@ -373,4 +376,3 @@ Chạy checklist này trên clone/path mới hoặc VM mới; không dùng worki
 Ghi ngày, OS/Python/uv/Docker versions, commit SHA, artifact tag, kết quả từng mục
 và lỗi đã sanitize vào M1 test evidence. Chỉ đánh dấu TC-M1-027 `PASS` sau một
 clean-machine dry run thực tế; review tài liệu trên máy phát triển chưa đủ.
-
