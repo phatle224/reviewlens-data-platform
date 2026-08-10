@@ -8,7 +8,7 @@
 |---|---|
 | Trạng thái tổng thể | `ON_TRACK` |
 | Phase hiện tại | `M1` — Foundation and developer platform |
-| Trạng thái phase hiện tại | `IN_PROGRESS` — 17 done, 2 partial, 1 not started |
+| Trạng thái phase hiện tại | `IN_PROGRESS` — 18 done, 2 partial, 0 not started |
 | Phase gần nhất hoàn tất | `M0` — 19/19 work items, re-baselined for Olist |
 | Cập nhật lần cuối | 2026-08-10 |
 | Người thực hiện | Solo Developer |
@@ -34,19 +34,18 @@ Milestone completion: **1/9**. Đây là số gate đã đóng, không phải ph
 
 ## Kết quả phiên gần nhất
 
-- Hoàn tất `IMP-M1-016` và `IMP-M1-018`: digest-pinned, non-root app/Airflow images build thật thành công; provider-free `/healthz` + Prometheus `/metrics` pass cả unit HTTP và Compose end-to-end.
-- Final local stack app/metrics/Airflow cùng artifact tag đều healthy; live UID, dependency consistency, four Airflow pools và paused DAG discovery pass. Airflow không nhận credential environment.
-- CI thay pre-container rejection bằng reviewed-container policy, build/non-root assertions và hai Trivy critical-CVE scans pinned bằng full SHA. Chroma 1.5.9 không được provision vì advisory nghiêm trọng chưa có bản vá.
-- `docker compose config --quiet`, artifact check, repository policy, dbt parse/compile và hash-pinned dependency audit pass. Full offline regression: 167 pass, 5 expected live skips, 88.74% coverage; Ruff/Airflow rules và mypy strict pass.
-- `IMP-M1-017` còn partial chỉ vì Chroma server bị giữ ngoài Compose đến khi có phiên bản/backend đã audit an toàn. Docker Scout local cần Docker ID nên chưa chạy; CI đã có SHA-pinned Trivy gates không dùng project credentials.
-- Không gọi Snowflake/R2/OpenRouter/Chroma, không đọc/upload Olist row, không resume warehouse và không phát sinh project service cost.
+- `IMP-M1-019`/TC-M1-027 đã đóng `DONE/PASS` bằng clean-path solo dry run ngày 2026-08-10: locked offline bootstrap, secret-free degraded readiness, artifact/Compose/build, non-root/dependency/health/Airflow checks, full offline/dbt/audit gates và cost-stop cleanup đều pass.
+- Clean-room build tái tạo đúng tag `local-sha256-2c8290023e540a1c`; app/Airflow chạy UID 10001/50000, ba service healthy trên loopback, bốn pool đúng một slot và `olist_pipeline` paused.
+- Full clean-path regression có 173 pass + 5 expected live skips; repository policy, artifact/status validator, dbt no-introspect và hash-pinned audit đều pass.
+- Sau `docker compose down` không còn ReviewLens container/network; named Airflow volume và đúng hai final image được giữ.
+- Không bật live flag, không gọi Snowflake/R2/OpenRouter/Chroma, không đọc/upload Olist và không phát sinh project service cost.
 
 ## Kiểm thử
 
 | Phạm vi | Kết quả | Chi tiết |
 |---|---|---|
 | M0 | 18 `PASS`, 3 `DEFERRED`, 0 `FAIL` | [M0 test cases](./phases/M0/M0_TEST_CASES.md) |
-| M1 | 38 `PASS`, 3 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 167 pass/5 live skip; container/Compose/artifact/metrics + CI policy/dependency/AppTest/logging/audit/Airflow/dbt/provider/R2/stage/RBAC/JWT evidence |
+| M1 | 39 `PASS`, 2 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 173 pass/5 live skip; clean-path/container/Compose/artifact/metrics + CI policy/dependency/AppTest/logging/audit/Airflow/dbt/provider/R2/stage/RBAC/JWT evidence |
 | Quality | `PASS` | Ruff format/lint + Airflow 3 rules, mypy strict, dbt warnings-as-errors, 88.74% branch-aware coverage, uv lock/artifact checks, repository scan và dependency audit with no known vulnerabilities |
 | Status validator | `PASS` — 0 errors, 0 warnings | M0: 19 done/21 tests; M1: 20 work items/41 tests synchronized |
 
@@ -79,10 +78,10 @@ rotation/revocation smoke vì bước này chủ động thay đổi live authen
 
 ## Việc tiếp theo
 
-1. `IMP-M1-019`: viết foundation operations runbook từ các command container/Compose đã smoke-test.
+1. Khi owner xác nhận maintenance window: chạy controlled key rotation/revocation smoke để đóng `IMP-M1-008`.
 2. Theo dõi Chroma advisory; chỉ hoàn tất `IMP-M1-017` khi một release/backend an toàn qua audit và Compose smoke.
-3. Khi owner xác nhận maintenance window: chạy controlled key rotation/revocation smoke để đóng `IMP-M1-008`.
-4. Chỉ bắt đầu real Olist upload ở M2 sau machine-readable contract/manifest/privacy preflight.
+3. Chuẩn bị M2 bằng machine-readable nine-file contracts và synthetic compatibility fixtures; chưa cần Olist upload.
+4. Chỉ bắt đầu real Olist upload ở M2 sau contract/manifest/privacy preflight.
 
 ## Tài liệu nguồn
 
@@ -94,4 +93,5 @@ rotation/revocation smoke vì bước này chủ động thay đổi live authen
 - [M0 decision register](./phases/M0/M0_DECISION_REGISTER.md)
 - [RAG recommendation](./reviewlens_rag_recommendation.md)
 - [Credential rotation runbook](./runbooks/M1_CREDENTIAL_ROTATION.md)
+- [Foundation operations runbook](./runbooks/M1_FOUNDATION_OPERATIONS.md)
 - [Architecture diagram](./images/plan.png)

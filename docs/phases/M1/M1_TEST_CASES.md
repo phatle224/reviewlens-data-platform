@@ -7,7 +7,7 @@
 | TC-M1-001 | Bootstrap | Lockfile và local Python environment reproducible | `uv sync --locked` thành công | `PASS` | `uv sync --locked --offline --cache-dir .uv-cache`: project built/installed successfully |
 | TC-M1-002 | Static | Ruff format/lint | Không lỗi | `PASS` | `ruff format --check src tests`; `ruff check src tests` |
 | TC-M1-003 | Static | Mypy strict | Không lỗi | `PASS` | `mypy src tests`: 0 issues |
-| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | 167 passed, 5 expected live skips, 88.74% branch-aware coverage |
+| TC-M1-004 | Unit | Full pytest suite | Tất cả unit/contract tests pass | `PASS` | 173 passed, 5 expected live skips, 88.74% branch-aware coverage |
 | TC-M1-005 | Config | Single-local config + `.env` precedence/ignore | `config/config.toml` không có secret/profile selector; process env ghi đè `.env`; `.env` bị ignore | `PASS` | Unit tests pass; `git check-ignore -v .env` → `.gitignore:2` ; old-profile scan 0 match |
 | TC-M1-006 | Compliance | Olist source/license configuration | CC BY-NC-SA, NonCommercial, attribution và ShareAlike không thể bị làm yếu | `PASS` | Olist config contract + three weakened-license negative tests pass |
 | TC-M1-007 | Security | Secret-safe config summary | Không lộ secret | `PASS` | Secret-field scan 0 match; safe-summary unit test pass |
@@ -30,7 +30,7 @@
 | TC-M1-024 | Container | App image build/non-root | Build pass; runtime user non-root | `PASS` | App/Airflow digest-pinned builds pass; image config + live `id -u` return `10001`/`50000`; app `uv pip check` và Airflow `pip check` report no broken requirements |
 | TC-M1-025 | Container | Airflow/Chroma single-local Compose config | `docker compose config` pass và chỉ dùng `config/config.toml` + `.env` | `PENDING` | Compose config và final-tag deploy cho app/metrics/Airflow pass; cả ba healthy, four pools imported, paused `olist_pipeline` discovered, Airflow protected-env inventory empty. Chroma 1.5.9 vẫn bị loại vì critical advisory chưa có bản vá |
 | TC-M1-026 | Deploy | Immutable artifact tag/rollback metadata | Deterministic digest + local-scope guard | `PASS` | `reviewlens-artifacts --check` pass; manifest có full source SHA-256, deterministic local tag, image refs, no timestamp/host path và stale-source negative test |
-| TC-M1-027 | Runbook | Required operations documented | Bootstrap/credentials/test/cost-stop/break-glass present | `PENDING` | Chưa chạy |
+| TC-M1-027 | Runbook | Required operations documented | Bootstrap/credentials/test/cost-stop/break-glass present | `PASS` | Runbook artifact + 6/6 contract/security tests pass. Clean-path solo dry run ngày 2026-08-10: locked offline bootstrap, secret-free degraded readiness, artifact/Compose/build, non-root/dependency/health/Airflow checks, full offline/dbt/audit gates và cost-stop cleanup đều pass |
 | TC-M1-028 | Secret scan | Repository tracked/untracked source scan | Không secret-like value | `PASS` | `reviewlens-policy --root .`: 0 findings; negative fixtures chặn env/key/token/private-key/credential assignment và không echo canary value |
 | TC-M1-029 | Data leak | Git-visible files deny Olist CSV/review/vector artifacts | Policy scan pass | `PASS` | `archive/`, `.env` and source/vector artifacts ignored; Git-visible scan contains metadata/docs only |
 | TC-M1-030 | Status | Skill status validator | 0 errors/warnings | `PASS` | Validator: 0 errors, 0 warnings |
@@ -210,3 +210,14 @@
 - Docker Engine 29.5.3 build và runtime smoke pass. App/metrics/Airflow cùng final artifact tag đều healthy; live UIDs là 10001/50000, dependency checks sạch, four Airflow pools imported và paused `olist_pipeline` discovered.
 - Docker Scout local scan không chạy vì máy chưa đăng nhập Docker ID; không yêu cầu thêm credential để build/smoke. CI giữ two Trivy v0.36.0 critical-CVE scans pinned bằng full SHA, kết quả chỉ được ghi khi workflow thực sự chạy.
 - No Snowflake/R2/OpenRouter/Chroma request ran, no Olist row was read/uploaded, no warehouse resumed and no project service cost was incurred.
+
+### Foundation operations runbook and local image cleanup
+
+- Đối chiếu `deploy/artifacts.lock.json` với Docker inventory và giữ đúng hai final images `reviewlens/app:local-sha256-2c8290023e540a1c` cùng `reviewlens/airflow:local-sha256-2c8290023e540a1c`. Mười tag build cũ không gắn container đã được xóa bằng exact references; base images, final images, BuildKit cache và Airflow volume không bị xóa.
+- Added `M1_FOUNDATION_OPERATIONS.md` cho solo Windows operator: prerequisites, clean clone, one-config/ignored-env readiness, artifact build, dry-run-first allowlisted image cleanup, Compose health, offline/dbt/audit gates, stop/update, cost-stop, troubleshooting, Airflow metadata recovery và credential break-glass.
+- Default path không bật live flags, không trigger DAG, không public port, không gọi provider và không dùng Olist rows. Destructive Airflow volume reset yêu cầu exact typed confirmation; image cleanup không dùng force/global prune.
+- Focused runbook suite: 6/6 pass. Full offline regression: Ruff/Airflow rules pass, mypy strict pass, pytest 173 pass + 5 expected live skips với 88.74% branch-aware coverage.
+- Clean-path evidence ngày 2026-08-10 trên Windows 10.0.26200, Git 2.51.0, Python 3.13.7, uv 0.10.9, Docker Engine 29.5.3/Desktop 4.78.0 và Compose 5.1.4. Snapshot Git cục bộ `1b8ff58` có working tree sạch; `.env` được ignore, không có project key file và config readiness degraded an toàn khi thiếu credential.
+- Locked offline bootstrap cài 206 packages; artifact tag `local-sha256-2c8290023e540a1c`, Compose render và clean-path build của app/Airflow pass. App/Airflow chạy UID 10001/50000, dependency checks sạch; app, metrics và Airflow healthy trên `127.0.0.1`.
+- `/healthz` trả `provider_calls_performed=false`; bốn ReviewLens pool có đúng một slot và `olist_pipeline` tồn tại ở trạng thái paused. dbt 1.12 parse/compile no-introspect, repository policy, artifact/status validator và hash-pinned dependency audit đều pass.
+- `docker compose down` đã xóa clean-room container/network nhưng giữ `reviewlens-local-airflow-runtime` và đúng hai final image. Không bật live flag, không gọi Snowflake/R2/OpenRouter/Chroma, không đọc/upload Olist và không phát sinh project service cost; `IMP-M1-019`/TC-M1-027 được đóng `DONE/PASS`.
