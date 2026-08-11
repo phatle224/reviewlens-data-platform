@@ -460,7 +460,52 @@ Sau đó:
 4. Sau grace period, xác minh **old key fails**.
 5. Chỉ xóa private key cũ sau khi key mới pass.
 
-### 12.2 Snowflake emergency revoke
+### 12.2 M1 isolated rotation smoke
+
+Đây là bước còn lại để đóng `TC-M1-037`. Test dùng `REVIEWLENS_ANALYTICS_SVC`
+(read-only) và named key tạm `REVIEWLENS_ROTATION_SMOKE`; **không rotate hoặc sửa
+`REVIEWLENS_RUNTIME`** đang được app sử dụng.
+
+Test thực hiện theo thứ tự:
+
+1. xác minh runtime key hiện tại vẫn đăng nhập đúng `ANALYST_ROLE`;
+2. preflight từ chối chạy nếu canary key cùng tên đã tồn tại;
+3. tạo hai RSA key tạm trong Windows temp, đăng ký old canary key;
+4. xác minh old canary key đăng nhập đúng role;
+5. rotate sang new canary key với grace `0`;
+6. chứng minh old canary key bị từ chối và new canary key đăng nhập được;
+7. xóa active canary key trong `finally`, xóa file tạm và suspend warehouse;
+8. xác minh runtime key ban đầu vẫn đăng nhập được sau cleanup.
+
+Không gửi thêm credential cho Codex. Khi owner xác nhận đây là maintenance window,
+chạy đúng lệnh sau tại root repository:
+
+```powershell
+$env:REVIEWLENS_RUN_LIVE_SNOWFLAKE_ROTATION='1'
+$env:REVIEWLENS_SNOWFLAKE_ROTATION_CONFIRM='ROTATE_REVIEWLENS_ANALYTICS_SVC_REVIEWLENS_ROTATION_SMOKE'
+.venv\Scripts\pytest.exe tests\live\test_snowflake_rotation_live.py -q -rs -p no:cacheprovider
+Remove-Item Env:REVIEWLENS_RUN_LIVE_SNOWFLAKE_ROTATION
+Remove-Item Env:REVIEWLENS_SNOWFLAKE_ROTATION_CONFIRM
+```
+
+Expected: `1 passed`. Evidence không được chứa public/private key body, path tạm hoặc
+giá trị credential. Nếu cleanup báo lỗi, dừng retry và kiểm tra metadata trước:
+
+```sql
+SHOW USER KEY PAIRS FOR USER REVIEWLENS_ANALYTICS_SVC;
+```
+
+Chỉ khi exact active key `REVIEWLENS_ROTATION_SMOKE` còn tồn tại mới chạy:
+
+```sql
+ALTER USER IF EXISTS REVIEWLENS_ANALYTICS_SVC
+  REMOVE KEY PAIR REVIEWLENS_ROTATION_SMOKE;
+```
+
+Không xóa `REVIEWLENS_RUNTIME`. Rotated-out tombstone có hậu tố
+`_ROTATED_<epoch_ms>` đã bị disable/expire; Snowflake tự loại nó sau expiry.
+
+### 12.3 Snowflake emergency revoke
 
 ```sql
 ALTER USER REVIEWLENS_INGEST_SVC SET DISABLED = TRUE;
@@ -470,14 +515,14 @@ REVOKE ROLE INGEST_ROLE FROM USER REVIEWLENS_INGEST_SVC;
 
 `REMOVE KEY PAIR` không thể undo; chỉ dùng khi key bị lộ hoặc service bị retire.
 
-### 12.3 R2 rotation
+### 12.4 R2 rotation
 
 1. Tạo token thay thế cùng bucket và minimum permission.
 2. Cập nhật đúng consumer trong `.env`.
 3. Chạy synthetic smoke.
 4. Chỉ revoke token cũ sau khi smoke pass.
 
-### 12.4 OpenRouter/Chroma/app rotation
+### 12.5 OpenRouter/Chroma/app rotation
 
 - OpenRouter: tạo key mới → update/test → kiểm tra usage → xóa key cũ.
 - Chroma/app: tạo token mới độc lập → restart → authenticated/anonymous tests →

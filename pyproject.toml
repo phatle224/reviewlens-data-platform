@@ -71,6 +71,7 @@ ignore = ["S101"]
 "tests/live/test_snowflake_live.py" = ["S608"]
 "tests/live/test_snowflake_rbac_live.py" = ["S608"]
 "tests/live/test_snowflake_service_identities_live.py" = ["S608"]
+"tests/live/test_snowflake_rotation_live.py" = ["S608"]
 
 [tool.mypy]
 python_version = "3.13"
