@@ -1,0 +1,152 @@
+{
+  "contract_version": "olist-source-v1",
+  "manifest_version": "olist-manifest-v1",
+  "source_name": "olist",
+  "source_contract": "olist-brazilian-ecommerce",
+  "license_id": "CC-BY-NC-SA-4.0",
+  "datasets": [
+    {
+      "dataset_name": "customers",
+      "file_name": "olist_customers_dataset.csv",
+      "required": true,
+      "data_class": "pseudonymous",
+      "identity_fields": ["customer_id"],
+      "identity_semantics": "unique",
+      "columns": [
+        {"name": "customer_id", "logical_type": "string", "nullable": false},
+        {"name": "customer_unique_id", "logical_type": "string", "nullable": false},
+        {"name": "customer_zip_code_prefix", "logical_type": "string", "nullable": false},
+        {"name": "customer_city", "logical_type": "string", "nullable": false},
+        {"name": "customer_state", "logical_type": "string", "nullable": false}
+      ]
+    },
+    {
+      "dataset_name": "geolocation",
+      "file_name": "olist_geolocation_dataset.csv",
+      "required": true,
+      "data_class": "quasi_identifier",
+      "identity_fields": ["geolocation_zip_code_prefix"],
+      "identity_semantics": "occurrence",
+      "columns": [
+        {"name": "geolocation_zip_code_prefix", "logical_type": "string", "nullable": false},
+        {"name": "geolocation_lat", "logical_type": "decimal", "nullable": false},
+        {"name": "geolocation_lng", "logical_type": "decimal", "nullable": false},
+        {"name": "geolocation_city", "logical_type": "string", "nullable": false},
+        {"name": "geolocation_state", "logical_type": "string", "nullable": false}
+      ]
+    },
+    {
+      "dataset_name": "order_items",
+      "file_name": "olist_order_items_dataset.csv",
+      "required": true,
+      "data_class": "internal",
+      "identity_fields": ["order_id", "order_item_id"],
+      "identity_semantics": "unique",
+      "columns": [
+        {"name": "order_id", "logical_type": "string", "nullable": false},
+        {"name": "order_item_id", "logical_type": "integer", "nullable": false},
+        {"name": "product_id", "logical_type": "string", "nullable": false},
+        {"name": "seller_id", "logical_type": "string", "nullable": false},
+        {"name": "shipping_limit_date", "logical_type": "timestamp", "nullable": false},
+        {"name": "price", "logical_type": "decimal", "nullable": false},
+        {"name": "freight_value", "logical_type": "decimal", "nullable": false}
+      ]
+    },
+    {
+      "dataset_name": "order_payments",
+      "file_name": "olist_order_payments_dataset.csv",
+      "required": true,
+      "data_class": "internal",
+      "identity_fields": ["order_id", "payment_sequential"],
+      "identity_semantics": "unique",
+      "columns": [
+        {"name": "order_id", "logical_type": "string", "nullable": false},
+        {"name": "payment_sequential", "logical_type": "integer", "nullable": false},
+        {"name": "payment_type", "logical_type": "string", "nullable": false},
+        {"name": "payment_installments", "logical_type": "integer", "nullable": false},
+        {"name": "payment_value", "logical_type": "decimal", "nullable": false}
+      ]
+    },
+    {
+      "dataset_name": "order_reviews",
+      "file_name": "olist_order_reviews_dataset.csv",
+      "required": true,
+      "data_class": "restricted",
+      "identity_fields": ["review_id", "order_id"],
+      "identity_semantics": "unique",
+      "columns": [
+        {"name": "review_id", "logical_type": "string", "nullable": false},
+        {"name": "order_id", "logical_type": "string", "nullable": false},
+        {"name": "review_score", "logical_type": "integer", "nullable": false},
+        {"name": "review_comment_title", "logical_type": "string", "nullable": true},
+        {"name": "review_comment_message", "logical_type": "string", "nullable": true},
+        {"name": "review_creation_date", "logical_type": "timestamp", "nullable": false},
+        {"name": "review_answer_timestamp", "logical_type": "timestamp", "nullable": false}
+      ]
+    },
+    {
+      "dataset_name": "orders",
+      "file_name": "olist_orders_dataset.csv",
+      "required": true,
+      "data_class": "internal",
+      "identity_fields": ["order_id"],
+      "identity_semantics": "unique",
+      "columns": [
+        {"name": "order_id", "logical_type": "string", "nullable": false},
+        {"name": "customer_id", "logical_type": "string", "nullable": false},
+        {"name": "order_status", "logical_type": "string", "nullable": false},
+        {"name": "order_purchase_timestamp", "logical_type": "timestamp", "nullable": false},
+        {"name": "order_approved_at", "logical_type": "timestamp", "nullable": true},
+        {"name": "order_delivered_carrier_date", "logical_type": "timestamp", "nullable": true},
+        {"name": "order_delivered_customer_date", "logical_type": "timestamp", "nullable": true},
+        {"name": "order_estimated_delivery_date", "logical_type": "timestamp", "nullable": false}
+      ]
+    },
+    {
+      "dataset_name": "products",
+      "file_name": "olist_products_dataset.csv",
+      "required": true,
+      "data_class": "internal",
+      "identity_fields": ["product_id"],
+      "identity_semantics": "unique",
+      "columns": [
+        {"name": "product_id", "logical_type": "string", "nullable": false},
+        {"name": "product_category_name", "logical_type": "string", "nullable": true},
+        {"name": "product_name_lenght", "logical_type": "integer", "nullable": true},
+        {"name": "product_description_lenght", "logical_type": "integer", "nullable": true},
+        {"name": "product_photos_qty", "logical_type": "integer", "nullable": true},
+        {"name": "product_weight_g", "logical_type": "decimal", "nullable": true},
+        {"name": "product_length_cm", "logical_type": "decimal", "nullable": true},
+        {"name": "product_height_cm", "logical_type": "decimal", "nullable": true},
+        {"name": "product_width_cm", "logical_type": "decimal", "nullable": true}
+      ]
+    },
+    {
+      "dataset_name": "sellers",
+      "file_name": "olist_sellers_dataset.csv",
+      "required": true,
+      "data_class": "pseudonymous",
+      "identity_fields": ["seller_id"],
+      "identity_semantics": "unique",
+      "columns": [
+        {"name": "seller_id", "logical_type": "string", "nullable": false},
+        {"name": "seller_zip_code_prefix", "logical_type": "string", "nullable": false},
+        {"name": "seller_city", "logical_type": "string", "nullable": false},
+        {"name": "seller_state", "logical_type": "string", "nullable": false}
+      ]
+    },
+    {
+      "dataset_name": "category_translation",
+      "file_name": "product_category_name_translation.csv",
+      "required": true,
+      "data_class": "public_metadata",
+      "identity_fields": ["product_category_name"],
+      "identity_semantics": "unique",
+      "columns": [
+        {"name": "product_category_name", "logical_type": "string", "nullable": false},
+        {"name": "product_category_name_english", "logical_type": "string", "nullable": false}
+      ]
+    }
+  ]
+}
+
