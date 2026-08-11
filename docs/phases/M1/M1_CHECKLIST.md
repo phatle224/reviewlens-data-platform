@@ -2,9 +2,9 @@
 
 | Thuộc tính | Giá trị |
 |---|---|
-| Phase status | `IN_PROGRESS` |
-| Completed | 19/20 work items |
-| Partial | 1/20 work items |
+| Phase status | `COMPLETE` |
+| Completed | 20/20 work items |
+| Partial | 0/20 work items |
 | Blocked | 0/20 work items |
 | Not started | 0/20 work items |
 | Last updated | 2026-08-12 |
@@ -20,7 +20,7 @@
 | IMP-M1-005 | `DONE` | Private R2 config, scoped token/lifecycle/public deny | Bucket-scoped live round trip, account-list denial, anonymous denial và cleanup pass; owner xác nhận lifecycle rule đã apply/enabled ngày 2026-08-05 |
 | IMP-M1-006 | `DONE` | Snowflake foundation, monitor và R2 external stage | Secret-free idempotent DDL + in-memory stage DDL using dedicated `R2_STAGE_*` read-only identity; XSMALL/60s/10-credit monitor; live ingest-upload → stage `LIST`/`COPY INTO`/reconcile pass và warehouse cleanup suspend |
 | IMP-M1-007 | `DONE` | Least-privilege Snowflake/service roles | 9-role hierarchy dưới `SYSADMIN`, isolated `REVIEWLENS_SQL_WH`, container/exact-object grant boundary; static matrix và live 8-role positive/negative suite pass với secondary roles disabled |
-| IMP-M1-008 | `PARTIAL` | Credential boundaries và rotation skeleton | All runtime credentials ready; 8 named keys active, fingerprint/user/role/warehouse/database exact và live JWT auth pass; R2 ingest write/stage read-only live boundary pass. Isolated read-only canary harness, exact owner opt-in, old/new key auth checks và guaranteed cleanup đã pass offline; còn owner-approved live smoke để đóng item |
+| IMP-M1-008 | `DONE` | Credential boundaries và rotation skeleton | All runtime credentials ready; 8 named keys active, fingerprint/user/role/warehouse/database exact và live JWT auth pass; R2 ingest write/stage read-only live boundary pass. Owner-approved isolated analytics canary rotation pass ngày 2026-08-12: old key denied, new key exact-role pass, active canary removed, original runtime key preserved và warehouse suspended |
 | IMP-M1-009 | `DONE` | Snowflake-only dbt scaffold | `dbt/` project/profile, nine exact Bronze sources, contracted metadata registry, custom generic test macro and selector; dbt 1.12 parse + no-introspect compile pass with warnings-as-errors and synthetic placeholder credentials; no warehouse connection or DuckDB/multi-env/password path |
 | IMP-M1-010 | `DONE` | Airflow 3 DAG scaffold không có parse side effect | Airflow 3 public SDK `olist_pipeline` với 11-task stable graph, manual schedule, fail-closed M1 guards, per-task retry/timeout/one-slot pool và versioned pool manifest; isolated real-DAG import + graph/policy/no-network/no-dotenv contract tests pass trên Windows mà không khởi động service |
 | IMP-M1-011 | `DONE` | Provider adapters + fakes | R2/Snowflake/OpenRouter/Chroma/audit/clock typed boundaries và deterministic fakes pass; external AI chỉ nhận typed synthetic/DLP-approved text, Chroma chỉ giữ vector/reference metadata trỏ `AI.RAG_DOCUMENT`, provider errors được sanitize; không có paid/live AI call |
@@ -36,4 +36,6 @@
 
 ## Exit gate
 
-M1 chỉ `COMPLETE` khi offline foundation tests pass và live synthetic R2→Snowflake connectivity cùng RBAC negative tests có evidence. Thiếu credentials hoặc provider access phải ghi `DEFERRED`, không được giả lập `PASS`.
+M1 `COMPLETE`: toàn bộ offline foundation gates pass; live synthetic R2→Snowflake,
+RBAC negative, eight service-identity JWT và isolated named-key rotation/revocation
+đều có actual evidence. Raw Olist chưa được upload; M2 tiếp tục giữ manifest/privacy gate.

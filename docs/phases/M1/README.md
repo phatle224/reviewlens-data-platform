@@ -21,4 +21,5 @@ Mục tiêu M1 là tạo nền móng có thể bootstrap, test và chạy trong 
 | [Repository policy](../../../src/reviewlens/ci/policy.py) | Fail-closed scan cho secret, raw row artifacts và unreviewed container artifacts |
 | [Final entry inputs](../M0/M0_USER_INPUTS.md) | Deployment, budget, models, account và license facts |
 
-Phase status hiện tại: `IN_PROGRESS`.
+Phase status hiện tại: `COMPLETE` — 20/20 work items và 41/41 mandatory test cases
+đã có evidence; isolated Snowflake named-key rotation smoke pass ngày 2026-08-12.

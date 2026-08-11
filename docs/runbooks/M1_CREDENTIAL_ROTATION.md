@@ -503,7 +503,8 @@ ALTER USER IF EXISTS REVIEWLENS_ANALYTICS_SVC
 ```
 
 Không xóa `REVIEWLENS_RUNTIME`. Rotated-out tombstone có hậu tố
-`_ROTATED_<epoch_ms>` đã bị disable/expire; Snowflake tự loại nó sau expiry.
+`_ROTATED_<epoch_ms>` phải ở trạng thái disable/expire nếu còn hiển thị; với grace `0`,
+Snowflake có thể loại nó ngay trước lần `SHOW` kế tiếp.
 
 ### 12.3 Snowflake emergency revoke
 

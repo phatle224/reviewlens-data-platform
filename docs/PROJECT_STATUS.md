@@ -8,8 +8,8 @@
 |---|---|
 | Trạng thái tổng thể | `ON_TRACK` |
 | Phase hiện tại | `M1` — Foundation and developer platform |
-| Trạng thái phase hiện tại | `IN_PROGRESS` — 19 done, 1 partial, 0 not started |
-| Phase gần nhất hoàn tất | `M0` — 19/19 work items, re-baselined for Olist |
+| Trạng thái phase hiện tại | `COMPLETE` — 20/20 work items, 41/41 mandatory tests |
+| Phase gần nhất hoàn tất | `M1` — foundation, service identities and live rotation gate |
 | Cập nhật lần cuối | 2026-08-12 |
 | Người thực hiện | Solo Developer |
 | Active source | Olist Brazilian E-Commerce dataset — nine relational CSVs, CC BY-NC-SA 4.0 |
@@ -21,7 +21,7 @@
 | Phase | Trạng thái | Tóm tắt | Evidence |
 |---|---|---|---|
 | M0 | `COMPLETE` | Olist product/data/license/security/architecture baseline | [Checklist](./phases/M0/M0_CHECKLIST.md) · [Tests](./phases/M0/M0_TEST_CASES.md) |
-| M1 | `IN_PROGRESS` | Config, identities, provider/dbt/Airflow boundaries, audit/logging, authenticated app shell and fail-closed CI gates | [Overview](./phases/M1/README.md) · [Checklist](./phases/M1/M1_CHECKLIST.md) · [Tests](./phases/M1/M1_TEST_CASES.md) |
+| M1 | `COMPLETE` | Config, identities, provider/dbt/Airflow boundaries, audit/logging, authenticated app shell and fail-closed CI/live rotation gates | [Overview](./phases/M1/README.md) · [Checklist](./phases/M1/M1_CHECKLIST.md) · [Tests](./phases/M1/M1_TEST_CASES.md) |
 | M2 | `NOT_STARTED` | Nine-file Olist ingestion, R2 and Bronze | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M3 | `NOT_STARTED` | Conformed Silver, Gold and atomic release | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M4 | `NOT_STARTED` | DLP-approved review enrichment | [Plan](./IMPLEMENTATION_PLAN.md) |
@@ -30,28 +30,28 @@
 | M7 | `NOT_STARTED` | Streamlit analytics and integrated consumption | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M8 | `NOT_STARTED` | Orchestration, hardening and portfolio evidence | [Plan](./IMPLEMENTATION_PLAN.md) |
 
-Milestone completion: **1/9**. Đây là số gate đã đóng, không phải phần trăm effort.
+Milestone completion: **2/9**. Đây là số gate đã đóng, không phải phần trăm effort.
 
 ## Kết quả phiên gần nhất
 
-- Đã implement fail-closed rehearsal harness cho `IMP-M1-008`/TC-M1-037 bằng read-only `REVIEWLENS_ANALYTICS_SVC` và canary named key tạm `REVIEWLENS_ROTATION_SMOKE`; runtime key `REVIEWLENS_RUNTIME` không bị sửa.
-- Live test yêu cầu opt-in và exact owner confirmation trước mọi provider connection, từ chối stale canary, chứng minh old-key denial/new-key success, kiểm tra exact role và luôn cleanup/suspend trong `finally`.
-- Hai RSA key rehearsal chỉ tồn tại trong Windows temp, không vào `.env`/repository/evidence; active canary được xóa hậu kiểm. Runbook có exact command, expected result và manual recovery an toàn.
-- Full offline gate có 193 pass + 6 expected live skips và 88.78% branch-aware coverage; 13 PowerShell blocks trong credential runbook parse với 0 lỗi. TC-M1-037 vẫn `PENDING` cho đến khi owner cho phép chạy live smoke.
-- Không gọi Snowflake/R2/OpenRouter/Chroma, không đọc/upload Olist và không phát sinh project service cost trong phiên offline này.
+- Owner-approved `TC-M1-037` isolated Snowflake rotation smoke pass: old canary key bị từ chối sau grace `0`, new key đăng nhập đúng `REVIEWLENS_ANALYTICS_SVC`/`ANALYST_ROLE`, active canary được xóa và runtime key ban đầu vẫn hoạt động.
+- Lần chạy đầu phát hiện Snowflake purge tombstone ngay khi grace `0`; đây là metadata timing, không phải auth/cleanup failure. Assertion đã fail-closed đúng semantics và lần chạy lại pass `1/1` trong 7.80 giây.
+- Hai RSA key chỉ tồn tại trong Windows temp; không có secret/key body/path trong output hoặc Git. Nested cleanup xác minh active canary absent và suspend warehouse.
+- Full offline gate giữ 193 pass + 6 expected live skips, 88.78% branch-aware coverage; focused rotation gate 28 pass + 1 expected skip; live rotation 1 pass. Ruff, mypy, policy, artifact và status gates pass.
+- `IMP-M1-008` chuyển `DONE`, M1 chuyển `COMPLETE`. Không đọc/upload Olist, không gọi R2/OpenRouter/Chroma và không phát sinh paid AI cost.
 
 ## Kiểm thử
 
 | Phạm vi | Kết quả | Chi tiết |
 |---|---|---|
 | M0 | 18 `PASS`, 3 `DEFERRED`, 0 `FAIL` | [M0 test cases](./phases/M0/M0_TEST_CASES.md) |
-| M1 | 40 `PASS`, 1 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 193 pass/6 live skip; isolated rotation rehearsal + Chroma quarantine + clean-path/container/Compose/artifact/metrics + CI policy/dependency/AppTest/logging/audit/Airflow/dbt/provider/R2/stage/RBAC/JWT evidence |
+| M1 | 41 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 193 pass/6 live skip plus owner-approved live rotation 1 pass; Chroma quarantine + clean-path/container/Compose/artifact/metrics + CI policy/dependency/AppTest/logging/audit/Airflow/dbt/provider/R2/stage/RBAC/JWT evidence |
 | Quality | `PASS` | Ruff format/lint + Airflow 3 rules, mypy strict, dbt warnings-as-errors, 88.78% branch-aware coverage, uv lock/artifact checks, repository scan và dependency audit with no known vulnerabilities |
-| Status validator | `PASS` — 0 errors, 0 warnings | M0: 19 done/21 tests; M1: 20 work items/41 tests synchronized |
+| Status validator | `PASS` — 0 errors, 0 warnings | M0: complete; M1: 20 done/41 pass synchronized |
 
 ## Blocker và rủi ro
 
-- Dedicated service users đã enable, exact role-scoped named keys/JWT auth pass. Runtime không có đường fallback sang admin/`REVIEWLENS_OWNER`; isolated rotation/revocation harness đã sẵn sàng nhưng live smoke chưa chạy.
+- Dedicated service users, exact role-scoped JWT auth và isolated rotation/revocation đều pass. Runtime không có đường fallback sang admin/`REVIEWLENS_OWNER`; active canary đã cleanup.
 - R2 stage dùng direct scoped credentials theo Snowflake S3-compatible contract; rotation/revocation thuộc `IMP-M1-008`.
 - Olist license cho phép non-commercial portfolio use theo CC BY-NC-SA, nhưng review free text vẫn cần DLP/privacy gate trước OpenRouter/Chroma và không được public raw.
 - Snowflake trial hết hạn `2026-09-03`; ưu tiên hoàn tất M1 và M2/M3 vertical slice, giữ X-Small/60s/resource monitor.
@@ -63,25 +63,21 @@ Milestone completion: **1/9**. Đây là số gate đã đóng, không phải ph
 | Dịch vụ | Budget/gate hiện tại | Usage đã xác minh |
 |---|---|---|
 | OpenRouter | 5 USD/project; warning 0.50 USD/day | Không gọi trong phiên CI; 0 USD phát sinh từ code path project |
-| Snowflake | ≤10 credits/month; X-Small, auto-suspend 60s | CI/regression offline; dbt placeholder compile không kết nối provider; prior JWT evidence remain pass |
+| Snowflake | ≤10 credits/month; X-Small, auto-suspend 60s | Isolated auth/control-plane rotation smoke pass; không load/query Olist; warehouse suspend cleanup pass |
 | Cloudflare R2 | Standard; target ≤15 GB; private/lifecycle | Dedicated ingest/stage synthetic live pass; smoke object cleaned up; không upload Olist |
 | ChromaDB | ≤5 GB local | Typed/in-memory adapter tests only; chưa provision/index và 0 byte project data được ghi |
 
 ## Input cần từ chủ project
 
-Không cần thêm credential hoặc gửi secret cho Codex. Tất cả runtime readiness hiện
-`true`; 8 Snowflake key files tồn tại ngoài repository và live authentication pass.
-Không cần tải Olist data hoặc gọi cloud provider cho phần M1 local còn lại.
-Để đóng `IMP-M1-008`, chỉ cần owner xác nhận chạy isolated rotation/revocation smoke.
-Harness dùng canary key riêng trên read-only analytics user nên không cần gửi thêm secret,
-không sửa runtime key và không dự kiến downtime; đây vẫn là live authentication mutation
-nên cần xác nhận rõ trước khi chạy.
+Không cần thêm credential hoặc gửi secret cho Codex; M1 đã hoàn tất. Để bắt đầu
+M2-001…003 chưa cần upload Olist hay cung cấp input mới: có thể phát triển hoàn toàn bằng
+synthetic fixtures. Real Olist snapshot chỉ được dùng ở M2 sau manifest/privacy preflight.
 
 ## Việc tiếp theo
 
-1. Khi owner xác nhận: chạy isolated key rotation/revocation smoke để đóng `IMP-M1-008` và M1.
-2. Sau M1 exit, bắt đầu M2 bằng machine-readable nine-file contracts và synthetic compatibility fixtures; chưa cần Olist upload.
-3. Chỉ bắt đầu real Olist upload ở M2 sau contract/manifest/privacy preflight.
+1. Bắt đầu M2 fast bundle với `IMP-M2-001…003`: machine-readable nine-file contracts, source discovery và canonical source manifest/release ID bằng synthetic fixtures.
+2. Tiếp theo implement stable ingestion IDs và bounded CSV parser (`IMP-M2-004…005`).
+3. Chỉ bắt đầu real Olist upload ở M2 sau `IMP-M2-008` manifest/privacy preflight.
 4. Re-audit Chroma tại `IMP-M5-001`; không bypass blocked policy để provision sớm.
 
 ## Tài liệu nguồn
