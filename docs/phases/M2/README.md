@@ -13,6 +13,7 @@ license và privacy preflight.
 | [Olist source manifest](../../data/OLIST_SOURCE_MANIFEST.md) | Metadata-only identity của snapshot thật |
 | [Security/privacy baseline](../M0/M0_SECURITY_PRIVACY.md) | Data classification và external-transfer boundary |
 
-Phase status hiện tại: `IN_PROGRESS`. Bundle `IMP-M2-001…005` đã hoàn tất bằng
-synthetic fixtures; bundle kế tiếp là field validation, canonical record hash và
-license/privacy preflight (`IMP-M2-006…008`).
+Phase status hiện tại: `IN_PROGRESS`. Bundle `IMP-M2-001…008` đã hoàn tất bằng
+synthetic/metadata fixtures. Bước kế tiếp là immutable R2 source upload
+(`IMP-M2-009`), bắt đầu bằng offline fake và synthetic live smoke; raw Olist chỉ
+được upload sau một preflight thực tế được owner chủ động phê duyệt.

@@ -16,9 +16,9 @@
 | TC-M2-010 | Privacy | Errors/manifests exclude row text, absolute paths and credentials | Leak canaries absent | `PASS` | Paths excluded from model dumps/canonical JSON; invalid-header canary and absolute temp path absent from errors |
 | TC-M2-011 | IDs | Source object/batch/run/attempt/record identifiers | Deterministic/unique as declared | `PASS` | Namespaced canonical SHA-256 chain is path/runtime-free; replay stable, retry isolated to attempt, contract/run and 1,000 record positions collision-distinct; invalid values sanitized |
 | TC-M2-012 | Parser | UTF-8 CSV streaming, multiline quotes and offsets | Bounded memory and exact positions | `PASS` | UTF-8 BOM, 1-byte chunk escaped quotes, multiline CRLF/LF and original-byte slices pass; malformed/encoding/shape/size failures stable; 100,000 rows peak below 2 MB |
-| TC-M2-013 | Validation | Required/type/range/status/timestamp failures | Stable row/file error taxonomy | `PENDING` | Planned IMP-M2-006 |
-| TC-M2-014 | Record hash | Runtime metadata/reorder/replay cases | Canonical hash stable; duplicate explicit | `PENDING` | Planned IMP-M2-007 |
-| TC-M2-015 | Preflight | License, attribution, privacy and source metadata | Real upload denied until every gate passes | `PENDING` | Planned IMP-M2-008 |
+| TC-M2-013 | Validation | Required/type/range/status/timestamp failures | Stable row/file error taxonomy | `PASS` | Nine synthetic files pass/reconcile; 10 field failure classes, nullable conversion, unique-key duplicate, row-count drift and occurrence-key semantics verified with `olist-validation-v1` |
+| TC-M2-014 | Record hash | Runtime metadata/reorder/replay cases | Canonical hash stable; duplicate explicit | `PASS` | Contract order and typed normalization make map order/position/decimal formatting stable; business change differs; invalid shape/type sanitized; tracker returns `NEW`, `REPLAY`, `DUPLICATE` |
+| TC-M2-015 | Preflight | License, attribution, privacy and source metadata | Real upload denied until every gate passes | `PASS` | Approved nine-file metadata and six-gate authorization pass; synthetic mode, public R2, source drift, incomplete attribution or privacy evidence deny independently and expose no source/path/secret |
 | TC-M2-016 | R2 live | Immutable upload/download/replay/conflict | Hash matches; overwrite denied; cleanup bounded | `PENDING` | Planned IMP-M2-009; owner-operated synthetic-first |
 | TC-M2-017 | Parquet | Raw/quarantine round trip | Types/Unicode/newlines/partitions preserved | `PENDING` | Planned IMP-M2-010/012 |
 | TC-M2-018 | Audit | Legal/illegal ingestion state transitions | Append-only, idempotent and leased | `PENDING` | Planned IMP-M2-011 |
@@ -59,3 +59,24 @@
   repository policy and immutable artifact check pass.
 - No `.env`/credential was read, no real Olist row/provider was accessed and no
   R2/Snowflake/OpenRouter/Chroma call or service cost occurred.
+
+## Execution log — 2026-08-13
+
+### Validation, record identity and upload-preflight bundle
+
+- Added streaming typed validation with a versioned profile and stable row/file
+  taxonomy. Reports contain counts/codes only; raw values remain outside errors.
+- Added SHA-256 record hashes over typed business columns in contract order.
+  Lineage/runtime metadata is structurally excluded, while an explicit tracker
+  separates committed replay from duplicate rows in the current candidate.
+- Added package-owned approved snapshot metadata and a deterministic upload
+  authorization. It checks Olist data mode, private R2, exact content identity,
+  license obligations, attribution/change/no-endorsement text and versioned
+  privacy evidence; it does not read credentials, providers or source rows.
+- Focused command: `pytest tests/test_ingestion_identity.py tests/test_ingestion_csv_stream.py tests/test_ingestion_source.py tests/test_ingestion_validation.py tests/test_ingestion_records.py tests/test_ingestion_preflight.py tests/test_synthetic.py -q -p no:cacheprovider` → 83 pass.
+- Full gate: Ruff format/lint and Airflow rules pass, mypy strict pass, pytest 269
+  pass + 6 expected live skips with 90.13% branch-aware coverage; lock, policy,
+  artifact and status checks pass.
+- No `.env`/credential/raw Olist row was read and no R2/Snowflake/OpenRouter/Chroma
+  call or service cost occurred. The positive preflight uses approved metadata
+  fixtures; it is not evidence that a real upload occurred.

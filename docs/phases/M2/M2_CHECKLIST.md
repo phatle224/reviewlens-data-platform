@@ -3,11 +3,11 @@
 | Thuộc tính | Giá trị |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 5/18 work items |
+| Completed | 8/18 work items |
 | Partial | 0/18 work items |
 | Blocked | 0/18 work items |
-| Not started | 13/18 work items |
-| Last updated | 2026-08-12 |
+| Not started | 10/18 work items |
+| Last updated | 2026-08-13 |
 
 ## Checklist theo implementation plan
 
@@ -18,9 +18,9 @@
 | IMP-M2-003 | `DONE` | Canonical manifest và `source_release_id` conflict detection | Path-free sorted manifest covers required PRD metadata; ID hashes sorted filename/bytes/SHA only; path/order/runtime changes replay, changed bytes create candidate, same-ID stable metadata drift raises `SOURCE_RELEASE_CONFLICT` |
 | IMP-M2-004 | `DONE` | Stable source object, batch, run, attempt và record IDs | Namespaced SHA-256 IDs use canonical versioned inputs only; two paths/replays are identical, 1,000 record positions unique, contract change produces a new run and retry changes only `attempt_id`; invalid inputs fail closed without echo |
 | IMP-M2-005 | `DONE` | Bounded streaming CSV parser với row/byte offsets | Binary chunk scanner supports UTF-8 BOM, LF/CRLF, multiline/escaped quotes and exact half-open offsets; stable row-safe errors cover encoding, malformed shape, field count and record cap; 100,000-row benchmark peaks below 2 MB |
-| IMP-M2-006 | `NOT_STARTED` | Field/file validation và stable error taxonomy | Required/type/range/status/timestamp tests |
-| IMP-M2-007 | `NOT_STARTED` | Canonical record hash và replay detection | Metadata exclusion, reorder và duplicate tests |
-| IMP-M2-008 | `NOT_STARTED` | License/privacy preflight trước real upload | Attribution/NC/SA/DLP/source-manifest gate |
+| IMP-M2-006 | `DONE` | Field/file validation và stable error taxonomy | Versioned typed validation covers required/null, integer/finite decimal/timestamp, score/geolocation/non-negative ranges, status/payment allowlists and ZIP/state formats; nine synthetic files reconcile, unique keys/declared rows fail closed while geolocation occurrence duplicates remain valid |
+| IMP-M2-007 | `DONE` | Canonical record hash và replay detection | Contract-ordered typed canonical JSON excludes row/runtime position; map reorder and equivalent decimals are stable, business changes differ, invalid/untyped input is denied; tracker explicitly distinguishes `NEW`/`REPLAY`/candidate `DUPLICATE` |
+| IMP-M2-008 | `DONE` | License/privacy preflight trước real upload | Package-owned approved snapshot + deterministic six-gate decision verifies Olist mode, private R2, immutable source metadata, CC BY-NC-SA, attribution/change/no-endorsement notices and versioned privacy/DLP evidence; all missing-gate variants deny without row/path/secret exposure |
 | IMP-M2-009 | `NOT_STARTED` | Immutable original CSV upload và checksum verify | Create-only/replay/conflict/download-hash tests |
 | IMP-M2-010 | `NOT_STARTED` | Typed raw/quarantine Parquet partitions và manifests | Unicode/newline/type/partition round-trip tests |
 | IMP-M2-011 | `NOT_STARTED` | Ingestion/file/source audit repositories và state transitions | Lease/idempotency/illegal-transition tests |

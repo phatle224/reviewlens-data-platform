@@ -9,6 +9,16 @@ from reviewlens.ingestion.identity import (
     record_id,
     source_object_id,
 )
+from reviewlens.ingestion.preflight import (
+    PrivacyPreflightEvidence,
+    UploadPreflightDecision,
+    run_upload_preflight,
+)
+from reviewlens.ingestion.records import (
+    RecordDisposition,
+    RecordHashTracker,
+    canonical_record_hash,
+)
 from reviewlens.ingestion.source import (
     CanonicalSourceManifest,
     DiscoveredSnapshot,
@@ -20,14 +30,20 @@ __all__ = [
     "CanonicalSourceManifest",
     "DiscoveredSnapshot",
     "ParsedCsvRecord",
+    "PrivacyPreflightEvidence",
+    "RecordDisposition",
+    "RecordHashTracker",
     "SourceContract",
+    "UploadPreflightDecision",
     "attempt_id",
     "build_canonical_manifest",
+    "canonical_record_hash",
     "dataset_run_id",
     "discover_source_snapshot",
     "ingestion_batch_id",
     "iter_csv_records",
     "load_olist_contract",
     "record_id",
+    "run_upload_preflight",
     "source_object_id",
 ]
