@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tomllib
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
@@ -9,14 +9,22 @@ import pytest
 from reviewlens.config import AppSettings, DataMode
 from reviewlens.ingestion.contracts import load_olist_contract
 from reviewlens.ingestion.preflight import (
+    ApprovedSnapshotFile,
+    ApprovedSourceSnapshot,
     PreflightCode,
     PrivacyPreflightEvidence,
     UploadPreflightDenied,
     approved_source_release_id,
     load_approved_olist_snapshot,
+    materialize_approved_completion_manifest,
     run_upload_preflight,
 )
-from reviewlens.ingestion.source import CanonicalManifestFile, CanonicalSourceManifest
+from reviewlens.ingestion.source import (
+    CanonicalManifestFile,
+    CanonicalSourceManifest,
+    discover_source_snapshot,
+)
+from reviewlens.synthetic.generator import generate_fixture
 
 
 def _settings() -> AppSettings:
@@ -162,3 +170,53 @@ def test_preflight_module_has_no_provider_environment_or_source_row_access() -> 
     assert "boto3" not in source
     assert "snowflake.connector" not in source
     assert "iter_csv_records" not in source
+
+
+def test_approved_completion_marker_is_verified_and_idempotent(tmp_path: Path) -> None:
+    generated = generate_fixture(tmp_path)
+    approved = ApprovedSourceSnapshot(
+        snapshot_version="olist-approved-snapshot-v1",
+        source_name="olist",
+        source_snapshot_date=date(2026, 8, 5),
+        files=tuple(
+            ApprovedSnapshotFile(
+                file_name=item["filename"],
+                rows=item["rows"],
+                bytes=item["bytes"],
+                sha256=item["sha256"],
+            )
+            for item in generated["files"]
+        ),
+    )
+    (tmp_path / "manifest.json").unlink()
+
+    first = materialize_approved_completion_manifest(tmp_path, approved_snapshot=approved)
+    second = materialize_approved_completion_manifest(tmp_path, approved_snapshot=approved)
+    discovered = discover_source_snapshot(tmp_path)
+
+    assert first == second == tmp_path / "manifest.json"
+    assert len(discovered.files) == 9
+
+
+def test_completion_marker_is_not_written_for_content_mismatch(tmp_path: Path) -> None:
+    generated = generate_fixture(tmp_path)
+    approved = ApprovedSourceSnapshot(
+        snapshot_version="olist-approved-snapshot-v1",
+        source_name="olist",
+        source_snapshot_date=date(2026, 8, 5),
+        files=tuple(
+            ApprovedSnapshotFile(
+                file_name=item["filename"],
+                rows=item["rows"],
+                bytes=item["bytes"],
+                sha256=("0" * 64 if index == 0 else item["sha256"]),
+            )
+            for index, item in enumerate(generated["files"])
+        ),
+    )
+    (tmp_path / "manifest.json").unlink()
+
+    with pytest.raises(UploadPreflightDenied):
+        materialize_approved_completion_manifest(tmp_path, approved_snapshot=approved)
+
+    assert not (tmp_path / "manifest.json").exists()

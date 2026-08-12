@@ -8,6 +8,13 @@ bucket administration. The older `R2_*` credential remains bootstrap/live-smoke
 only. Bucket lifecycle changes require a separate owner/admin action and are
 intentionally not performed with either runtime credential.
 
+Original source objects use conditional `PutObject` with `If-None-Match: *`.
+R2 returns `412 PreconditionFailed` when the key already exists; ReviewLens then
+verifies stored size, metadata and a streamed download SHA-256 instead of
+overwriting it. The source-release manifest is written last as the immutable
+commit marker. This conditional operation is listed as supported in Cloudflare's
+[S3 API compatibility matrix](https://developers.cloudflare.com/r2/api/s3/api/).
+
 `lifecycle.json` expires abandoned synthetic smoke-test objects under `manifests/_smoke/` after one day and keeps the seven-day incomplete multipart cleanup baseline. Review the current bucket rules before applying because setting a lifecycle configuration replaces the existing configuration.
 
 Example owner-operated command after review:

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 from datetime import date
 from enum import StrEnum
 from functools import lru_cache
 from importlib.resources import files
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
@@ -181,6 +183,84 @@ def approved_source_release_id(snapshot: ApprovedSourceSnapshot) -> str:
     ]
     payload = json.dumps(identity, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
     return f"olist_{hashlib.sha256(payload.encode('ascii')).hexdigest()}"
+
+
+def materialize_approved_completion_manifest(
+    source_directory: Path,
+    *,
+    approved_snapshot: ApprovedSourceSnapshot | None = None,
+) -> Path:
+    """Verify the approved local bytes, then atomically add their metadata marker."""
+
+    approved = approved_snapshot or load_approved_olist_snapshot()
+    contract = load_olist_contract()
+    if not source_directory.is_dir() or source_directory.is_symlink():
+        raise UploadPreflightDenied()
+    expected_names = {item.file_name for item in approved.files}
+    entries = tuple(source_directory.iterdir())
+    if any(item.is_symlink() for item in entries):
+        raise UploadPreflightDenied()
+    entry_names = {item.name for item in entries}
+    if entry_names != expected_names and entry_names != expected_names | {"manifest.json"}:
+        raise UploadPreflightDenied()
+
+    manifest_files: list[dict[str, Any]] = []
+    for item in sorted(approved.files, key=lambda value: value.file_name):
+        path = source_directory / item.file_name
+        if not path.is_file() or path.stat().st_size != item.bytes:
+            raise UploadPreflightDenied()
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            header_bytes = handle.readline(65_537)
+            if len(header_bytes) > 65_536:
+                raise UploadPreflightDenied()
+            digest.update(header_bytes)
+            while chunk := handle.read(1_048_576):
+                digest.update(chunk)
+        if digest.hexdigest() != item.sha256:
+            raise UploadPreflightDenied()
+        try:
+            header = tuple(next(csv.reader([header_bytes.rstrip(b"\r\n").decode("utf-8-sig")])))
+        except (UnicodeDecodeError, csv.Error, StopIteration):
+            raise UploadPreflightDenied() from None
+        if header != contract.by_file_name[item.file_name].expected_header:
+            raise UploadPreflightDenied()
+        manifest_files.append(
+            {
+                "bytes": item.bytes,
+                "filename": item.file_name,
+                "rows": item.rows,
+                "sha256": item.sha256,
+            }
+        )
+
+    payload = {
+        "schema_version": "olist-local-snapshot-v1",
+        "manifest_version": contract.manifest_version,
+        "contract_version": contract.contract_version,
+        "data_class": "olist",
+        "source": "kaggle-olist-approved-snapshot",
+        "source_contract": contract.source_contract,
+        "files": manifest_files,
+    }
+    serialized = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    target = source_directory / "manifest.json"
+    if target.exists():
+        try:
+            if target.read_text(encoding="utf-8") != serialized:
+                raise UploadPreflightDenied()
+        except (OSError, UnicodeDecodeError):
+            raise UploadPreflightDenied() from None
+        return target
+    temporary = source_directory / "manifest.json.tmp"
+    try:
+        temporary.write_text(serialized, encoding="utf-8", newline="\n")
+        temporary.replace(target)
+    except OSError:
+        if temporary.exists():
+            temporary.unlink()
+        raise UploadPreflightDenied() from None
+    return target
 
 
 def _manifest_matches_approved(

@@ -19,7 +19,7 @@
 | TC-M2-013 | Validation | Required/type/range/status/timestamp failures | Stable row/file error taxonomy | `PASS` | Nine synthetic files pass/reconcile; 10 field failure classes, nullable conversion, unique-key duplicate, row-count drift and occurrence-key semantics verified with `olist-validation-v1` |
 | TC-M2-014 | Record hash | Runtime metadata/reorder/replay cases | Canonical hash stable; duplicate explicit | `PASS` | Contract order and typed normalization make map order/position/decimal formatting stable; business change differs; invalid shape/type sanitized; tracker returns `NEW`, `REPLAY`, `DUPLICATE` |
 | TC-M2-015 | Preflight | License, attribution, privacy and source metadata | Real upload denied until every gate passes | `PASS` | Approved nine-file metadata and six-gate authorization pass; synthetic mode, public R2, source drift, incomplete attribution or privacy evidence deny independently and expose no source/path/secret |
-| TC-M2-016 | R2 live | Immutable upload/download/replay/conflict | Hash matches; overwrite denied; cleanup bounded | `PENDING` | Planned IMP-M2-009; owner-operated synthetic-first |
+| TC-M2-016 | R2 live | Immutable upload/download/replay/conflict | Hash matches; overwrite denied; intended archive retained under lifecycle | `PASS` | Offline create-only/resume/conflict suite pass; approved archive local preflight 9 files/1,550,922 rows/0 rejected; private R2 initial upload pass and forced replay confirms 0 uploads + 10 verified replays, anonymous/account-list denial pass |
 | TC-M2-017 | Parquet | Raw/quarantine round trip | Types/Unicode/newlines/partitions preserved | `PENDING` | Planned IMP-M2-010/012 |
 | TC-M2-018 | Audit | Legal/illegal ingestion state transitions | Append-only, idempotent and leased | `PENDING` | Planned IMP-M2-011 |
 | TC-M2-019 | Bronze contract | Nine tables, lineage metadata and immutable grants | DDL/RBAC/idempotency pass | `PENDING` | Planned IMP-M2-013 |
@@ -80,3 +80,27 @@
 - No `.env`/credential/raw Olist row was read and no R2/Snowflake/OpenRouter/Chroma
   call or service cost occurred. The positive preflight uses approved metadata
   fixtures; it is not evidence that a real upload occurred.
+
+### Immutable private R2 source archive
+
+- Added a metadata-only completion-marker generator. It verifies all approved
+  sizes, headers and streamed SHA-256 values before atomically writing the ignored
+  `archive/manifest.json`; changed bytes or marker drift fail closed.
+- Extended the R2 adapter with conditional file/bytes create, streaming download
+  SHA-256 and explicit `412` conflict handling. The upload service verifies each
+  existing object, never overwrites, resumes partial work and writes the canonical
+  manifest last as the release commit marker.
+- Offline focused command: `pytest tests/test_r2.py tests/test_ingestion_preflight.py tests/test_ingestion_source_upload.py -q -p no:cacheprovider` → 21 pass. Fake integration covers 10-object upload/replay, one-object resume, source conflict, manifest conflict and denied preflight with zero writes.
+- Real local preflight: exact 9 approved files, 1,550,922 logical rows, 0 rejected,
+  0 duplicate unique identities; source release is
+  `olist_5bf5c26261b616567311d761c26f7ef83da835b82c1bbd3f4969d90a1b95682d`.
+- Owner-approved private R2 gate: initial immutable upload pass in 125.22s; normal
+  rerun pass in 82.10s; forced replay pass in 86.95s with exactly 0 uploads and
+  10 verified replays. Download hashes, scoped account-list denial and anonymous
+  access denial pass. Intended source archive remains in R2; no cleanup applies.
+- Full offline gate: Ruff format/lint and Airflow rules pass, mypy strict pass,
+  pytest 277 pass + 7 expected live skips with 89.23% branch-aware coverage;
+  lock, repository policy and immutable artifact checks pass.
+- No source row, credential or absolute local path was emitted or committed.
+  Snowflake, OpenRouter and Chroma were not called. R2 now stores approximately
+  126.19 MB of source CSV bytes plus one small metadata manifest.

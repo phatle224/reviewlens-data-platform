@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 from typing import Any, Protocol, cast
 from urllib.parse import quote
 
@@ -16,7 +18,9 @@ from reviewlens.config import IdentityConfig, R2Config
 
 
 class _StreamingBody(Protocol):
-    def read(self) -> bytes: ...
+    def read(self, amount: int | None = None) -> bytes: ...
+
+    def close(self) -> None: ...
 
 
 class _S3Client(Protocol):
@@ -50,6 +54,10 @@ class R2RuntimePurpose(StrEnum):
 
 class R2AccessPolicyError(PermissionError):
     """Raised before a read-only adapter can issue a mutating R2 request."""
+
+
+class R2ObjectAlreadyExistsError(FileExistsError):
+    """Raised when a conditional create loses to an existing immutable key."""
 
 
 class R2Client:
@@ -170,6 +178,59 @@ class R2Client:
         )
         return self.head(key)
 
+    def put_bytes_create_only(
+        self,
+        key: str,
+        body: bytes,
+        *,
+        content_type: str = "application/octet-stream",
+        metadata: dict[str, str] | None = None,
+    ) -> R2ObjectMetadata:
+        if not self._writable:
+            raise R2AccessPolicyError("R2 snowflake_stage identity is read-only")
+        try:
+            self._client.put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=body,
+                ContentType=content_type,
+                Metadata=metadata or {},
+                IfNoneMatch="*",
+            )
+        except ClientError as exc:
+            if _is_precondition_failure(exc):
+                raise R2ObjectAlreadyExistsError("R2_OBJECT_ALREADY_EXISTS") from None
+            raise
+        return self.head(key)
+
+    def put_file_create_only(
+        self,
+        key: str,
+        path: Path,
+        *,
+        content_type: str = "application/octet-stream",
+        metadata: dict[str, str] | None = None,
+    ) -> R2ObjectMetadata:
+        if not self._writable:
+            raise R2AccessPolicyError("R2 snowflake_stage identity is read-only")
+        if not path.is_file() or path.is_symlink():
+            raise ValueError("R2 upload source must be a regular file")
+        try:
+            with path.open("rb") as handle:
+                self._client.put_object(
+                    Bucket=self.bucket,
+                    Key=key,
+                    Body=handle,
+                    ContentType=content_type,
+                    Metadata=metadata or {},
+                    IfNoneMatch="*",
+                )
+        except ClientError as exc:
+            if _is_precondition_failure(exc):
+                raise R2ObjectAlreadyExistsError("R2_OBJECT_ALREADY_EXISTS") from None
+            raise
+        return self.head(key)
+
     def head(self, key: str) -> R2ObjectMetadata:
         response = self._client.head_object(Bucket=self.bucket, Key=key)
         return R2ObjectMetadata(
@@ -183,6 +244,21 @@ class R2Client:
         response = self._client.get_object(Bucket=self.bucket, Key=key)
         body = cast(_StreamingBody, response["Body"])
         return body.read()
+
+    def download_sha256(self, key: str, *, chunk_bytes: int = 1_048_576) -> tuple[str, int]:
+        if chunk_bytes < 1:
+            raise ValueError("chunk_bytes must be positive")
+        response = self._client.get_object(Bucket=self.bucket, Key=key)
+        body = cast(_StreamingBody, response["Body"])
+        digest = hashlib.sha256()
+        observed_bytes = 0
+        try:
+            while chunk := body.read(chunk_bytes):
+                digest.update(chunk)
+                observed_bytes += len(chunk)
+        finally:
+            body.close()
+        return digest.hexdigest(), observed_bytes
 
     def list_keys(self, prefix: str) -> tuple[str, ...]:
         response = self._client.list_objects_v2(Bucket=self.bucket, Prefix=prefix)
@@ -218,3 +294,12 @@ class R2Client:
     def anonymous_object_url(self, key: str) -> str:
         encoded_key = quote(key, safe="/")
         return f"{self.endpoint}/{quote(self.bucket, safe='')}/{encoded_key}"
+
+
+def _is_precondition_failure(exc: ClientError) -> bool:
+    code = str(exc.response.get("Error", {}).get("Code", ""))
+    status = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    return code in {"409", "412", "ConditionalRequestConflict", "PreconditionFailed"} or status in {
+        409,
+        412,
+    }

@@ -12,6 +12,7 @@ from reviewlens.ingestion.identity import (
 from reviewlens.ingestion.preflight import (
     PrivacyPreflightEvidence,
     UploadPreflightDecision,
+    materialize_approved_completion_manifest,
     run_upload_preflight,
 )
 from reviewlens.ingestion.records import (
@@ -25,6 +26,7 @@ from reviewlens.ingestion.source import (
     build_canonical_manifest,
     discover_source_snapshot,
 )
+from reviewlens.ingestion.source_upload import SourceUploadReport, upload_immutable_source_snapshot
 
 __all__ = [
     "CanonicalSourceManifest",
@@ -34,6 +36,7 @@ __all__ = [
     "RecordDisposition",
     "RecordHashTracker",
     "SourceContract",
+    "SourceUploadReport",
     "UploadPreflightDecision",
     "attempt_id",
     "build_canonical_manifest",
@@ -43,7 +46,9 @@ __all__ = [
     "ingestion_batch_id",
     "iter_csv_records",
     "load_olist_contract",
+    "materialize_approved_completion_manifest",
     "record_id",
     "run_upload_preflight",
     "source_object_id",
+    "upload_immutable_source_snapshot",
 ]

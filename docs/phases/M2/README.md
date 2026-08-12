@@ -13,7 +13,7 @@ license và privacy preflight.
 | [Olist source manifest](../../data/OLIST_SOURCE_MANIFEST.md) | Metadata-only identity của snapshot thật |
 | [Security/privacy baseline](../M0/M0_SECURITY_PRIVACY.md) | Data classification và external-transfer boundary |
 
-Phase status hiện tại: `IN_PROGRESS`. Bundle `IMP-M2-001…008` đã hoàn tất bằng
-synthetic/metadata fixtures. Bước kế tiếp là immutable R2 source upload
-(`IMP-M2-009`), bắt đầu bằng offline fake và synthetic live smoke; raw Olist chỉ
-được upload sau một preflight thực tế được owner chủ động phê duyệt.
+Phase status hiện tại: `IN_PROGRESS`. `IMP-M2-001…009` đã hoàn tất; approved
+Olist snapshot hiện được lưu create-only trong private R2 và live replay đã được
+xác minh không overwrite. Bundle kế tiếp là typed raw/quarantine Parquet, audit
+state machine và quarantine/replay selector (`IMP-M2-010…012`).

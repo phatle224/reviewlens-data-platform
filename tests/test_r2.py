@@ -22,7 +22,12 @@ class FakeS3Client:
         self.objects: dict[str, tuple[bytes, dict[str, str]]] = {}
 
     def put_object(self, **kwargs: Any) -> dict[str, Any]:
-        self.objects[str(kwargs["Key"])] = (bytes(kwargs["Body"]), dict(kwargs["Metadata"]))
+        key = str(kwargs["Key"])
+        if kwargs.get("IfNoneMatch") == "*" and key in self.objects:
+            raise _client_error("PreconditionFailed", "PutObject", status=412)
+        source = kwargs["Body"]
+        body = source.read() if hasattr(source, "read") else bytes(source)
+        self.objects[key] = (body, dict(kwargs["Metadata"]))
         return {}
 
     def head_object(self, **kwargs: Any) -> dict[str, Any]:
@@ -52,8 +57,11 @@ class FakeS3Client:
         raise _client_error("AccessDenied", "ListBuckets")
 
 
-def _client_error(code: str, operation: str) -> ClientError:
-    return ClientError({"Error": {"Code": code, "Message": "synthetic error"}}, operation)
+def _client_error(code: str, operation: str, *, status: int | None = None) -> ClientError:
+    response: dict[str, Any] = {"Error": {"Code": code, "Message": "synthetic error"}}
+    if status is not None:
+        response["ResponseMetadata"] = {"HTTPStatusCode": status}
+    return ClientError(response, operation)
 
 
 def test_r2_adapter_round_trip_and_scope_denial() -> None:
@@ -94,6 +102,33 @@ def test_r2_anonymous_url_uses_path_style_and_escaping() -> None:
         "https://synthetic.r2.cloudflarestorage.com/"
         "reviewlens-data-dev/manifests/_smoke/file%20name.json"
     )
+
+
+def test_r2_create_only_file_and_streaming_hash(tmp_path: Path) -> None:
+    fake = FakeS3Client()
+    client = R2Client(
+        bucket="reviewlens-data-dev",
+        endpoint="https://synthetic.r2.cloudflarestorage.com",
+        client=fake,
+    )
+    path = tmp_path / "synthetic.csv"
+    body = b"id,value\n1,synthetic\n"
+    path.write_bytes(body)
+
+    uploaded = client.put_file_create_only(
+        "source/_smoke/synthetic.csv",
+        path,
+        content_type="text/csv",
+        metadata={"sha256": hashlib.sha256(body).hexdigest()},
+    )
+
+    assert uploaded.size == len(body)
+    assert client.download_sha256("source/_smoke/synthetic.csv", chunk_bytes=3) == (
+        hashlib.sha256(body).hexdigest(),
+        len(body),
+    )
+    with pytest.raises(FileExistsError, match="R2_OBJECT_ALREADY_EXISTS"):
+        client.put_file_create_only("source/_smoke/synthetic.csv", path)
 
 
 def test_r2_lifecycle_contract_is_smoke_only() -> None:
