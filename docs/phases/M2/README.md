@@ -13,6 +13,6 @@ license và privacy preflight.
 | [Olist source manifest](../../data/OLIST_SOURCE_MANIFEST.md) | Metadata-only identity của snapshot thật |
 | [Security/privacy baseline](../M0/M0_SECURITY_PRIVACY.md) | Data classification và external-transfer boundary |
 
-Phase status hiện tại: `IN_PROGRESS`. Bundle `IMP-M2-001…003` đã hoàn tất bằng
-synthetic fixtures; bundle kế tiếp là stable IDs và bounded CSV parser
-(`IMP-M2-004…005`).
+Phase status hiện tại: `IN_PROGRESS`. Bundle `IMP-M2-001…005` đã hoàn tất bằng
+synthetic fixtures; bundle kế tiếp là field validation, canonical record hash và
+license/privacy preflight (`IMP-M2-006…008`).

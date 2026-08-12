@@ -14,8 +14,8 @@
 | TC-M2-008 | Replay/change | Same content versus same filename/new bytes | Replay versus new candidate deterministic | `PASS` | Same bytes classify `REPLAY`; same filename with refreshed different bytes classifies `NEW_CANDIDATE` |
 | TC-M2-009 | Conflict | Same release ID with incompatible stable metadata | `SOURCE_RELEASE_CONFLICT` | `PASS` | Manifest-version drift under same ID fails closed; runtime-only date/time drift remains replay |
 | TC-M2-010 | Privacy | Errors/manifests exclude row text, absolute paths and credentials | Leak canaries absent | `PASS` | Paths excluded from model dumps/canonical JSON; invalid-header canary and absolute temp path absent from errors |
-| TC-M2-011 | IDs | Source object/batch/run/attempt/record identifiers | Deterministic/unique as declared | `PENDING` | Planned IMP-M2-004 |
-| TC-M2-012 | Parser | UTF-8 CSV streaming, multiline quotes and offsets | Bounded memory and exact positions | `PENDING` | Planned IMP-M2-005 |
+| TC-M2-011 | IDs | Source object/batch/run/attempt/record identifiers | Deterministic/unique as declared | `PASS` | Namespaced canonical SHA-256 chain is path/runtime-free; replay stable, retry isolated to attempt, contract/run and 1,000 record positions collision-distinct; invalid values sanitized |
+| TC-M2-012 | Parser | UTF-8 CSV streaming, multiline quotes and offsets | Bounded memory and exact positions | `PASS` | UTF-8 BOM, 1-byte chunk escaped quotes, multiline CRLF/LF and original-byte slices pass; malformed/encoding/shape/size failures stable; 100,000 rows peak below 2 MB |
 | TC-M2-013 | Validation | Required/type/range/status/timestamp failures | Stable row/file error taxonomy | `PENDING` | Planned IMP-M2-006 |
 | TC-M2-014 | Record hash | Runtime metadata/reorder/replay cases | Canonical hash stable; duplicate explicit | `PENDING` | Planned IMP-M2-007 |
 | TC-M2-015 | Preflight | License, attribution, privacy and source metadata | Real upload denied until every gate passes | `PENDING` | Planned IMP-M2-008 |
@@ -44,3 +44,18 @@
 - Focused command: `pytest tests/test_ingestion_source.py tests/test_synthetic.py -q -p no:cacheprovider` → 37 pass.
 - Full gate: Ruff format/lint pass, mypy strict pass, pytest 223 pass + 6 expected live skips with 89.31% branch-aware coverage; lock check, repository policy, immutable artifact and status checks pass.
 - No `.env`/credential was read, no real source row was accessed, no R2/Snowflake/OpenRouter/Chroma call occurred and no service cost was incurred.
+
+### Stable lineage IDs and bounded CSV parser bundle
+
+- Added versioned canonical identity functions for source object, ingestion batch,
+  dataset run, attempt and physical record. Runtime timestamps and paths are not
+  accepted as identity input; attempts use a positive retry ordinal.
+- Added a binary chunk parser whose logical data rows start at source row 2. Byte
+  ranges are half-open over original bytes and exclude only the outer LF/CRLF,
+  while quoted embedded newlines remain part of the record.
+- Focused command: `pytest tests/test_ingestion_identity.py tests/test_ingestion_csv_stream.py tests/test_ingestion_source.py tests/test_synthetic.py -q -p no:cacheprovider` → 55 pass.
+- Full gate: Ruff format/lint and Airflow rules pass, mypy strict pass, pytest 241
+  pass + 6 expected live skips with 89.72% branch-aware coverage; lock check,
+  repository policy and immutable artifact check pass.
+- No `.env`/credential was read, no real Olist row/provider was accessed and no
+  R2/Snowflake/OpenRouter/Chroma call or service cost occurred.

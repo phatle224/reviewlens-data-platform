@@ -8,7 +8,7 @@
 |---|---|
 | Trạng thái tổng thể | `ON_TRACK` |
 | Phase hiện tại | `M2` — Olist ingestion, R2 and immutable Bronze |
-| Trạng thái phase hiện tại | `IN_PROGRESS` — 3/18 work items, 12/25 phase tests pass |
+| Trạng thái phase hiện tại | `IN_PROGRESS` — 5/18 work items, 14/25 phase tests pass |
 | Phase gần nhất hoàn tất | `M1` — foundation, service identities and live rotation gate |
 | Cập nhật lần cuối | 2026-08-12 |
 | Người thực hiện | Solo Developer |
@@ -22,7 +22,7 @@
 |---|---|---|---|
 | M0 | `COMPLETE` | Olist product/data/license/security/architecture baseline | [Checklist](./phases/M0/M0_CHECKLIST.md) · [Tests](./phases/M0/M0_TEST_CASES.md) |
 | M1 | `COMPLETE` | Config, identities, provider/dbt/Airflow boundaries, audit/logging, authenticated app shell and fail-closed CI/live rotation gates | [Overview](./phases/M1/README.md) · [Checklist](./phases/M1/M1_CHECKLIST.md) · [Tests](./phases/M1/M1_TEST_CASES.md) |
-| M2 | `IN_PROGRESS` | Versioned nine-file source contract, fail-closed discovery and canonical content release identity complete; stable IDs/parser next | [Overview](./phases/M2/README.md) · [Checklist](./phases/M2/M2_CHECKLIST.md) · [Tests](./phases/M2/M2_TEST_CASES.md) |
+| M2 | `IN_PROGRESS` | Source contract/discovery/release identity plus deterministic lineage IDs and bounded multiline CSV parser complete | [Overview](./phases/M2/README.md) · [Checklist](./phases/M2/M2_CHECKLIST.md) · [Tests](./phases/M2/M2_TEST_CASES.md) |
 | M3 | `NOT_STARTED` | Conformed Silver, Gold and atomic release | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M4 | `NOT_STARTED` | DLP-approved review enrichment | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M5 | `NOT_STARTED` | Embeddings, ChromaDB and grounded RAG | [Plan](./IMPLEMENTATION_PLAN.md) |
@@ -34,10 +34,10 @@ Milestone completion: **2/9**. Đây là số gate đã đóng, không phải ph
 
 ## Kết quả phiên gần nhất
 
-- Khởi tạo M2 và hoàn tất fast bundle `IMP-M2-001…003`: contract máy đọc được cho đúng chín Olist CSV, strict source discovery/completion manifest và canonical `source_release_id` dựa trên content.
-- Discovery fail closed trước provider access khi thiếu/thừa/partial/duplicate, root/manifest hỏng, size/SHA/header/UTF-8 sai; lỗi và artifacts không chứa row text hoặc absolute path.
-- Release identity bất biến theo path, order, runtime timestamp và snapshot date; cùng content là `REPLAY`, content đổi là `NEW_CANDIDATE`, cùng ID nhưng stable metadata drift là `SOURCE_RELEASE_CONFLICT`.
-- Focused source/synthetic suite 37 pass. Full offline gate 223 pass + 6 expected live skips, 89.31% branch-aware coverage; Ruff, mypy, lock, policy, artifact và status gates pass.
+- Hoàn tất `IMP-M2-004…005`: năm loại lineage ID dùng canonical versioned SHA-256 input; replay/path-independent, retry chỉ đổi attempt và invalid input fail closed.
+- Binary CSV parser đọc theo chunk, hỗ trợ UTF-8 BOM, LF/CRLF, escaped/multiline quotes, logical row cùng exact half-open byte offsets; error không chứa row text/path.
+- Benchmark synthetic geolocation-like 100.000 dòng peak dưới 2 MB; record vượt cap, malformed quote, encoding/header/field-count sai đều bị chặn có stable code.
+- Focused ingestion suite 55 pass. Full offline gate 241 pass + 6 expected live skips, 89.72% branch-aware coverage; Ruff, mypy, lock, policy và artifact gates pass.
 - Chỉ dùng synthetic fixtures; không đọc/upload Olist, không gọi R2/Snowflake/OpenRouter/Chroma và không phát sinh paid AI cost.
 
 ## Kiểm thử
@@ -46,13 +46,13 @@ Milestone completion: **2/9**. Đây là số gate đã đóng, không phải ph
 |---|---|---|
 | M0 | 18 `PASS`, 3 `DEFERRED`, 0 `FAIL` | [M0 test cases](./phases/M0/M0_TEST_CASES.md) |
 | M1 | 41 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 193 pass/6 live skip plus owner-approved live rotation 1 pass; Chroma quarantine + clean-path/container/Compose/artifact/metrics + CI policy/dependency/AppTest/logging/audit/Airflow/dbt/provider/R2/stage/RBAC/JWT evidence |
-| M2 | 12 `PASS`, 13 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M2 test cases](./phases/M2/M2_TEST_CASES.md); focused contract/discovery/manifest suite 37 pass |
-| Quality | `PASS` | Ruff format/lint + Airflow 3 rules, mypy strict, dbt warnings-as-errors, 89.31% branch-aware coverage, uv lock/artifact checks, repository scan và dependency audit with no known vulnerabilities |
-| Status validator | `PASS` — 0 errors, 0 warnings | M0 complete; M1 complete; M2 synchronized at 3 done/12 pass |
+| M2 | 14 `PASS`, 11 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M2 test cases](./phases/M2/M2_TEST_CASES.md); focused ingestion suite 55 pass |
+| Quality | `PASS` | Ruff format/lint + Airflow 3 rules, mypy strict, dbt warnings-as-errors, 89.72% branch-aware coverage, uv lock/artifact checks, repository scan và dependency audit with no known vulnerabilities |
+| Status validator | `PASS` — 0 errors, 0 warnings | M0 complete; M1 complete; M2 synchronized at 5 done/14 pass |
 
 ## Blocker và rủi ro
 
-- Row counts ở M2 hiện là declaration từ completion manifest; bounded parser và reconciliation tại `IMP-M2-005`/`IMP-M2-015` mới xác minh physical counts.
+- Parser đã đếm physical logical records theo stream, nhưng source completion row count chưa được đối chiếu cho tới validation/reconciliation tại `IMP-M2-006`/`IMP-M2-015`.
 - Real Olist CSV vẫn chưa được đọc hoặc upload. Manifest/privacy preflight `IMP-M2-008` phải pass trước mọi real-data provider action.
 - Olist license cho phép non-commercial portfolio use theo CC BY-NC-SA, nhưng review free text vẫn cần DLP/privacy gate trước OpenRouter/Chroma và không được public raw.
 - Snowflake trial hết hạn `2026-09-03`; ưu tiên hoàn tất M1 và M2/M3 vertical slice, giữ X-Small/60s/resource monitor.
@@ -70,15 +70,16 @@ Milestone completion: **2/9**. Đây là số gate đã đóng, không phải ph
 
 ## Input cần từ chủ project
 
-Không cần thêm credential, secret hoặc upload data để triển khai `IMP-M2-004…005`;
-hai work item tiếp theo tiếp tục dùng synthetic fixtures. Codex sẽ chỉ yêu cầu chủ project
-chọn local Olist snapshot khi chuẩn bị chạy preflight `IMP-M2-008`.
+Không cần thêm credential, secret hoặc upload data để implement `IMP-M2-006…008`;
+contract và preflight tiếp tục được xây bằng synthetic/metadata fixtures. Chỉ khi
+thực thi preflight thật và chuẩn bị `IMP-M2-009`, chủ project mới cần chọn local
+Olist snapshot; không gửi raw data qua chat.
 
 ## Việc tiếp theo
 
-1. Implement stable ingestion IDs và bounded CSV parser (`IMP-M2-004…005`) bằng synthetic fixtures.
-2. Tiếp tục validation, record hash và license/privacy preflight (`IMP-M2-006…008`).
-3. Chỉ bắt đầu real Olist upload sau khi `IMP-M2-008` pass và owner chủ động chạy live gate.
+1. Implement field/file validation, canonical record hash và license/privacy preflight (`IMP-M2-006…008`).
+2. Chỉ bắt đầu immutable real Olist upload (`IMP-M2-009`) sau khi preflight pass và owner chủ động chạy live gate.
+3. Sau upload gate, tạo typed raw/quarantine Parquet và audit state machine (`IMP-M2-010…012`).
 4. Re-audit Chroma tại `IMP-M5-001`; không bypass blocked policy để provision sớm.
 
 ## Tài liệu nguồn

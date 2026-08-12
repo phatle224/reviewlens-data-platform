@@ -3,10 +3,10 @@
 | Thuộc tính | Giá trị |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 3/18 work items |
+| Completed | 5/18 work items |
 | Partial | 0/18 work items |
 | Blocked | 0/18 work items |
-| Not started | 15/18 work items |
+| Not started | 13/18 work items |
 | Last updated | 2026-08-12 |
 
 ## Checklist theo implementation plan
@@ -16,8 +16,8 @@
 | IMP-M2-001 | `DONE` | Machine-readable contract cho 9 filename/header/type/key | `olist_source_contract.json` + frozen Pydantic models; exact nine datasets, source-spelling headers, logical types, nullability, identity semantics và privacy classes; weakened/unknown/duplicate/invalid-key fixtures fail closed |
 | IMP-M2-002 | `DONE` | Discover complete local snapshot và completion manifest | Exact directory/manifest set, symlink boundary, bounded manifest/header reads, streaming SHA-256 and size/header verification; missing/extra/partial/duplicate/integrity/encoding failures use stable row-safe codes before provider access |
 | IMP-M2-003 | `DONE` | Canonical manifest và `source_release_id` conflict detection | Path-free sorted manifest covers required PRD metadata; ID hashes sorted filename/bytes/SHA only; path/order/runtime changes replay, changed bytes create candidate, same-ID stable metadata drift raises `SOURCE_RELEASE_CONFLICT` |
-| IMP-M2-004 | `NOT_STARTED` | Stable source object, batch, run, attempt và record IDs | Determinism/uniqueness/property tests |
-| IMP-M2-005 | `NOT_STARTED` | Bounded streaming CSV parser với row/byte offsets | Multiline/encoding/malformed/large-file memory tests |
+| IMP-M2-004 | `DONE` | Stable source object, batch, run, attempt và record IDs | Namespaced SHA-256 IDs use canonical versioned inputs only; two paths/replays are identical, 1,000 record positions unique, contract change produces a new run and retry changes only `attempt_id`; invalid inputs fail closed without echo |
+| IMP-M2-005 | `DONE` | Bounded streaming CSV parser với row/byte offsets | Binary chunk scanner supports UTF-8 BOM, LF/CRLF, multiline/escaped quotes and exact half-open offsets; stable row-safe errors cover encoding, malformed shape, field count and record cap; 100,000-row benchmark peaks below 2 MB |
 | IMP-M2-006 | `NOT_STARTED` | Field/file validation và stable error taxonomy | Required/type/range/status/timestamp tests |
 | IMP-M2-007 | `NOT_STARTED` | Canonical record hash và replay detection | Metadata exclusion, reorder và duplicate tests |
 | IMP-M2-008 | `NOT_STARTED` | License/privacy preflight trước real upload | Attribution/NC/SA/DLP/source-manifest gate |
