@@ -21,6 +21,7 @@ class FakeCursor:
         self.statements = statements
         self.fail = fail
         self.closed = False
+        self.sfqid = "synthetic-query-id"
 
     def execute(self, command: str) -> FakeCursor:
         self.statements.append(command)
@@ -172,6 +173,9 @@ def test_stage_creation_and_list_use_adapter_boundary() -> None:
 
     assert "CREATE OR REPLACE STAGE REVIEWLENS.BRONZE.R2_STAGE" in fake.statements[0]
     assert fake.statements[1] == (
+        "GRANT USAGE ON STAGE REVIEWLENS.BRONZE.R2_STAGE TO ROLE INGEST_ROLE"
+    )
+    assert fake.statements[2] == (
         "LIST @REVIEWLENS.BRONZE.R2_STAGE/manifests/_snowflake_smoke/synthetic.json"
     )
     assert result == [("synthetic-result",)]
@@ -200,6 +204,18 @@ def test_runtime_stage_uses_dedicated_read_only_credential_references() -> None:
     assert "seeded-stage-secret" in statement
     assert "forbidden-bootstrap-access" not in statement
     assert "forbidden-bootstrap-secret" not in statement
+    assert fake.statements[1] == (
+        "GRANT USAGE ON STAGE REVIEWLENS.BRONZE.R2_STAGE TO ROLE INGEST_ROLE"
+    )
+
+
+def test_execute_with_results_returns_query_id_and_rows() -> None:
+    client = SnowflakeClient(FakeConnection())
+
+    result = client.execute_with_results("COPY INTO synthetic")
+
+    assert result.query_id == "synthetic-query-id"
+    assert result.rows == (("synthetic-result",),)
 
 
 def test_bootstrap_connection_uses_key_pair_without_target_objects(

@@ -22,9 +22,9 @@
 | TC-M2-016 | R2 live | Immutable upload/download/replay/conflict | Hash matches; overwrite denied; intended archive retained under lifecycle | `PASS` | Offline create-only/resume/conflict suite pass; approved archive local preflight 9 files/1,550,922 rows/0 rejected; private R2 initial upload pass and forced replay confirms 0 uploads + 10 verified replays, anonymous/account-list denial pass |
 | TC-M2-017 | Parquet | Raw/quarantine round trip | Types/Unicode/newlines/partitions preserved | `PASS` | Typed string/integer/decimal/timestamp and UTC lineage round-trip; Unicode/multiline review text preserved privately; raw/error partitions, metadata-only manifests, replay and conflicting-artifact denial verified |
 | TC-M2-018 | Audit | Legal/illegal ingestion state transitions | Append-only, idempotent and leased | `PASS` | Legal five-state path, skip/post-terminal denial, same-state idempotency/conflict, active-owner exclusion, expired-lease retry and file-count ledger reconciliation pass |
-| TC-M2-019 | Bronze contract | Nine tables, lineage metadata and immutable grants | DDL/RBAC/idempotency pass | `PENDING` | Planned IMP-M2-013 |
-| TC-M2-020 | COPY integration | Airflow load history and replay | No duplicate committed effect | `PENDING` | Planned IMP-M2-014/016 |
-| TC-M2-021 | Reconciliation | Source→R2→Bronze rows/bytes/checksums | Zero unexplained loss | `PENDING` | Planned IMP-M2-015 |
+| TC-M2-019 | Bronze contract | Nine tables, lineage metadata and immutable grants | DDL/RBAC/idempotency pass | `PASS` | Exact contract-to-DDL mapping and metadata/grant checks pass; owner-approved live migration + replay pass, and live `INGEST_ROLE` SELECT Bronze is denied while COPY/audit succeed |
+| TC-M2-020 | COPY integration | Airflow load history and replay | No duplicate committed effect | `PASS` | Unit/fake tests cover exact-file allowlist, query ID, append-only history conflict and sanitized invalid results; live first COPY loads 1 synthetic row and replay returns `LOAD_SKIPPED`/0 rows |
+| TC-M2-021 | Reconciliation | Source→R2→Bronze rows/bytes/checksums | Zero unexplained loss | `PASS` | All nine synthetic dataset ledgers reconcile source dispositions, local/R2 bytes+hashes, COPY/Bronze rows and distinct hashes; live representative path returns 1 Bronze row/1 distinct hash |
 | TC-M2-022 | Failure/concurrency | Retry/backfill/late/change/same-key race | Active state remains consistent | `PENDING` | Planned IMP-M2-017 |
 | TC-M2-023 | Operations | Metrics/alerts/replay/quarantine drill | Expected observability and recovery evidence | `PENDING` | Planned IMP-M2-018 |
 | TC-M2-024 | Security | Repository/raw-data/secret/provider boundary | No raw source or secret in Git/output | `PASS` | `reviewlens-policy --root .`: 0 findings; ingestion source module has no provider/environment import |
@@ -128,3 +128,11 @@
 - Tests use generated synthetic rows and temporary ignored outputs. No real
   `archive/` row was processed into Parquet, no R2/Snowflake/OpenRouter/Chroma
   call occurred and no managed-service cost was incurred.
+
+### Bronze DDL, COPY history and reconciliation bundle
+
+- Focused offline command: `pytest tests/test_bronze_contract.py tests/test_ingestion_bronze.py tests/test_ingestion_reconciliation.py tests/test_snowflake.py -q -p no:cacheprovider` → 43 pass before the final replay-status regression; the expanded full suite is recorded below.
+- Owner-approved live command: `REVIEWLENS_RUN_LIVE_BRONZE_COPY=1 pytest tests/live/test_bronze_copy_live.py -q -rs -p no:cacheprovider` → 1 pass. It uploads one generated Parquet object, replays migration, loads exactly one row, verifies replay as `LOAD_SKIPPED`, confirms insert-only ingestion RBAC, reconciles 1 row/1 hash, then deletes the object/audit/data rows and suspends the warehouse.
+- Full offline gate: Ruff format/lint + Airflow rules pass, mypy strict passes 81 files, and pytest passes 313 tests + 8 expected live skips with 88.43% branch-aware coverage.
+- dbt parse/compile with warnings-as-errors, repository policy (0 findings), immutable artifact metadata, `uv lock --check`, Compose config and project-status validator all pass; validator reports M2 at 15/18 work items and 23/25 tests with 0 errors/warnings.
+- No Olist row from `archive/` was materialized or loaded. The live path contains synthetic identifiers and values only; OpenRouter and Chroma were not called.

@@ -23,6 +23,7 @@ EVENT_TABLES = EXPECTED_TABLES - {"ACTIVE_RELEASE_POINTER"}
 class RecordingCursor:
     def __init__(self, statements: list[str]) -> None:
         self._statements = statements
+        self.sfqid = "synthetic-query-id"
 
     def execute(self, command: str) -> RecordingCursor:
         self._statements.append(command)

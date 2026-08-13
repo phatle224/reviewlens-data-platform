@@ -186,7 +186,7 @@ class _StreamingArtifactWriter:
         self._schema = schema
         self._output_root = output_root
         self._object_key = object_key
-        self._target = output_root / Path(object_key)
+        self._target = _windows_long_path(output_root / Path(object_key))
         self._target.parent.mkdir(parents=True, exist_ok=True)
         self._temporary = self._target.with_name(f".{self._target.name}.{uuid4().hex}.tmp")
         self._row_group_size = row_group_size
@@ -231,7 +231,10 @@ class _StreamingArtifactWriter:
                 "sha256": digest,
                 "size_bytes": size_bytes,
             }
-            _write_manifest_create_only(self._output_root / Path(manifest_key), manifest)
+            _write_manifest_create_only(
+                _windows_long_path(self._output_root / Path(manifest_key)),
+                manifest,
+            )
             return ParquetArtifact(
                 object_key=self._object_key,
                 manifest_key=manifest_key,
@@ -526,6 +529,18 @@ def _file_sha256(path: Path) -> str:
         while chunk := handle.read(1024 * 1024):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _windows_long_path(path: Path) -> Path:
+    """Use the Win32 extended prefix for canonical IDs that exceed MAX_PATH."""
+
+    if os.name != "nt":
+        return path
+    resolved = path.resolve()
+    value = str(resolved)
+    if value.startswith("\\\\?\\"):
+        return resolved
+    return Path(f"\\\\?\\{value}")
 
 
 try:

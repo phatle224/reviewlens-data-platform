@@ -6,6 +6,7 @@ import json
 import re
 from collections.abc import Iterable, Mapping
 from contextlib import suppress
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, cast
 from urllib.parse import urlparse
@@ -27,6 +28,9 @@ class _SnowflakeCursor(Protocol):
 
     def close(self) -> None: ...
 
+    @property
+    def sfqid(self) -> str | None: ...
+
 
 class _SnowflakeConnection(Protocol):
     def cursor(self) -> _SnowflakeCursor: ...
@@ -36,6 +40,14 @@ class _SnowflakeConnection(Protocol):
 
 class SnowflakeProviderError(RuntimeError):
     """A sanitized provider error that never includes SQL or credentials."""
+
+
+@dataclass(frozen=True, slots=True)
+class SnowflakeQueryResult:
+    """Provider-neutral query identity and rows for auditable operations."""
+
+    query_id: str
+    rows: tuple[tuple[Any, ...], ...]
 
 
 _IDENTIFIER = re.compile(r"^[A-Z][A-Z0-9_]*$")
@@ -119,7 +131,7 @@ CREDENTIALS = (
   AWS_SECRET_KEY = {_sql_literal(secret_access_key)}
 )
 DIRECTORY = (ENABLE = TRUE AUTO_REFRESH = FALSE)
-COMMENT = 'ReviewLens private R2 stage; synthetic cloud data only'"""
+COMMENT = 'ReviewLens private R2 stage; approved private or synthetic data only'"""
 
 
 class SnowflakeClient:
@@ -228,6 +240,28 @@ class SnowflakeClient:
         for statement in statements:
             self.execute(statement, operation=operation)
 
+    def execute_with_results(
+        self,
+        statement: str,
+        *,
+        operation: str = "Snowflake statement",
+    ) -> SnowflakeQueryResult:
+        """Execute once and return the provider query ID plus its result rows."""
+
+        cursor = self._connection.cursor()
+        try:
+            cursor.execute(statement)
+            query_id = getattr(cursor, "sfqid", None)
+            if not isinstance(query_id, str) or not query_id:
+                raise SnowflakeProviderError(f"{operation} returned no query ID")
+            return SnowflakeQueryResult(query_id=query_id, rows=tuple(cursor.fetchall()))
+        except SnowflakeProviderError:
+            raise
+        except Exception:
+            raise SnowflakeProviderError(f"{operation} failed") from None
+        finally:
+            cursor.close()
+
     def query_all(
         self,
         statement: str,
@@ -269,6 +303,7 @@ class SnowflakeClient:
             secret_access_key=r2.secret_access_key.get_secret_value(),
         )
         self.execute(sensitive_statement, operation="sensitive R2 stage creation")
+        self._grant_r2_stage_usage(snowflake.database)
 
     def create_or_replace_r2_runtime_stage(
         self,
@@ -293,6 +328,7 @@ class SnowflakeClient:
             secret_access_key=secret_access_key,
         )
         self.execute(sensitive_statement, operation="sensitive R2 runtime stage creation")
+        self._grant_r2_stage_usage(snowflake.database)
 
     def list_stage_path(self, *, database: str, key: str) -> list[tuple[Any, ...]]:
         if not _STAGE_KEY.fullmatch(key) or ".." in key:
@@ -311,3 +347,9 @@ class SnowflakeClient:
         except SnowflakeProviderError:
             # A never-started/already-suspended warehouse needs no further cleanup.
             return
+
+    def _grant_r2_stage_usage(self, database: str) -> None:
+        self.execute(
+            f"GRANT USAGE ON STAGE {_identifier(database)}.BRONZE.R2_STAGE TO ROLE INGEST_ROLE",
+            operation="R2 stage ingestion grant",
+        )

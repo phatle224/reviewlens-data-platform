@@ -3,10 +3,10 @@
 | Thuộc tính | Giá trị |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 12/18 work items |
+| Completed | 15/18 work items |
 | Partial | 0/18 work items |
 | Blocked | 0/18 work items |
-| Not started | 6/18 work items |
+| Not started | 3/18 work items |
 | Last updated | 2026-08-13 |
 
 ## Checklist theo implementation plan
@@ -25,9 +25,9 @@
 | IMP-M2-010 | `DONE` | Typed raw/quarantine Parquet partitions và manifests | Bounded PyArrow writers preserve string/integer/decimal/timestamp, Unicode and multiline text; create-only partition commit, content/schema hashes and metadata-only sidecar manifests pass replay/conflict tests |
 | IMP-M2-011 | `DONE` | Ingestion/file/source audit repositories và state transitions | Typed repository port + deterministic append-only fake enforce exact state order, terminal failure, active lease exclusion/takeover, retry attempt identity, source/file count reconciliation and idempotency conflict detection |
 | IMP-M2-012 | `DONE` | Row/file quarantine và replay selector | Streaming processor emits only `NEW` rows to raw; committed `REPLAY` has zero new effect; candidate `DUPLICATE`, validation errors and parser/file failures receive stable code, source row/byte/raw reference and reconcile exactly |
-| IMP-M2-013 | `NOT_STARTED` | Nine immutable Bronze DDLs/stages/grants | Schema/metadata/RBAC/idempotency tests |
-| IMP-M2-014 | `NOT_STARTED` | Airflow-managed `COPY INTO` và load history | Query-ID/replay/copy/cleanup tests |
-| IMP-M2-015 | `NOT_STARTED` | Source→R2→Bronze physical reconciliation | Rows/bytes/checksums zero unexplained loss |
+| IMP-M2-013 | `DONE` | Nine immutable Bronze DDLs/stages/grants | `005_bronze.sql` maps all nine typed contracts and canonical lineage to additive tables, a Parquet format and metadata-only audit ledger; migration replay passes live and `INGEST_ROLE` is insert-only on Bronze with live SELECT denial |
+| IMP-M2-014 | `DONE` | Airflow-managed `COPY INTO` và load history | Exact-file allowlisted COPY service records Snowflake query IDs/counts in an append-only ledger; `FORCE=FALSE`, `PURGE=FALSE`, fail-closed result parsing and live `LOAD_SKIPPED` replay have zero duplicate committed effect; DAG wiring remains IMP-M2-016 |
+| IMP-M2-015 | `DONE` | Source→R2→Bronze physical reconciliation | Deterministic nine-dataset reconciliation covers source dispositions, local/R2 bytes and SHA-256, COPY rows, Bronze batch rows and distinct record hashes; synthetic R2→Bronze live smoke reconciles 1 row/1 hash and cleans up |
 | IMP-M2-016 | `NOT_STARTED` | Implement three ingestion DAG tasks | Retry/resume/idempotency/import-side-effect tests |
 | IMP-M2-017 | `NOT_STARTED` | Late/change/backfill/concurrent same-key handling | Scenario and race/failure-injection suite |
 | IMP-M2-018 | `NOT_STARTED` | Metrics, alerts, replay/quarantine runbook | Operational drill and evidence |
