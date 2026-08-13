@@ -1,21 +1,52 @@
-# Airflow 3 orchestration scaffold
+# Airflow 3 orchestration
 
 `dags/olist_pipeline.py` defines the stable ReviewLens task graph with the
 public Airflow 3 `airflow.sdk` API. It is manual-only (`schedule=None`), has a
 single active DAG run, and assigns every task a retry policy, execution timeout,
 and one-slot resource pool.
 
-## M1 safety boundary
+## M2 ingestion boundary
 
 - DAG parsing does not read `.env`, `config/config.toml`, Airflow Variables or
   Connections, and does not call R2, Snowflake, OpenRouter, Chroma or any network.
-- Task bodies are fail-closed M1 guards. An accidental manual trigger stops at
-  `validate_source` before external work or paid usage.
-- M2-M5 replace each guard only when the owning ingestion, transformation, AI,
-  and release gate has its own unit, failure, idempotency, security, and cost tests.
+- `validate_source`, `upload_to_r2` and `copy_to_bronze` are enabled runtime task
+  bodies. Their XCom payloads contain versioned IDs, object keys, hashes and counts
+  only—never credentials or row text.
+- Execution remains fail-closed unless `REVIEWLENS_ENABLE_OLIST_PIPELINE=1` and
+  both `REVIEWLENS_SOURCE_DIR` and `REVIEWLENS_OUTPUT_DIR` are available inside
+  the worker. The Compose service mounts `archive/` read-only and writes derived
+  artifacts only to the private Airflow runtime volume.
+- Source/archive and raw artifacts are create-only; Parquet timestamps and IDs are
+  deterministic; Snowflake COPY uses `FORCE=FALSE`. Airflow retries therefore
+  resume or replay instead of overwriting data.
+- M3-M5 tasks remain fail-closed skip guards until their owning milestone passes
+  its unit, failure, idempotency, security and cost gates. The first unavailable
+  milestone is marked skipped and default trigger rules skip everything downstream,
+  allowing a successful M2-only DAG run without executing future work.
 - Apache Airflow does not support native Windows runtime. Local execution will
   use the Linux container introduced by `IMP-M1-016`; the Windows test suite uses
   an isolated import-only compatibility shim and never starts Airflow services.
+
+## Intentional private run
+
+The Airflow image includes the locked ReviewLens runtime dependencies. Compose
+maps the local ingestion and transform key files into fixed container paths so
+Windows host paths never enter task code.
+
+Before a real manual run:
+
+1. Keep the exact nine approved CSVs plus `manifest.json` in ignored `archive/`.
+2. Confirm `.env` points to the host ingestion and transform PKCS#8 key files.
+3. Set `REVIEWLENS_ENABLE_OLIST_PIPELINE=1` only for the intended private run.
+4. Build/start the refreshed Airflow image, then trigger `olist_pipeline` once.
+5. Return the flag to `0` after the run and verify warehouse auto-suspend.
+
+Do not put credentials, raw rows or review text into DAG-run configuration. A
+failed task exposes only `AIRFLOW_INGESTION_TASK_FAILED`; detailed evidence is
+restricted to identifiers, counts and stable error codes.
+
+Normal run, replay/backfill, quarantine, alert response and shutdown procedures
+are documented in [`docs/runbooks/M2_INGESTION_OPERATIONS.md`](../docs/runbooks/M2_INGESTION_OPERATIONS.md).
 
 ## Pools
 

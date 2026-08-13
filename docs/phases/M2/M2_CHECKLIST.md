@@ -3,11 +3,11 @@
 | Thuộc tính | Giá trị |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 15/18 work items |
+| Completed | 18/18 work items |
 | Partial | 0/18 work items |
 | Blocked | 0/18 work items |
-| Not started | 3/18 work items |
-| Last updated | 2026-08-13 |
+| Not started | 0/18 work items |
+| Last updated | 2026-08-14 |
 
 ## Checklist theo implementation plan
 
@@ -28,11 +28,15 @@
 | IMP-M2-013 | `DONE` | Nine immutable Bronze DDLs/stages/grants | `005_bronze.sql` maps all nine typed contracts and canonical lineage to additive tables, a Parquet format and metadata-only audit ledger; migration replay passes live and `INGEST_ROLE` is insert-only on Bronze with live SELECT denial |
 | IMP-M2-014 | `DONE` | Airflow-managed `COPY INTO` và load history | Exact-file allowlisted COPY service records Snowflake query IDs/counts in an append-only ledger; `FORCE=FALSE`, `PURGE=FALSE`, fail-closed result parsing and live `LOAD_SKIPPED` replay have zero duplicate committed effect; DAG wiring remains IMP-M2-016 |
 | IMP-M2-015 | `DONE` | Source→R2→Bronze physical reconciliation | Deterministic nine-dataset reconciliation covers source dispositions, local/R2 bytes and SHA-256, COPY rows, Bronze batch rows and distinct record hashes; synthetic R2→Bronze live smoke reconciles 1 row/1 hash and cleans up |
-| IMP-M2-016 | `NOT_STARTED` | Implement three ingestion DAG tasks | Retry/resume/idempotency/import-side-effect tests |
-| IMP-M2-017 | `NOT_STARTED` | Late/change/backfill/concurrent same-key handling | Scenario and race/failure-injection suite |
-| IMP-M2-018 | `NOT_STARTED` | Metrics, alerts, replay/quarantine runbook | Operational drill and evidence |
+| IMP-M2-016 | `DONE` | Implement three ingestion DAG tasks | Typed metadata-only XCom contracts wire `validate_source → upload_to_r2 → copy_to_bronze`; runtime is explicit-opt-in, provider-free at DAG import, immutable/replay-safe and container-smoked from the locked Airflow image |
+| IMP-M2-017 | `DONE` | Late/change/backfill/concurrent same-key handling | Deterministic synthetic scenarios block incomplete/ambiguous source, classify changed bytes as a new release, preserve lineage while changing backfill attempt ID, serialize same-key lease claims and recover from an injected upload failure before COPY |
+| IMP-M2-018 | `DONE` | Metrics, alerts, replay/quarantine runbook | Bounded metadata-only Prometheus payload and atomic stable-code alert artifact cover reconciliation/quarantine/task-error/warehouse cleanup; private run, replay, backfill, recovery and shutdown drill is documented and contract-tested |
 
 ## Exit gate
+
+Implementation is now 18/18, but M2 remains `IN_PROGRESS` until the owner-approved
+full nine-file private DAG run proves end-to-end counts, replay and warehouse
+suspension. The container import smoke is not being presented as that live exit gate.
 
 M2 chỉ `COMPLETE` khi chín source/Bronze counts reconcile, mọi invalid row được
 giải thích, replay không tạo duplicate committed effect, raw data không Git-visible,

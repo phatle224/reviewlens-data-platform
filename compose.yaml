@@ -58,6 +58,9 @@ services:
 
   airflow:
     <<: *reviewlens-common
+    env_file:
+      - path: .env
+        required: false
     image: reviewlens/airflow:${REVIEWLENS_ARTIFACT_TAG:?Run reviewlens-artifacts --print-tag}
     build:
       context: .
@@ -67,12 +70,35 @@ services:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/reviewlens/airflow/dags
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__CORE__DAG_DISCOVERY_SAFE_MODE: "true"
+      REVIEWLENS_CONTAINER_RUNTIME: compose
+      REVIEWLENS_ENABLE_OLIST_PIPELINE: "${REVIEWLENS_ENABLE_OLIST_PIPELINE:-0}"
+      REVIEWLENS_BACKFILL_ATTEMPT_NUMBER: "${REVIEWLENS_BACKFILL_ATTEMPT_NUMBER:-1}"
+      REVIEWLENS_SOURCE_DIR: /opt/reviewlens/archive
+      REVIEWLENS_OUTPUT_DIR: /opt/airflow/runtime/data
+      SNOWFLAKE_INGEST_PRIVATE_KEY_PATH: /run/reviewlens/keys/ingestion.p8
+      SNOWFLAKE_TRANSFORM_PRIVATE_KEY_PATH: /run/reviewlens/keys/transform.p8
     ports:
       - "127.0.0.1:8080:8080"
     tmpfs:
       - /tmp:size=128m,mode=1777
     volumes:
       - airflow-runtime:/opt/airflow/runtime
+      - type: bind
+        source: ./archive
+        target: /opt/reviewlens/archive
+        read_only: true
+      - type: bind
+        source: ${SNOWFLAKE_INGEST_PRIVATE_KEY_PATH:-./keys/missing-ingestion.p8}
+        target: /run/reviewlens/keys/ingestion.p8
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${SNOWFLAKE_TRANSFORM_PRIVATE_KEY_PATH:-./keys/missing-transform.p8}
+        target: /run/reviewlens/keys/transform.p8
+        read_only: true
+        bind:
+          create_host_path: false
     user: "50000:0"
 
 volumes:

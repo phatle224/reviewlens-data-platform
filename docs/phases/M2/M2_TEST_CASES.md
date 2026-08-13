@@ -25,8 +25,8 @@
 | TC-M2-019 | Bronze contract | Nine tables, lineage metadata and immutable grants | DDL/RBAC/idempotency pass | `PASS` | Exact contract-to-DDL mapping and metadata/grant checks pass; owner-approved live migration + replay pass, and live `INGEST_ROLE` SELECT Bronze is denied while COPY/audit succeed |
 | TC-M2-020 | COPY integration | Airflow load history and replay | No duplicate committed effect | `PASS` | Unit/fake tests cover exact-file allowlist, query ID, append-only history conflict and sanitized invalid results; live first COPY loads 1 synthetic row and replay returns `LOAD_SKIPPED`/0 rows |
 | TC-M2-021 | Reconciliation | Source→R2→Bronze rows/bytes/checksums | Zero unexplained loss | `PASS` | All nine synthetic dataset ledgers reconcile source dispositions, local/R2 bytes+hashes, COPY/Bronze rows and distinct hashes; live representative path returns 1 Bronze row/1 distinct hash |
-| TC-M2-022 | Failure/concurrency | Retry/backfill/late/change/same-key race | Active state remains consistent | `PENDING` | Planned IMP-M2-017 |
-| TC-M2-023 | Operations | Metrics/alerts/replay/quarantine drill | Expected observability and recovery evidence | `PENDING` | Planned IMP-M2-018 |
+| TC-M2-022 | Failure/concurrency | Retry/backfill/late/change/same-key race | Active state remains consistent | `PASS` | Synthetic late/duplicate-manifest cases fail before providers; changed bytes create a new release; attempt 2 preserves release/batch/run IDs; concurrent owners yield one lease; injected upload failure is sanitized and retry completes before COPY |
+| TC-M2-023 | Operations | Metrics/alerts/replay/quarantine drill | Expected observability and recovery evidence | `PASS` | Exact-nine metrics contract, bounded identifier-free Prometheus payload, atomic alert artifact and all four stable alert fixtures pass; `M2_INGESTION_OPERATIONS.md` contract covers private trigger, replay/backfill, quarantine, failure recovery, suspend and shutdown |
 | TC-M2-024 | Security | Repository/raw-data/secret/provider boundary | No raw source or secret in Git/output | `PASS` | `reviewlens-policy --root .`: 0 findings; ingestion source module has no provider/environment import |
 | TC-M2-025 | Status | Phase artifacts and implementation plan synchronize | Validator has 0 errors/warnings | `PASS` | Status validator: M2 has 18 planned work items and 25 synchronized tests; 0 errors/warnings |
 
@@ -136,3 +136,31 @@
 - Full offline gate: Ruff format/lint + Airflow rules pass, mypy strict passes 81 files, and pytest passes 313 tests + 8 expected live skips with 88.43% branch-aware coverage.
 - dbt parse/compile with warnings-as-errors, repository policy (0 findings), immutable artifact metadata, `uv lock --check`, Compose config and project-status validator all pass; validator reports M2 at 15/18 work items and 23/25 tests with 0 errors/warnings.
 - No Olist row from `archive/` was materialized or loaded. The live path contains synthetic identifiers and values only; OpenRouter and Chroma were not called.
+
+## Execution log — 2026-08-14
+
+### Airflow orchestration, failure scenarios and operations bundle
+
+- Implemented the runtime-only `validate_source → upload_to_r2 → copy_to_bronze`
+  handoff with exact-nine Pydantic contracts. DAG import remains provider/env
+  side-effect free; task errors expose one stable code and no source values.
+- Added deterministic late/partial, changed-release, backfill-attempt, same-key
+  concurrency and injected retry scenarios. The in-memory claim operation is now
+  atomic, so exactly one active owner wins a dataset run.
+- Added bounded dataset/outcome metrics and atomic metadata-only alert artifacts.
+  Reconciliation, quarantine-rate, task-error and warehouse-cleanup fixtures emit
+  stable codes. The private replay/backfill/quarantine/recovery procedure is in
+  `docs/runbooks/M2_INGESTION_OPERATIONS.md`.
+- Focused command: `pytest tests/test_ingestion_orchestration.py
+  tests/test_ingestion_scenarios.py tests/test_ingestion_operations.py
+  tests/test_airflow.py -q -p no:cacheprovider` → 26 pass.
+- Full offline suite: 335 pass + 8 expected live skips with 86.33% branch-aware
+  coverage; repository policy reports 0 findings. Ruff on project-owned source,
+  mypy strict, locked dependency and artifact checks pass.
+- Locked Airflow image build and container import smoke pass with tag
+  `local-sha256-6a91297419a8d038`: 11 DAG tasks plus ingestion/alert runtime imports.
+  The incompatible base-image `chardet` package is removed, eliminating the
+  Snowflake vendored Requests dependency warning.
+- No real Olist row was read or materialized and no R2/Snowflake/OpenRouter/Chroma
+  provider call occurred. Full nine-file private DAG execution remains the M2 exit
+  gate and is not represented as passed by this container smoke.

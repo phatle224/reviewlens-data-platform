@@ -167,7 +167,11 @@ def test_dag_source_has_no_import_time_provider_or_credential_access() -> None:
         if isinstance(node, ast.ImportFrom)
     )
 
-    assert imported_modules <= {"__future__", "airflow", "datetime"}
+    assert imported_modules <= {"__future__", "airflow", "datetime", "reviewlens"}
+    top_level_imports = {
+        (node.module or "").split(".")[0] for node in tree.body if isinstance(node, ast.ImportFrom)
+    }
+    assert "reviewlens" not in top_level_imports
     for forbidden in (
         "Variable.get",
         "BaseHook",
@@ -185,9 +189,11 @@ def test_dag_source_has_no_import_time_provider_or_credential_access() -> None:
         assert forbidden not in source
 
 
-def test_scaffold_is_manual_and_fails_closed_if_triggered_early() -> None:
+def test_m2_tasks_are_enabled_but_later_milestones_remain_fail_closed() -> None:
     source = DAG_PATH.read_text(encoding="utf-8")
 
     assert "schedule=None" in source
-    assert "M1 task-graph scaffold and is not enabled for execution yet" in source
-    assert "raise RuntimeError" in source
+    for task_name in ("validate_source", "upload_to_r2", "copy_to_bronze"):
+        assert f'return execute_airflow_task("{task_name}"' in source
+    assert "belongs to a later milestone and is not enabled for execution yet" in source
+    assert "raise AirflowSkipException" in source

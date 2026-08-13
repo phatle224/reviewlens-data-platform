@@ -1,10 +1,10 @@
 {
-  "artifact_tag": "local-sha256-83ec149723e0796d",
+  "artifact_tag": "local-sha256-6a91297419a8d038",
   "deployment_scope": "local-demo-only",
   "images": {
-    "airflow": "reviewlens/airflow:local-sha256-83ec149723e0796d",
-    "app": "reviewlens/app:local-sha256-83ec149723e0796d"
+    "airflow": "reviewlens/airflow:local-sha256-6a91297419a8d038",
+    "app": "reviewlens/app:local-sha256-6a91297419a8d038"
   },
   "schema_version": 1,
-  "source_sha256": "83ec149723e0796d98b416d6e144927a4bdaa9017538c5e6fb13bf7eaff21487"
+  "source_sha256": "6a91297419a8d038dcacaf01cf7c4dab74d45831bec8a7a756af8c529349facf"
 }

@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
+from threading import RLock
 from typing import Final, Protocol
 from uuid import uuid4
 
@@ -143,6 +144,7 @@ class InMemoryIngestionAuditRepository:
         self._state_events: list[IngestionStateEvent] = []
         self._file_events: list[SourceFileAuditEvent] = []
         self._file_event_by_key: dict[tuple[str, str], SourceFileAuditEvent] = {}
+        self._claim_lock = RLock()
 
     @property
     def state_events(self) -> tuple[IngestionStateEvent, ...]:
@@ -161,6 +163,26 @@ class InMemoryIngestionAuditRepository:
         owner: str,
         trace_id: str,
         lease_seconds: int = 300,
+    ) -> IngestionLease:
+        with self._claim_lock:
+            return self._claim_unlocked(
+                source_release_id=source_release_id,
+                ingestion_batch_id=ingestion_batch_id,
+                dataset_run_id=dataset_run_id,
+                owner=owner,
+                trace_id=trace_id,
+                lease_seconds=lease_seconds,
+            )
+
+    def _claim_unlocked(
+        self,
+        *,
+        source_release_id: str,
+        ingestion_batch_id: str,
+        dataset_run_id: str,
+        owner: str,
+        trace_id: str,
+        lease_seconds: int,
     ) -> IngestionLease:
         _validate_common(owner=owner, trace_id=trace_id)
         _validate_source_ids(source_release_id, ingestion_batch_id)
