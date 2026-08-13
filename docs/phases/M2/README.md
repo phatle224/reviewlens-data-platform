@@ -13,9 +13,10 @@ license và privacy preflight.
 | [Olist source manifest](../../data/OLIST_SOURCE_MANIFEST.md) | Metadata-only identity của snapshot thật |
 | [Security/privacy baseline](../M0/M0_SECURITY_PRIVACY.md) | Data classification và external-transfer boundary |
 
-Phase status hiện tại: `IN_PROGRESS`. `IMP-M2-001…018` đã hoàn tất. Source gốc
+Phase status hiện tại: `COMPLETE`. `IMP-M2-001…018` đã hoàn tất. Source gốc
 được lưu create-only trong private R2; pipeline local có thể tạo typed
 raw/quarantine Parquet, COPY exact-file vào chín immutable Bronze tables, ghi
 append-only load history và reconcile rows/bytes/checksums. Ba task M2 đã được
 wired trong Airflow với typed metadata-only handoff, failure/concurrency coverage
-và operations runbook. Phase chờ owner-approved full nine-file private DAG exit run.
+và operations runbook. Owner-approved full nine-file run và immutable replay đã
+reconcile sạch; alert list rỗng và Snowflake warehouse đã suspend.

@@ -2,7 +2,7 @@
 
 | Thuộc tính | Giá trị |
 |---|---|
-| Phase status | `IN_PROGRESS` |
+| Phase status | `COMPLETE` |
 | Completed | 18/18 work items |
 | Partial | 0/18 work items |
 | Blocked | 0/18 work items |
@@ -34,11 +34,14 @@
 
 ## Exit gate
 
-Implementation is now 18/18, but M2 remains `IN_PROGRESS` until the owner-approved
-full nine-file private DAG run proves end-to-end counts, replay and warehouse
-suspension. The container import smoke is not being presented as that live exit gate.
+M2 is `COMPLETE`. Owner-approved run `m2_exit_normal_20260814_0122` and immutable
+replay `m2_exit_clean_replay_20260814_0153` both finished successfully. All nine
+datasets reconcile 1,550,922 source rows into 1,289,091 accepted/Bronze rows plus
+261,831 deterministic exact duplicates, with zero invalid quarantine and zero parse
+failures. Replay reports 19 verified/skipped objects, zero duplicate committed
+effect, an empty alert list, reconciliation `1` and warehouse-suspended `1`.
 
-M2 chỉ `COMPLETE` khi chín source/Bronze counts reconcile, mọi invalid row được
-giải thích, replay không tạo duplicate committed effect, raw data không Git-visible,
-live resources được cleanup và warehouse suspend. Chưa chạy test phải giữ
-`PENDING`/`NOT_STARTED`, không giả lập `PASS`.
+Raw data remains outside Git and private provider artifacts remain under the
+approved lifecycle policy. The local Airflow volume retains metadata-only run
+evidence; provider resources were left private and Snowflake warehouse cleanup was
+confirmed.

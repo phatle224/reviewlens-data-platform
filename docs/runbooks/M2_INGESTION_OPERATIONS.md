@@ -47,7 +47,7 @@ một slot:
 
 ```powershell
 docker compose exec airflow airflow dags trigger olist_pipeline
-docker compose exec airflow airflow dags list-runs -d olist_pipeline
+docker compose exec airflow airflow dags list-runs olist_pipeline
 ```
 
 Ba task M2 phải chạy tuần tự:
@@ -68,7 +68,7 @@ phía sau phải `SKIPPED`. DAG run có thể kết thúc success mà không th�
 Không export XCom hoặc raw logs. Ghi lại metadata an toàn sau:
 
 - Airflow run ID, trạng thái và thời lượng của ba task M2.
-- Mỗi dataset: source/accepted/quarantined/parse-failed/Bronze counts.
+- Mỗi dataset: source/accepted/duplicate/quarantined/parse-failed/Bronze counts.
 - COPY status/query ID; chỉ ID và count, không query text chứa data.
 - Xác nhận reconciliation bằng `RECONCILED` và alert list rỗng.
 - Xác nhận warehouse đã suspend.
@@ -127,7 +127,7 @@ Stable alerts:
 | Code | Ý nghĩa | Xử lý |
 |---|---|---|
 | `INGESTION_RECONCILIATION_FAILED` | Accepted và Bronze count/hash không khớp | Dừng publish; đối chiếu manifest, R2 hash, COPY history; không sửa Bronze thủ công |
-| `INGESTION_QUARANTINE_RATE_HIGH` | Tỷ lệ rejected/parse-failed vượt 5% | Kiểm tra error-code partitions và source contract; không đọc row text vào log |
+| `INGESTION_QUARANTINE_RATE_HIGH` | Tỷ lệ invalid rejected/parse-failed vượt 5%; exact duplicate được báo riêng và không kích hoạt alert này | Kiểm tra error-code partitions và source contract; không đọc row text vào log |
 | `INGESTION_TASK_ERRORS_PRESENT` | Airflow ghi nhận task error | Retry theo mục 5 sau khi xác định lỗi tạm thời; lỗi contract phải sửa source/code |
 | `INGESTION_WAREHOUSE_CLEANUP_REQUIRED` | Chưa xác nhận suspend | Suspend warehouse ngay và kiểm tra auto-suspend/cost |
 

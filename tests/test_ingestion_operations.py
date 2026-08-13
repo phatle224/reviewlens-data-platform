@@ -30,6 +30,7 @@ def _snapshot(**overrides: object) -> IngestionOperationsSnapshot:
                 "dataset_name": dataset.dataset_name,
                 "source_rows": 10,
                 "accepted_rows": 10,
+                "duplicate_rows": 0,
                 "quarantined_rows": 0,
                 "parse_failed_rows": 0,
                 "bronze_rows": 10,
@@ -51,6 +52,7 @@ def test_healthy_snapshot_has_no_alert_and_metrics_are_metadata_only() -> None:
     assert alerts == ()
     assert 'dataset="orders"' in payload
     assert 'outcome="bronze"' in payload
+    assert 'outcome="duplicate"' in payload
     assert "reviewlens_ingestion_reconciled 1.0" in payload
     assert "reviewlens_ingestion_warehouse_suspended 1.0" in payload
     assert snapshot.source_release_id not in payload
@@ -63,6 +65,7 @@ def test_alerts_cover_reconciliation_quarantine_error_and_cleanup() -> None:
     datasets[0].update(
         source_rows=10,
         accepted_rows=8,
+        duplicate_rows=0,
         quarantined_rows=2,
         bronze_rows=7,
     )
@@ -90,6 +93,7 @@ def test_metrics_contract_rejects_unexplained_rows_or_dataset_drift() -> None:
             dataset_name="orders",
             source_rows=10,
             accepted_rows=9,
+            duplicate_rows=0,
             quarantined_rows=0,
             parse_failed_rows=0,
             bronze_rows=9,
@@ -103,6 +107,21 @@ def test_metrics_contract_rejects_unexplained_rows_or_dataset_drift() -> None:
 
     with pytest.raises(ValueError, match="between zero and one"):
         evaluate_ingestion_alerts(_snapshot(), quarantine_rate_threshold=1.01)
+
+
+def test_expected_duplicates_are_explained_without_quarantine_alert() -> None:
+    datasets = [item.model_dump() for item in _snapshot().datasets]
+    datasets[0].update(
+        source_rows=10,
+        accepted_rows=7,
+        duplicate_rows=3,
+        bronze_rows=7,
+    )
+    snapshot = _snapshot(datasets=datasets)
+
+    assert evaluate_ingestion_alerts(snapshot) == ()
+    payload = build_ingestion_metrics_payload(snapshot).decode("utf-8")
+    assert 'outcome="duplicate"} 3.0' in payload
 
 
 def test_operations_artifacts_are_atomic_bounded_and_identifier_free(tmp_path: Path) -> None:

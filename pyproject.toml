@@ -44,7 +44,10 @@ dev = [
   "ruff>=0.12,<1",
   "streamlit>=1.48,<2",
 ]
-airflow = ["apache-airflow-task-sdk>=1.1,<2"]
+airflow = [
+  "apache-airflow-task-sdk>=1.1,<2",
+  "chardet>=5.2,<6",
+]
 dbt = ["dbt-snowflake>=1.10,<2"]
 
 [tool.hatch.build.targets.wheel]

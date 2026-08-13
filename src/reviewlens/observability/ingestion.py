@@ -27,6 +27,7 @@ class DatasetIngestionMetrics(BaseModel):
     dataset_name: str
     source_rows: int = Field(ge=0)
     accepted_rows: int = Field(ge=0)
+    duplicate_rows: int = Field(ge=0)
     quarantined_rows: int = Field(ge=0)
     parse_failed_rows: int = Field(ge=0)
     bronze_rows: int = Field(ge=0)
@@ -35,7 +36,10 @@ class DatasetIngestionMetrics(BaseModel):
     @model_validator(mode="after")
     def require_explained_rows(self) -> DatasetIngestionMetrics:
         if self.source_rows != (
-            self.accepted_rows + self.quarantined_rows + self.parse_failed_rows
+            self.accepted_rows
+            + self.duplicate_rows
+            + self.quarantined_rows
+            + self.parse_failed_rows
         ):
             raise ValueError("dataset metrics do not explain source rows")
         return self
@@ -136,6 +140,7 @@ def build_ingestion_metrics_payload(snapshot: IngestionOperationsSnapshot) -> by
         values = {
             "source": item.source_rows,
             "accepted": item.accepted_rows,
+            "duplicate": item.duplicate_rows,
             "quarantined": item.quarantined_rows,
             "parse_failed": item.parse_failed_rows,
             "bronze": item.bronze_rows,

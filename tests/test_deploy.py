@@ -67,7 +67,8 @@ def test_airflow_image_contains_runtime_code_and_locked_dependencies() -> None:
     assert 'ENV PYTHONPATH="/opt/reviewlens/src"' in airflow
     assert "uv export --locked --no-dev --group airflow" in airflow
     assert "uv pip install --system" in airflow
-    assert "/home/airflow/.local/bin/python -m pip uninstall --yes chardet" in airflow
+    assert "pip uninstall --yes chardet" not in airflow
+    assert '"chardet==5.2.0"' in airflow
     assert "COPY --chown=airflow:root src /opt/reviewlens/src" in airflow
     assert "COPY --chown=airflow:root config /opt/reviewlens/config" in airflow
     assert "docs/DATA_ATTRIBUTION.md" in airflow

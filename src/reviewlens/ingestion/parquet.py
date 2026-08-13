@@ -9,7 +9,7 @@ import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation, localcontext
 from pathlib import Path
 from types import TracebackType
 from typing import Any
@@ -25,6 +25,7 @@ PARQUET_ARTIFACT_VERSION = "olist-parquet-v1"
 PARQUET_COMPRESSION = "snappy"
 DECIMAL_PRECISION = 38
 DECIMAL_SCALE = 18
+DECIMAL_QUANTUM = Decimal(1).scaleb(-DECIMAL_SCALE)
 _SAFE_PARTITION = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 
@@ -376,7 +377,13 @@ def write_quarantine_partition(
 def _raw_row(record: RawParquetRecord, *, dataset: DatasetContract) -> dict[str, Any]:
     if set(record.values) != set(dataset.expected_header):
         raise ParquetArtifactError()
-    row = {column: record.values[column] for column in dataset.expected_header}
+    row = {
+        column.name: _physical_value(
+            record.values[column.name],
+            logical_type=column.logical_type,
+        )
+        for column in dataset.columns
+    }
     row.update(
         {
             "source_release_id": record.source_release_id,
@@ -503,6 +510,21 @@ def _json_default(value: object) -> str:
     if isinstance(value, datetime):
         return value.isoformat(sep=" ", timespec="seconds")
     raise TypeError
+
+
+def _physical_value(value: ValidatedValue, *, logical_type: LogicalType) -> ValidatedValue:
+    """Project decimals deterministically while raw_payload retains exact source precision."""
+
+    if value is None or logical_type is not LogicalType.DECIMAL:
+        return value
+    if not isinstance(value, Decimal) or not value.is_finite():
+        raise ParquetArtifactError()
+    try:
+        with localcontext() as context:
+            context.prec = DECIMAL_PRECISION
+            return value.quantize(DECIMAL_QUANTUM, rounding=ROUND_HALF_EVEN)
+    except InvalidOperation:
+        raise ParquetArtifactError() from None
 
 
 def _utc(value: datetime) -> datetime:

@@ -340,9 +340,7 @@ are license-safe and the complete demo is reproducible from documented commands.
 
 ## 15. Solo sequencing recommendation
 
-Within the active M1, complete service identities (`IMP-M1-008`), then provider
-adapters (`IMP-M1-011`), dbt (`IMP-M1-009`), Airflow (`IMP-M1-010`) and audit/
-logging/CI/containers. Do not upload the real snapshot merely because credentials
-work; M2-001…008 must first make the source contract, manifest and privacy gate
-executable. Prefer the vertical slice order D1→D5 and keep every live command
-opt-in, bounded and cleanup-safe.
+M0–M2 are complete. Initialize M3 artifacts before starting the next implementation
+bundle, then build the conformed Silver/Gold vertical slice in dependency order.
+Keep every live command opt-in, bounded and cleanup-safe; retain immutable Bronze
+and source lineage while M3 candidates are tested before atomic publication.

@@ -27,7 +27,8 @@ RUN uv export --locked --no-dev --group airflow --no-emit-project --no-annotate 
     && chmod 0755 /opt/reviewlens/deploy/airflow-entrypoint.sh
 
 USER airflow
-RUN /home/airflow/.local/bin/python -m pip uninstall --yes chardet
+RUN /home/airflow/.local/bin/python -m pip install --no-cache-dir --force-reinstall \
+      "chardet==5.2.0"
 WORKDIR /opt/reviewlens
 USER 50000:0
 EXPOSE 8080

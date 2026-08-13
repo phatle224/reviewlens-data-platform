@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import json
 from datetime import UTC, datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal
 from pathlib import Path
 
 import pyarrow as pa
@@ -214,6 +214,53 @@ def test_decimal_round_trip_uses_fixed_typed_schema(tmp_path: Path) -> None:
     ).read()
     assert table.schema.field("price").type == pa.decimal128(38, 18)
     assert all(isinstance(value, Decimal) for value in table.column("price").to_pylist())
+
+
+def test_high_scale_geolocation_is_projected_without_losing_exact_raw_payload(
+    tmp_path: Path,
+) -> None:
+    dataset = load_olist_contract().by_file_name["olist_geolocation_dataset.csv"]
+    source = tmp_path / dataset.file_name
+    exact_lat = "1.12345678901234567855"
+    exact_lng = "2.00000000000000000001"
+    with source.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerow(dataset.expected_header)
+        writer.writerow(["01001", exact_lat, exact_lng, "sao paulo", "SP"])
+
+    report = process_dataset_file(
+        source,
+        dataset=dataset,
+        output_root=tmp_path / "private",
+        source_release_id=SOURCE_RELEASE_ID,
+        ingestion_batch_id=BATCH_ID,
+        dataset_run_id=DATASET_RUN_ID,
+        source_object_id=SOURCE_OBJECT_ID,
+        source_object_sha256=SOURCE_SHA256,
+        clock=FrozenClock(INSTANT),
+        row_group_size=1,
+    )
+
+    assert report.raw_artifact is not None
+    row = (
+        pq.ParquetFile(  # type: ignore[no-untyped-call]
+            tmp_path / "private" / report.raw_artifact.object_key
+        )
+        .read()
+        .to_pylist()[0]
+    )
+    quantum = Decimal("1e-18")
+    assert row["geolocation_lat"] == Decimal(exact_lat).quantize(
+        quantum,
+        rounding=ROUND_HALF_EVEN,
+    )
+    assert row["geolocation_lng"] == Decimal(exact_lng).quantize(
+        quantum,
+        rounding=ROUND_HALF_EVEN,
+    )
+    raw_payload = json.loads(row["raw_payload"])
+    assert raw_payload["geolocation_lat"] == exact_lat
+    assert raw_payload["geolocation_lng"] == exact_lng
 
 
 def test_parquet_create_only_replay_is_stable_and_conflict_is_denied(tmp_path: Path) -> None:

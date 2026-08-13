@@ -23,8 +23,8 @@
 | TC-M2-017 | Parquet | Raw/quarantine round trip | Types/Unicode/newlines/partitions preserved | `PASS` | Typed string/integer/decimal/timestamp and UTC lineage round-trip; Unicode/multiline review text preserved privately; raw/error partitions, metadata-only manifests, replay and conflicting-artifact denial verified |
 | TC-M2-018 | Audit | Legal/illegal ingestion state transitions | Append-only, idempotent and leased | `PASS` | Legal five-state path, skip/post-terminal denial, same-state idempotency/conflict, active-owner exclusion, expired-lease retry and file-count ledger reconciliation pass |
 | TC-M2-019 | Bronze contract | Nine tables, lineage metadata and immutable grants | DDL/RBAC/idempotency pass | `PASS` | Exact contract-to-DDL mapping and metadata/grant checks pass; owner-approved live migration + replay pass, and live `INGEST_ROLE` SELECT Bronze is denied while COPY/audit succeed |
-| TC-M2-020 | COPY integration | Airflow load history and replay | No duplicate committed effect | `PASS` | Unit/fake tests cover exact-file allowlist, query ID, append-only history conflict and sanitized invalid results; live first COPY loads 1 synthetic row and replay returns `LOAD_SKIPPED`/0 rows |
-| TC-M2-021 | Reconciliation | Source→R2→Bronze rows/bytes/checksums | Zero unexplained loss | `PASS` | All nine synthetic dataset ledgers reconcile source dispositions, local/R2 bytes+hashes, COPY/Bronze rows and distinct hashes; live representative path returns 1 Bronze row/1 distinct hash |
+| TC-M2-020 | COPY integration | Airflow load history and replay | No duplicate committed effect | `PASS` | Unit/fake and synthetic live gates pass; full private normal COPY succeeds and clean replay reports 10 immutable source-object replays plus 9 COPY skips with zero duplicate committed effect |
+| TC-M2-021 | Reconciliation | Source→R2→Bronze rows/bytes/checksums | Zero unexplained loss | `PASS` | Full private run explains 1,550,922 source rows as 1,289,091 accepted/Bronze + 261,831 exact duplicates + 0 invalid quarantine + 0 parse failures; replay reconciled=1, warehouse-suspended=1 |
 | TC-M2-022 | Failure/concurrency | Retry/backfill/late/change/same-key race | Active state remains consistent | `PASS` | Synthetic late/duplicate-manifest cases fail before providers; changed bytes create a new release; attempt 2 preserves release/batch/run IDs; concurrent owners yield one lease; injected upload failure is sanitized and retry completes before COPY |
 | TC-M2-023 | Operations | Metrics/alerts/replay/quarantine drill | Expected observability and recovery evidence | `PASS` | Exact-nine metrics contract, bounded identifier-free Prometheus payload, atomic alert artifact and all four stable alert fixtures pass; `M2_INGESTION_OPERATIONS.md` contract covers private trigger, replay/backfill, quarantine, failure recovery, suspend and shutdown |
 | TC-M2-024 | Security | Repository/raw-data/secret/provider boundary | No raw source or secret in Git/output | `PASS` | `reviewlens-policy --root .`: 0 findings; ingestion source module has no provider/environment import |
@@ -159,8 +159,41 @@
   mypy strict, locked dependency and artifact checks pass.
 - Locked Airflow image build and container import smoke pass with tag
   `local-sha256-6a91297419a8d038`: 11 DAG tasks plus ingestion/alert runtime imports.
-  The incompatible base-image `chardet` package is removed, eliminating the
-  Snowflake vendored Requests dependency warning.
+  The incompatible base-image `chardet` is constrained to the locked compatible
+  5.x line, eliminating the Snowflake Requests warning without breaking the
+  Airflow base image dependency graph.
 - No real Olist row was read or materialized and no R2/Snowflake/OpenRouter/Chroma
   provider call occurred. Full nine-file private DAG execution remains the M2 exit
   gate and is not represented as passed by this container smoke.
+
+### Owner-approved full nine-file private DAG exit gate
+
+- Preflight verified the exact nine-file release with 1,550,922 rows. The first
+  upload attempt exposed a deterministic DECIMAL scale mismatch in geolocation;
+  it failed with the row-safe code `AIRFLOW_INGESTION_TASK_FAILED` before COPY.
+- ADR-009 records the fix: typed DECIMAL columns project deterministically to
+  scale 18 while `raw_payload`, source hashes and lineage preserve the exact source
+  value. Focused decimal regression, Ruff and strict mypy passed before retry.
+- Run `m2_exit_normal_20260814_0122` recovered through the configured retry and
+  finished `success`: validate 8.10s, upload 291.70s and COPY/reconcile 133.33s.
+- Run `m2_exit_replay_20260814_0146` finished `success` and proved immutable replay.
+  Its first metrics correctly exposed 261,831 deterministic exact geolocation
+  duplicates but also revealed a false-positive quarantine alert.
+- ADR-010 separates the expected `duplicate` disposition from typed-invalid
+  `quarantined` rows. The focused observability/orchestration suite passes 17 tests.
+- Clean replay `m2_exit_clean_replay_20260814_0153` finished `success`: validate
+  7.08s, upload 199.94s and COPY/reconcile 52.17s. Metrics explain 1,550,922 source
+  rows as 1,289,091 accepted/Bronze, 261,831 duplicates, 0 invalid quarantine and
+  0 parse failures. It records 10 immutable source-object replays plus 9 COPY
+  skips, 0 task errors,
+  reconciled=1, warehouse-suspended=1 and `alerts=[]`.
+- All M3+ tasks were skipped by their fail-closed milestone guard. No Olist row,
+  review text, local path, credential or provider query text was exported to Git
+  evidence. OpenRouter and Chroma were not called.
+- Final offline regression suite: 337 passed + 8 expected opt-in live skips. Ruff
+  format/lint, strict mypy, repository policy, artifact lock, dependency lock and
+  status validation pass; status validator reports 0 errors/0 warnings.
+- Final synchronized Airflow image `local-sha256-6d09728a91430e09` builds as
+  non-root, `pip check` reports no broken requirements and the Airflow 3.3 DagBag
+  import smoke loads exactly 11 tasks with zero import errors. `chardet` is locked
+  to compatible 5.2.0 in both dependency metadata and the base-image Python path.
