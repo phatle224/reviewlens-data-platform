@@ -1,5 +1,11 @@
 """Olist source-ingestion contracts and snapshot identity helpers."""
 
+from reviewlens.ingestion.audit import (
+    IngestionAuditRepository,
+    IngestionLease,
+    IngestionState,
+    InMemoryIngestionAuditRepository,
+)
 from reviewlens.ingestion.contracts import SourceContract, load_olist_contract
 from reviewlens.ingestion.csv_stream import ParsedCsvRecord, iter_csv_records
 from reviewlens.ingestion.identity import (
@@ -15,6 +21,7 @@ from reviewlens.ingestion.preflight import (
     materialize_approved_completion_manifest,
     run_upload_preflight,
 )
+from reviewlens.ingestion.processing import DatasetProcessingReport, process_dataset_file
 from reviewlens.ingestion.records import (
     RecordDisposition,
     RecordHashTracker,
@@ -30,7 +37,12 @@ from reviewlens.ingestion.source_upload import SourceUploadReport, upload_immuta
 
 __all__ = [
     "CanonicalSourceManifest",
+    "DatasetProcessingReport",
     "DiscoveredSnapshot",
+    "InMemoryIngestionAuditRepository",
+    "IngestionAuditRepository",
+    "IngestionLease",
+    "IngestionState",
     "ParsedCsvRecord",
     "PrivacyPreflightEvidence",
     "RecordDisposition",
@@ -47,6 +59,7 @@ __all__ = [
     "iter_csv_records",
     "load_olist_contract",
     "materialize_approved_completion_manifest",
+    "process_dataset_file",
     "record_id",
     "run_upload_preflight",
     "source_object_id",

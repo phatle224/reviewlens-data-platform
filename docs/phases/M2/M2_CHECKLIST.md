@@ -3,10 +3,10 @@
 | Thuộc tính | Giá trị |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 9/18 work items |
+| Completed | 12/18 work items |
 | Partial | 0/18 work items |
 | Blocked | 0/18 work items |
-| Not started | 9/18 work items |
+| Not started | 6/18 work items |
 | Last updated | 2026-08-13 |
 
 ## Checklist theo implementation plan
@@ -22,9 +22,9 @@
 | IMP-M2-007 | `DONE` | Canonical record hash và replay detection | Contract-ordered typed canonical JSON excludes row/runtime position; map reorder and equivalent decimals are stable, business changes differ, invalid/untyped input is denied; tracker explicitly distinguishes `NEW`/`REPLAY`/candidate `DUPLICATE` |
 | IMP-M2-008 | `DONE` | License/privacy preflight trước real upload | Package-owned approved snapshot + deterministic six-gate decision verifies Olist mode, private R2, immutable source metadata, CC BY-NC-SA, attribution/change/no-endorsement notices and versioned privacy/DLP evidence; all missing-gate variants deny without row/path/secret exposure |
 | IMP-M2-009 | `DONE` | Immutable original CSV upload và checksum verify | R2 adapter streams files and download SHA-256 with conditional `If-None-Match: *`; service writes nine release-addressed originals then manifest commit marker, resumes partial uploads, denies different bytes/metadata and supports stable replay. Real archive preflight reconciled 1,550,922 rows; initial private R2 upload and forced 10/10 replay live gates pass |
-| IMP-M2-010 | `NOT_STARTED` | Typed raw/quarantine Parquet partitions và manifests | Unicode/newline/type/partition round-trip tests |
-| IMP-M2-011 | `NOT_STARTED` | Ingestion/file/source audit repositories và state transitions | Lease/idempotency/illegal-transition tests |
-| IMP-M2-012 | `NOT_STARTED` | Row/file quarantine và replay selector | Accepted+rejected+parse-failed reconciliation |
+| IMP-M2-010 | `DONE` | Typed raw/quarantine Parquet partitions và manifests | Bounded PyArrow writers preserve string/integer/decimal/timestamp, Unicode and multiline text; create-only partition commit, content/schema hashes and metadata-only sidecar manifests pass replay/conflict tests |
+| IMP-M2-011 | `DONE` | Ingestion/file/source audit repositories và state transitions | Typed repository port + deterministic append-only fake enforce exact state order, terminal failure, active lease exclusion/takeover, retry attempt identity, source/file count reconciliation and idempotency conflict detection |
+| IMP-M2-012 | `DONE` | Row/file quarantine và replay selector | Streaming processor emits only `NEW` rows to raw; committed `REPLAY` has zero new effect; candidate `DUPLICATE`, validation errors and parser/file failures receive stable code, source row/byte/raw reference and reconcile exactly |
 | IMP-M2-013 | `NOT_STARTED` | Nine immutable Bronze DDLs/stages/grants | Schema/metadata/RBAC/idempotency tests |
 | IMP-M2-014 | `NOT_STARTED` | Airflow-managed `COPY INTO` và load history | Query-ID/replay/copy/cleanup tests |
 | IMP-M2-015 | `NOT_STARTED` | Source→R2→Bronze physical reconciliation | Rows/bytes/checksums zero unexplained loss |
