@@ -142,13 +142,14 @@ def test_dbt_parse_manifest_is_snowflake_only_and_complete(tmp_path: Path) -> No
         "fact_order_item",
         "fact_payment",
         "fact_review_base",
+        "bridge_review_item_attribution",
     }
     model = next(item for item in models if item["name"] == "source_contract_registry")
     assert model["name"] == "source_contract_registry"
     assert model["config"]["contract"]["enforced"] is True
     assert model["config"]["materialized"] == "view"
     assert model["schema"] == "SILVER"
-    gold_models = [item for item in models if item["name"].startswith(("dim_", "fact_"))]
-    assert len(gold_models) == 9
+    gold_models = [item for item in models if item["name"].startswith(("dim_", "fact_", "bridge_"))]
+    assert len(gold_models) == 10
     assert {item["schema"] for item in gold_models} == {"GOLD"}
     assert "duckdb" not in json.dumps(manifest).lower()

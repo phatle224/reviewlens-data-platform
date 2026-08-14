@@ -1,0 +1,91 @@
+version: 2
+
+models:
+  - name: bridge_review_item_attribution
+    description: >-
+      Versioned allocation of one order-grain review across eligible order items;
+      allocated measures are additive but the repeated review score is not.
+    config:
+      contract: {enforced: true}
+      meta:
+        grain: "review_key + attribution_ordinal"
+        data_class: private_minimized
+        work_item: IMP-M3-014
+        naturally_additive: false
+        additive_measures: [allocated_review_count, allocated_review_score]
+        allocation_policy_version: olist-review-item-equal-weight-v1
+        contains_review_text: false
+    columns:
+      - {name: attribution_key, data_type: varchar, data_tests: [not_null, unique]}
+      - name: review_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: "ref('fact_review_base')", field: review_key}
+      - name: order_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: "ref('fact_order')", field: order_key}
+      - {name: review_id, data_type: varchar, data_tests: [not_null]}
+      - {name: order_id, data_type: varchar, data_tests: [not_null]}
+      - {name: attribution_ordinal, data_type: "number(38, 0)", data_tests: [not_null]}
+      - name: order_item_key
+        data_type: varchar
+        data_tests:
+          - relationships:
+              arguments: {to: "ref('fact_order_item')", field: order_item_key}
+      - name: product_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: "ref('dim_product')", field: product_key}
+      - name: seller_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: "ref('dim_seller')", field: seller_key}
+      - {name: item_count_for_review, data_type: "number(38, 0)", data_tests: [not_null]}
+      - name: allocation_method
+        data_type: varchar
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [EQUAL_ITEM_WEIGHT, UNKNOWN_ITEM_FALLBACK]}
+      - {name: allocation_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: allocation_weight, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: allocated_review_count, data_type: "number(38, 18)", data_tests: [not_null]}
+      - name: review_score
+        data_type: "number(38, 0)"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [1, 2, 3, 4, 5], quote: false}
+      - {name: allocated_review_score, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: source_record_hash, data_type: varchar, data_tests: [not_null]}
+      - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [review_key, attribution_ordinal]}
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              allocation_weight > 0 and allocation_weight <= 1
+              and attribution_ordinal between 1 and greatest(item_count_for_review, 1)
+              and allocated_review_count = allocation_weight
+              and allocated_review_score = review_score * allocation_weight
+              and allocation_policy_version = 'olist-review-item-equal-weight-v1'
+              and ((item_count_for_review = 0
+                    and allocation_method = 'UNKNOWN_ITEM_FALLBACK'
+                    and order_item_key is null)
+                   or (item_count_for_review > 0
+                       and allocation_method = 'EQUAL_ITEM_WEIGHT'
+                       and order_item_key is not null))

@@ -27,3 +27,8 @@ selectors:
     definition:
       method: tag
       value: m3_gold_base
+  - name: m3_review_attribution
+    description: Build and reconcile the versioned review-to-item allocation bridge.
+    definition:
+      method: tag
+      value: m3_review_attribution

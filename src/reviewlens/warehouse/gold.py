@@ -7,6 +7,8 @@ import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import ROUND_DOWN, Decimal
+from enum import StrEnum
 from itertools import pairwise
 
 from reviewlens.warehouse.revisions import DimensionEntity, unknown_member
@@ -14,6 +16,10 @@ from reviewlens.warehouse.revisions import DimensionEntity, unknown_member
 GOLD_KEY_VERSION = "reviewlens-gold-key-v1"
 GOLD_HISTORY_VERSION = "reviewlens-gold-history-v1"
 GOLD_FACT_RECONCILIATION_VERSION = "reviewlens-gold-fact-reconciliation-v1"
+REVIEW_ATTRIBUTION_POLICY_VERSION = "olist-review-item-equal-weight-v1"
+
+_ALLOCATION_QUANTUM = Decimal("0.000000000000000001")
+_ONE = Decimal(1)
 
 _HASH = re.compile(r"^[0-9a-f]{64}$")
 
@@ -25,6 +31,56 @@ class GoldContractError(ValueError):
 
     def __init__(self) -> None:
         super().__init__(self.code)
+
+
+class ReviewAttributionMethod(StrEnum):
+    """Allowed interpretations of one review's item-level allocation."""
+
+    EQUAL_ITEM_WEIGHT = "EQUAL_ITEM_WEIGHT"
+    UNKNOWN_ITEM_FALLBACK = "UNKNOWN_ITEM_FALLBACK"
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewAttributionRow:
+    """One non-naturally-additive review-to-item bridge allocation."""
+
+    attribution_key: str
+    review_key: str
+    attribution_ordinal: int
+    order_item_key: str | None
+    item_count_for_review: int
+    allocation_method: ReviewAttributionMethod
+    allocation_weight: Decimal
+    review_score: int
+    allocated_review_score: Decimal
+    allocation_policy_version: str = REVIEW_ATTRIBUTION_POLICY_VERSION
+
+    def __post_init__(self) -> None:
+        item_row = self.allocation_method is ReviewAttributionMethod.EQUAL_ITEM_WEIGHT
+        fallback_row = self.allocation_method is ReviewAttributionMethod.UNKNOWN_ITEM_FALLBACK
+        allocation_exponent = self.allocation_weight.as_tuple().exponent
+        if (
+            _HASH.fullmatch(self.attribution_key) is None
+            or _HASH.fullmatch(self.review_key) is None
+            or self.attribution_ordinal < 1
+            or self.attribution_ordinal > max(self.item_count_for_review, 1)
+            or not 1 <= self.review_score <= 5
+            or self.allocation_weight <= 0
+            or self.allocation_weight > _ONE
+            or not isinstance(allocation_exponent, int)
+            or allocation_exponent < -18
+            or self.allocated_review_score
+            != (self.allocation_weight * self.review_score).quantize(_ALLOCATION_QUANTUM)
+            or self.allocation_policy_version != REVIEW_ATTRIBUTION_POLICY_VERSION
+            or not (item_row or fallback_row)
+            or (item_row and (self.item_count_for_review < 1 or self.order_item_key is None))
+            or (
+                fallback_row
+                and (self.item_count_for_review != 0 or self.order_item_key is not None)
+            )
+            or (self.order_item_key is not None and _HASH.fullmatch(self.order_item_key) is None)
+        ):
+            raise GoldContractError()
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,3 +194,72 @@ def reconcile_fact_partition(
     ):
         raise GoldContractError()
     return FactPartitionResult(len(source), len(facts), len(excluded))
+
+
+def allocate_review_to_items(
+    *,
+    review_key: str,
+    review_score: int,
+    eligible_order_item_keys: Iterable[str],
+) -> tuple[ReviewAttributionRow, ...]:
+    """Allocate exactly one review contribution across deterministic item rows.
+
+    Equal weights are truncated to 18 decimal places and the final sorted item
+    receives the residual. This preserves an exact total weight of one even for
+    repeating decimals such as thirds. A review without an eligible item gets
+    one explicit fallback row rather than disappearing from reconciliation.
+    """
+
+    if (
+        _HASH.fullmatch(review_key) is None
+        or isinstance(review_score, bool)
+        or not isinstance(review_score, int)
+        or not 1 <= review_score <= 5
+    ):
+        raise GoldContractError()
+    item_keys = tuple(sorted(eligible_order_item_keys))
+    if any(_HASH.fullmatch(value) is None for value in item_keys) or len(set(item_keys)) != len(
+        item_keys
+    ):
+        raise GoldContractError()
+
+    item_count = len(item_keys)
+    allocations: tuple[tuple[str | None, Decimal, ReviewAttributionMethod], ...]
+    if item_count == 0:
+        allocations = ((None, _ONE, ReviewAttributionMethod.UNKNOWN_ITEM_FALLBACK),)
+    else:
+        base_weight = (_ONE / item_count).quantize(_ALLOCATION_QUANTUM, rounding=ROUND_DOWN)
+        allocations = tuple(
+            (
+                item_key,
+                _ONE - base_weight * (item_count - 1) if ordinal == item_count else base_weight,
+                ReviewAttributionMethod.EQUAL_ITEM_WEIGHT,
+            )
+            for ordinal, item_key in enumerate(item_keys, start=1)
+        )
+
+    rows = tuple(
+        ReviewAttributionRow(
+            attribution_key=hashlib.sha256(
+                "\x00".join(
+                    (
+                        GOLD_KEY_VERSION,
+                        "REVIEW_ATTRIBUTION",
+                        f"{review_key}:{ordinal}",
+                    )
+                ).encode()
+            ).hexdigest(),
+            review_key=review_key,
+            attribution_ordinal=ordinal,
+            order_item_key=item_key,
+            item_count_for_review=item_count,
+            allocation_method=method,
+            allocation_weight=weight.quantize(_ALLOCATION_QUANTUM),
+            review_score=review_score,
+            allocated_review_score=(weight * review_score).quantize(_ALLOCATION_QUANTUM),
+        )
+        for ordinal, (item_key, weight, method) in enumerate(allocations, start=1)
+    )
+    if sum((row.allocation_weight for row in rows), start=Decimal(0)) != _ONE:
+        raise GoldContractError()
+    return rows

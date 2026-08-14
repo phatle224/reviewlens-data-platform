@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -11,8 +12,11 @@ import yaml  # type: ignore[import-untyped]
 from reviewlens.warehouse.gold import (
     GOLD_HISTORY_VERSION,
     GOLD_KEY_VERSION,
+    REVIEW_ATTRIBUTION_POLICY_VERSION,
     DimensionHistoryRow,
     GoldContractError,
+    ReviewAttributionMethod,
+    allocate_review_to_items,
     gold_dimension_key,
     reconcile_fact_partition,
     resolve_dimension_as_of,
@@ -29,6 +33,7 @@ DIMENSION_MODELS = {
     "dim_geography",
 }
 FACT_MODELS = {"fact_order", "fact_order_item", "fact_payment", "fact_review_base"}
+BRIDGE_MODELS = {"bridge_review_item_attribution"}
 
 
 def _hash(value: str) -> str:
@@ -167,10 +172,94 @@ def test_fact_partition_requires_exact_unique_explained_reconciliation() -> None
         )
 
 
+def test_review_attribution_preserves_exact_contribution_and_input_order() -> None:
+    review_key = _hash("review")
+    items = tuple(_hash(value) for value in ("item-c", "item-a", "item-b"))
+
+    rows = allocate_review_to_items(
+        review_key=review_key,
+        review_score=5,
+        eligible_order_item_keys=items,
+    )
+    reordered = allocate_review_to_items(
+        review_key=review_key,
+        review_score=5,
+        eligible_order_item_keys=reversed(items),
+    )
+    two_items = allocate_review_to_items(
+        review_key=review_key,
+        review_score=2,
+        eligible_order_item_keys=items[:2],
+    )
+
+    assert rows == reordered
+    assert tuple(row.order_item_key for row in rows) == tuple(sorted(items))
+    assert sum((row.allocation_weight for row in rows), start=Decimal(0)) == Decimal(1)
+    assert sum((row.allocated_review_score for row in rows), start=Decimal(0)) == Decimal(5)
+    assert rows[-1].allocation_weight == Decimal("0.333333333333333334")
+    assert [row.allocation_weight for row in two_items] == [
+        Decimal("0.500000000000000000"),
+        Decimal("0.500000000000000000"),
+    ]
+    assert sum((row.allocated_review_score for row in two_items), start=Decimal(0)) == Decimal(2)
+    assert all(row.item_count_for_review == 3 for row in rows)
+    assert all(row.allocation_method is ReviewAttributionMethod.EQUAL_ITEM_WEIGHT for row in rows)
+    assert all(row.allocation_policy_version == REVIEW_ATTRIBUTION_POLICY_VERSION for row in rows)
+
+
+def test_review_attribution_handles_single_and_unknown_item_without_loss() -> None:
+    review_key = _hash("review")
+    item_key = _hash("item")
+
+    single = allocate_review_to_items(
+        review_key=review_key,
+        review_score=1,
+        eligible_order_item_keys=(item_key,),
+    )
+    fallback = allocate_review_to_items(
+        review_key=review_key,
+        review_score=4,
+        eligible_order_item_keys=(),
+    )
+
+    assert single[0].allocation_weight == Decimal("1.000000000000000000")
+    assert single[0].order_item_key == item_key
+    assert fallback[0].allocation_method is ReviewAttributionMethod.UNKNOWN_ITEM_FALLBACK
+    assert fallback[0].order_item_key is None
+    assert fallback[0].item_count_for_review == 0
+    assert fallback[0].allocated_review_score == Decimal("4.000000000000000000")
+
+
+@pytest.mark.parametrize(
+    ("review_key", "review_score", "item_keys"),
+    [
+        ("invalid", 5, ()),
+        (_hash("review"), 0, ()),
+        (_hash("review"), True, ()),
+        (_hash("review"), 5, ("invalid",)),
+        (_hash("review"), 5, (_hash("duplicate"), _hash("duplicate"))),
+    ],
+)
+def test_review_attribution_rejects_invalid_or_duplicate_grains_without_echo(
+    review_key: str,
+    review_score: int,
+    item_keys: tuple[str, ...],
+) -> None:
+    with pytest.raises(GoldContractError) as error:
+        allocate_review_to_items(
+            review_key=review_key,
+            review_score=review_score,
+            eligible_order_item_keys=item_keys,
+        )
+
+    assert str(error.value) == GoldContractError.code
+    assert "invalid" not in str(error.value)
+
+
 def test_gold_sql_is_candidate_bound_and_uses_declared_conformed_inputs() -> None:
     models = {
         name: (GOLD_DIR / f"{name}.sql").read_text(encoding="utf-8")
-        for name in DIMENSION_MODELS | FACT_MODELS
+        for name in DIMENSION_MODELS | FACT_MODELS | BRIDGE_MODELS
     }
 
     for sql in models.values():
@@ -186,6 +275,12 @@ def test_gold_sql_is_candidate_bound_and_uses_declared_conformed_inputs() -> Non
     assert "seller.effective_from" in models["fact_order_item"]
     assert "amount_quality_status = 'VALID'" in models["fact_order_item"]
     assert "amount_quality_status = 'VALID'" in models["fact_payment"]
+    attribution = models["bridge_review_item_attribution"]
+    assert "ref('fact_review_base')" in attribution
+    assert "ref('fact_order_item')" in attribution
+    assert "olist-review-item-equal-weight-v1" in attribution
+    assert "trunc(" in attribution
+    assert "unknown_keys" in attribution
 
 
 def test_gold_properties_declare_exact_grains_history_and_relationships() -> None:
@@ -193,6 +288,9 @@ def test_gold_properties_declare_exact_grains_history_and_relationships() -> Non
         (GOLD_DIR / "dimensions.yml").read_text(encoding="utf-8")
     )
     facts: dict[str, Any] = yaml.safe_load((GOLD_DIR / "facts.yml").read_text(encoding="utf-8"))
+    attribution: dict[str, Any] = yaml.safe_load(
+        (GOLD_DIR / "attribution.yml").read_text(encoding="utf-8")
+    )
     dimension_models = {model["name"]: model for model in dimensions["models"]}
     fact_models = {model["name"]: model for model in facts["models"]}
 
@@ -209,6 +307,11 @@ def test_gold_properties_declare_exact_grains_history_and_relationships() -> Non
     assert fact_models["fact_payment"]["config"]["meta"]["grain"] == (
         "order_id + payment_sequential"
     )
+    attribution_model = attribution["models"][0]
+    assert attribution_model["name"] == "bridge_review_item_attribution"
+    assert attribution_model["config"]["meta"]["grain"] == ("review_key + attribution_ordinal")
+    assert attribution_model["config"]["meta"]["naturally_additive"] is False
+    assert attribution_model["config"]["meta"]["contains_review_text"] is False
 
 
 def test_review_base_fact_is_minimized_and_independent_of_ai_coverage() -> None:
@@ -241,3 +344,21 @@ def test_gold_reconciliation_gate_covers_counts_and_additive_amounts() -> None:
     assert "severity='error'" in gate
     assert "name: m3_gold_base" in selector
     assert "custom_schema_name | trim" in schema_macro
+
+
+def test_review_attribution_gate_prevents_silent_double_count() -> None:
+    gate = (DBT_DIR / "tests" / "m3_review_attribution_reconciliation.sql").read_text(
+        encoding="utf-8"
+    )
+    selector = (DBT_DIR / "selectors.yml").read_text(encoding="utf-8")
+    adr = Path("docs/ADR/ADR-011-review-item-attribution-policy.md").read_text(encoding="utf-8")
+
+    assert "sum(allocation_weight)" in gate
+    assert "sum(allocated_review_count)" in gate
+    assert "sum(allocated_review_score)" in gate
+    assert "greatest(item_count_for_review, 1)" in gate
+    assert "ref('fact_review_base')" in gate
+    assert "severity='error'" in gate
+    assert "name: m3_review_attribution" in selector
+    assert "Full-credit duplication is rejected" in adr
+    assert "not naturally\nadditive" in adr

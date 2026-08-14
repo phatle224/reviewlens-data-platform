@@ -3,10 +3,10 @@
 | Attribute | Value |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 13/20 work items |
+| Completed | 14/20 work items |
 | Partial | 0/20 work items |
 | Blocked | 0/20 work items |
-| Not started | 7/20 work items |
+| Not started | 6/20 work items |
 | Last updated | 2026-08-15 |
 
 ## Implementation-plan checklist
@@ -26,8 +26,8 @@
 | IMP-M3-011 | `DONE` | Unknown members, late dimensions and deterministic corrections | Four entity-specific SHA-256 unknown members and candidate-bound registry are stable; Python revision resolver orders effective time, ingestion time, row number and record hash, records replay duplicates and labels late versus superseded corrections; all deduplicated Silver bases use one reusable deterministic rank macro |
 | IMP-M3-012 | `DONE` | Conformed date/customer/product/seller/geography dimensions | Five candidate-bound models resolve to exact `GOLD` schema; event-complete date keys, version-aware SHA-256 member keys, stable entity unknowns, half-open SCD intervals and reusable non-overlap/as-of tests pass; customer/seller geography joins cannot multiply the declared grain |
 | IMP-M3-013 | `DONE` | Order/item/payment/review base facts | Four candidate-bound facts enforce order, compound item/payment and review/order grains; invalid Silver rows are filtered through explicit quality states, dimension lookup is as-of with unknown fallback, and a singular gate reconciles eligible counts plus item/payment amounts; review fact contains no title/comment and remains independent of AI coverage |
-| IMP-M3-014 | `NOT_STARTED` | Versioned multi-item review attribution policy/bridge | Await M3-013 and M0 allocation decision |
-| IMP-M3-015 | `NOT_STARTED` | Delivery, product-review, seller and customer marts | Await dimensions/facts/allocation |
+| IMP-M3-014 | `DONE` | Versioned multi-item review attribution policy/bridge | ADR-011 freezes transparent equal-item weighting with deterministic 18-decimal residual and unknown-item fallback; candidate-bound bridge exposes policy labels and only allocated additive measures; Python single/two/three/zero-item, reorder and invalid/duplicate fixtures plus dbt grain/relationship/privacy and exact per-review reconciliation gates pass |
+| IMP-M3-015 | `NOT_STARTED` | Delivery, product-review, seller and customer marts | Dependency ready after M3-014; implement metric-dictionary fixtures next |
 | IMP-M3-016 | `NOT_STARTED` | Release-bound dashboard/SQL semantic views | Await marts |
 | IMP-M3-017 | `NOT_STARTED` | Candidate Gold build/test target | Await semantic views |
 | IMP-M3-018 | `NOT_STARTED` | Release events, immutable definition and CAS active pointer | Await tested Gold candidate |
