@@ -1,0 +1,201 @@
+version: 2
+
+models:
+  - name: sil_order_item
+    description: One deterministic order item with amount and parent-order quality state.
+    config:
+      contract: {enforced: true}
+      meta: {grain: "order_id + order_item_id", data_class: private_internal, work_item: IMP-M3-007}
+    columns:
+      - {name: order_id, data_type: varchar, data_tests: [not_null]}
+      - {name: order_item_id, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: product_id, data_type: varchar, data_tests: [not_null]}
+      - {name: seller_id, data_type: varchar, data_tests: [not_null]}
+      - {name: shipping_limit_date, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+      - {name: price, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: freight_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: item_total_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: order_parent_exists, data_type: boolean, data_tests: [not_null]}
+      - name: amount_quality_status
+        data_type: varchar
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [VALID, ORPHAN_ORDER, INVALID_PRICE, INVALID_FREIGHT]}
+      - {name: amount_quality_version, data_type: varchar, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: source_record_hash, data_type: varchar, data_tests: [not_null]}
+      - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [order_id, order_item_id]}
+      - reviewlens_expression_is_true:
+          arguments: {expression: "item_total_value = price + freight_value"}
+
+  - name: sil_order_payment
+    description: One deterministic payment sequence with amount and parent-order quality state.
+    config:
+      contract: {enforced: true}
+      meta: {grain: "order_id + payment_sequential", data_class: private_internal, work_item: IMP-M3-007}
+    columns:
+      - {name: order_id, data_type: varchar, data_tests: [not_null]}
+      - {name: payment_sequential, data_type: "number(38, 0)", data_tests: [not_null]}
+      - name: payment_type
+        data_type: varchar
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [boleto, credit_card, debit_card, not_defined, voucher]}
+      - {name: payment_installments, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: payment_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: order_parent_exists, data_type: boolean, data_tests: [not_null]}
+      - name: amount_quality_status
+        data_type: varchar
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [VALID, ORPHAN_ORDER, INVALID_PAYMENT_VALUE, INVALID_INSTALLMENTS]}
+      - {name: amount_quality_version, data_type: varchar, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: source_record_hash, data_type: varchar, data_tests: [not_null]}
+      - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [order_id, payment_sequential]}
+
+  - name: sil_category_translation
+    description: One deterministic Portuguese category with an explicit English fallback.
+    config:
+      contract: {enforced: true}
+      meta: {grain: product_category_name, data_class: private_internal, work_item: IMP-M3-008}
+    columns:
+      - {name: product_category_name, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: product_category_name_english, data_type: varchar, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: source_record_hash, data_type: varchar, data_tests: [not_null]}
+      - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+
+  - name: sil_product
+    description: One product with canonical length names and deterministic category fallback.
+    config:
+      contract: {enforced: true}
+      meta: {grain: product_id, data_class: private_internal, work_item: IMP-M3-008}
+    columns:
+      - {name: product_id, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: product_category_name, data_type: varchar, data_tests: [not_null]}
+      - {name: product_category_name_english, data_type: varchar, data_tests: [not_null]}
+      - {name: category_translation_exists, data_type: boolean, data_tests: [not_null]}
+      - {name: product_name_length, data_type: "number(38, 0)"}
+      - {name: product_description_length, data_type: "number(38, 0)"}
+      - {name: product_photos_qty, data_type: "number(38, 0)"}
+      - {name: product_weight_g, data_type: "number(38, 18)"}
+      - {name: product_length_cm, data_type: "number(38, 18)"}
+      - {name: product_height_cm, data_type: "number(38, 18)"}
+      - {name: product_width_cm, data_type: "number(38, 18)"}
+      - name: product_quality_status
+        data_type: varchar
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [VALID, UNKNOWN_CATEGORY, UNTRANSLATED_CATEGORY]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: source_record_hash, data_type: varchar, data_tests: [not_null]}
+      - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+
+  - name: sil_seller
+    description: One seller with normalized private location and ZIP quality lookup.
+    config:
+      contract: {enforced: true}
+      meta: {grain: seller_id, data_class: private_pseudonymous, work_item: IMP-M3-008}
+    columns:
+      - {name: seller_id, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: seller_zip_prefix, data_type: varchar, data_tests: [not_null]}
+      - {name: seller_city, data_type: varchar, data_tests: [not_null]}
+      - {name: seller_state, data_type: varchar, data_tests: [not_null]}
+      - {name: geolocation_zip_exists, data_type: boolean, data_tests: [not_null]}
+      - {name: geolocation_quality_status, data_type: varchar, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: source_record_hash, data_type: varchar, data_tests: [not_null]}
+      - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+
+  - name: sil_order_review
+    description: >-
+      Private restricted review base. Raw title/comment remain denied for public
+      output or external AI; non-empty in-scope rows are only PENDING_DLP.
+    config:
+      contract: {enforced: true}
+      meta:
+        grain: "review_id + order_id"
+        data_class: restricted_ugc
+        external_ai_requires_dlp_projection: true
+        raw_review_public_output: false
+        work_item: IMP-M3-009
+    columns:
+      - {name: review_id, data_type: varchar, data_tests: [not_null]}
+      - {name: order_id, data_type: varchar, data_tests: [not_null]}
+      - name: review_score
+        data_type: "number(38, 0)"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [1, 2, 3, 4, 5], quote: false}
+      - name: review_comment_title
+        data_type: varchar
+        config: {meta: {data_class: restricted, external_transfer: denied}}
+      - name: review_comment_message
+        data_type: varchar
+        config: {meta: {data_class: restricted, external_transfer: denied}}
+      - {name: review_creation_date, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+      - {name: review_answer_timestamp, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+      - {name: order_parent_exists, data_type: boolean, data_tests: [not_null]}
+      - {name: review_text_present, data_type: boolean, data_tests: [not_null]}
+      - {name: review_text_length, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: response_interval_valid, data_type: boolean, data_tests: [not_null]}
+      - {name: response_latency_seconds, data_type: "number(38, 0)"}
+      - name: ai_eligibility_status
+        data_type: varchar
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [PENDING_DLP, SCORE_ONLY, OUT_OF_SCOPE_ORDER, ORPHAN_ORDER, INVALID_RESPONSE_INTERVAL]
+      - {name: ai_eligible, data_type: boolean, data_tests: [not_null]}
+      - {name: dlp_projection_required, data_type: boolean, data_tests: [not_null]}
+      - {name: eligibility_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: source_record_hash, data_type: varchar, data_tests: [not_null]}
+      - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [review_id, order_id]}
+      - reviewlens_expression_is_true:
+          arguments: {expression: "not ai_eligible"}
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              ai_eligibility_status != 'PENDING_DLP'
+              or (review_text_present and order_parent_exists and dlp_projection_required)

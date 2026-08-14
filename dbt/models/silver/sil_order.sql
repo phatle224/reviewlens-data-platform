@@ -17,10 +17,7 @@ with ranked_order as (
         record_hash,
         source_row_number,
         ingested_at,
-        row_number() over (
-            partition by order_id
-            order by ingested_at desc, source_row_number desc, record_hash desc
-        ) as source_rank
+        {{ reviewlens_revision_rank('order_id') }} as source_rank
     from {{ source('bronze_olist', 'orders') }}
     where source_release_id = '{{ var("source_release_id", "__REQUIRED_SOURCE_RELEASE_ID__") }}'
       and ingestion_batch_id = '{{ var("ingestion_batch_id", "__REQUIRED_INGESTION_BATCH_ID__") }}'

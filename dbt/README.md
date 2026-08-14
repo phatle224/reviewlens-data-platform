@@ -10,8 +10,19 @@ grain test, `INGESTED_AT` freshness (warn after 2 days, error after 7 days), and
 privacy metadata that prevents `RAW_PAYLOAD` or restricted review text from being
 treated as a public/downstream interface. Conformed Silver/Gold models remain M3
 work and build under versioned candidate physical namespaces. The first Silver
-slice now includes `SIL_CUSTOMER`, `SIL_GEOLOCATION_ZIP` and `SIL_ORDER`; each
-requires an explicit candidate namespace, source release and ingestion batch.
+slice now includes all nine relational bases: customer, ZIP geography, order,
+item, payment, category translation, product, seller and review. Each requires
+an explicit candidate namespace, source release and ingestion batch. Restricted
+review text remains private and `ai_eligible=false`; M4 must produce a separate
+DLP-approved projection before any external AI transfer.
+
+The Silver selector also builds a metadata-only `SIL_DQ_QUARANTINE` relation
+whose business grains are SHA-256 hashed. The `m3_silver_critical` selector
+contains the fail-closed publication test: any `CRITICAL` finding blocks the
+candidate, while `WARN` and `QUARANTINE` remain visible for controlled handling.
+`SIL_UNKNOWN_MEMBER_REGISTRY` provides four stable synthetic members for future
+dimensions, and one reusable revision macro makes current-row tie-breaking
+independent of input order. These outputs never contain review text.
 
 Credentials stay in the ignored root `.env`. The profile reads only:
 
@@ -64,3 +75,12 @@ The selector contains a runtime regex gate and fails when a placeholder or
 malformed identifier is used. Candidate objects are not serving objects and a
 successful dbt build alone never activates a release. This live command is
 deferred until an explicit owner-approved Snowflake gate.
+
+When the candidate build is run live, verify the explicit critical gate before
+any future activation step:
+
+```powershell
+.venv\Scripts\dotenv.exe -f .env run -- `
+  .venv\Scripts\dbt.exe test --project-dir dbt --profiles-dir dbt `
+  --selector m3_silver_critical --vars $m3Vars
+```

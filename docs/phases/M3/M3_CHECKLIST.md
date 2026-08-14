@@ -3,11 +3,11 @@
 | Attribute | Value |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 6/20 work items |
+| Completed | 11/20 work items |
 | Partial | 0/20 work items |
 | Blocked | 0/20 work items |
-| Not started | 14/20 work items |
-| Last updated | 2026-08-14 |
+| Not started | 9/20 work items |
+| Last updated | 2026-08-15 |
 
 ## Implementation-plan checklist
 
@@ -19,11 +19,11 @@
 | IMP-M3-004 | `DONE` | `SIL_CUSTOMER`, minimized repeat-customer key and geography | Candidate-bound table contract deduplicates by deterministic lineage order, excludes raw `customer_unique_id`, emits versioned SHA-256 repeat key and normalized ZIP/city/state; privacy/type/dedup fixture tests pass |
 | IMP-M3-005 | `DONE` | Deterministic `SIL_GEOLOCATION_ZIP` centroid/quality model | One row per normalized ZIP, fixed-scale valid-point centroid, occurrence/reconciliation counts and explicit valid/ambiguous/partial/no-valid quality states; known-count/no-multiplication fixtures pass |
 | IMP-M3-006 | `DONE` | `SIL_ORDER` status/time/scope/delivery flags | One deterministic order with M0 `olist_order_scope_v1`, Brazilian local-civil policy, parent/item guards and nonnegative delivery interval/on-time rules; delivered/canceled/missing/unknown/time-edge fixtures pass |
-| IMP-M3-007 | `NOT_STARTED` | `SIL_ORDER_ITEM` and `SIL_ORDER_PAYMENT` | Await M3-006 |
-| IMP-M3-008 | `NOT_STARTED` | `SIL_PRODUCT`, translation and `SIL_SELLER` | Await M3-005 |
-| IMP-M3-009 | `NOT_STARTED` | `SIL_ORDER_REVIEW` and DLP eligibility flags | Await M3-006 and privacy rules |
-| IMP-M3-010 | `NOT_STARTED` | Reusable dbt DQ macros, severity and quarantine outputs | Await Silver models |
-| IMP-M3-011 | `NOT_STARTED` | Unknown members, late dimensions and deterministic corrections | Await M3-004…010 |
+| IMP-M3-007 | `DONE` | `SIL_ORDER_ITEM` and `SIL_ORDER_PAYMENT` | Candidate-bound compound grains deduplicate deterministically, retain typed amounts, expose parent-order and versioned quality states, and preserve exact item+freight/payment reconciliation semantics; composite-key/range/orphan/delta fixtures pass |
+| IMP-M3-008 | `DONE` | `SIL_PRODUCT`, translation and `SIL_SELLER` | Translation has deterministic category grain/fallback; product corrects source `*_lenght` names and flags missing translation; seller normalizes private location and joins unique ZIP quality without multiplication; contract/static fixtures pass |
+| IMP-M3-009 | `DONE` | `SIL_ORDER_REVIEW` and DLP eligibility flags | Restricted review base deduplicates at `review_id + order_id`, retains score-only analytics, guards response interval and labels orphan/out-of-scope/score-only/`PENDING_DLP`; `ai_eligible=false` until a separate M4 DLP projection; privacy/negative fixtures pass |
+| IMP-M3-010 | `DONE` | Reusable dbt DQ macros, severity and quarantine outputs | Versioned DQ projection macro emits only hashed-grain metadata; `SIL_DQ_QUARANTINE` covers order/geography/item/payment/product/seller/review findings at `CRITICAL`, `WARN` or `QUARANTINE`; typed Python gate is replay deterministic and moves a candidate to `FAILED` on any critical finding; `m3_silver_critical` selects the fail-closed singular test |
+| IMP-M3-011 | `DONE` | Unknown members, late dimensions and deterministic corrections | Four entity-specific SHA-256 unknown members and candidate-bound registry are stable; Python revision resolver orders effective time, ingestion time, row number and record hash, records replay duplicates and labels late versus superseded corrections; all deduplicated Silver bases use one reusable deterministic rank macro |
 | IMP-M3-012 | `NOT_STARTED` | Conformed date/customer/product/seller/geography dimensions | Await M3-011 |
 | IMP-M3-013 | `NOT_STARTED` | Order/item/payment/review base facts | Await M3-012 |
 | IMP-M3-014 | `NOT_STARTED` | Versioned multi-item review attribution policy/bridge | Await M3-013 and M0 allocation decision |

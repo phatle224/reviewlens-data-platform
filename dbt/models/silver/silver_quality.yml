@@ -1,0 +1,73 @@
+version: 2
+
+models:
+  - name: sil_unknown_member_registry
+    description: Four stable synthetic unknown members used by future conformed dimensions.
+    config:
+      contract: {enforced: true}
+      meta:
+        grain: entity_type
+        data_class: synthetic_metadata
+        work_item: IMP-M3-011
+    columns:
+      - name: unknown_member_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - unique
+          - reviewlens_expression_is_true:
+              arguments: {expression: "length(unknown_member_key) = 64"}
+      - name: entity_type
+        data_type: varchar
+        data_tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments: {values: [CUSTOMER, PRODUCT, SELLER, GEOGRAPHY]}
+      - {name: display_label, data_type: varchar, data_tests: [not_null]}
+      - {name: effective_from, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+      - {name: effective_to, data_type: "timestamp_ntz(6)"}
+      - {name: is_current, data_type: boolean, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: unknown_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              display_label = 'UNKNOWN' and is_current and effective_to is null
+
+  - name: sil_dq_quarantine
+    description: >-
+      Metadata-only Silver findings. Business keys are hashed and restricted
+      values/review text are never projected into this output.
+    config:
+      contract: {enforced: true}
+      meta:
+        grain: dq_event_id
+        data_class: private_metadata
+        contains_raw_business_key: false
+        contains_review_text: false
+        work_item: IMP-M3-010
+    columns:
+      - {name: dq_event_id, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: model_name, data_type: varchar, data_tests: [not_null]}
+      - name: grain_key_hash
+        data_type: varchar
+        data_tests:
+          - not_null
+          - reviewlens_expression_is_true:
+              arguments: {expression: "length(grain_key_hash) = 64"}
+      - {name: dq_code, data_type: varchar, data_tests: [not_null]}
+      - name: severity
+        data_type: varchar
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments: {values: [CRITICAL, WARN, QUARANTINE]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: observed_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+      - {name: dq_contract_version, data_type: varchar, data_tests: [not_null]}

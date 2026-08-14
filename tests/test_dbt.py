@@ -123,8 +123,16 @@ def test_dbt_parse_manifest_is_snowflake_only_and_complete(tmp_path: Path) -> No
     assert {model["name"] for model in models} == {
         "source_contract_registry",
         "sil_customer",
+        "sil_category_translation",
         "sil_geolocation_zip",
         "sil_order",
+        "sil_order_item",
+        "sil_order_payment",
+        "sil_order_review",
+        "sil_product",
+        "sil_seller",
+        "sil_dq_quarantine",
+        "sil_unknown_member_registry",
     }
     model = next(item for item in models if item["name"] == "source_contract_registry")
     assert model["name"] == "source_contract_registry"

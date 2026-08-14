@@ -12,6 +12,9 @@ REPEAT_CUSTOMER_KEY_VERSION = "reviewlens-repeat-customer-v1"
 GEOLOCATION_RULE_VERSION = "olist-geolocation-centroid-v1"
 ORDER_SCOPE_VERSION = "olist_order_scope_v1"
 ORDER_TIME_POLICY_VERSION = "olist-brazil-local-civil-v1"
+AMOUNT_QUALITY_VERSION = "olist-amount-quality-v1"
+PRODUCT_CONTRACT_VERSION = "reviewlens-sil-product-v1"
+REVIEW_ELIGIBILITY_VERSION = "review-ai-eligibility-v1"
 
 _ALLOWED_ORDER_STATUSES = frozenset(
     {
@@ -51,6 +54,23 @@ class OrderScope(StrEnum):
     UNKNOWN = "UNKNOWN"
 
 
+class AmountQuality(StrEnum):
+    VALID = "VALID"
+    ORPHAN_ORDER = "ORPHAN_ORDER"
+    INVALID_PRICE = "INVALID_PRICE"
+    INVALID_FREIGHT = "INVALID_FREIGHT"
+    INVALID_PAYMENT_VALUE = "INVALID_PAYMENT_VALUE"
+    INVALID_INSTALLMENTS = "INVALID_INSTALLMENTS"
+
+
+class ReviewEligibility(StrEnum):
+    PENDING_DLP = "PENDING_DLP"
+    SCORE_ONLY = "SCORE_ONLY"
+    OUT_OF_SCOPE_ORDER = "OUT_OF_SCOPE_ORDER"
+    ORPHAN_ORDER = "ORPHAN_ORDER"
+    INVALID_RESPONSE_INTERVAL = "INVALID_RESPONSE_INTERVAL"
+
+
 @dataclass(frozen=True, slots=True)
 class GeolocationPoint:
     zip_prefix: str
@@ -83,6 +103,16 @@ class OrderClassification:
     is_on_time: bool | None
 
 
+@dataclass(frozen=True, slots=True)
+class ReviewClassification:
+    text_present: bool
+    text_length: int
+    eligibility: ReviewEligibility
+    ai_eligible: bool
+    response_interval_valid: bool
+    response_latency_seconds: int | None
+
+
 def normalize_zip_prefix(value: str) -> str:
     normalized = value.strip()
     if not normalized.isascii() or not normalized.isdigit() or len(normalized) > 5:
@@ -101,6 +131,90 @@ def repeat_customer_key(customer_unique_id: str) -> str:
         raise SilverContractError()
     payload = f"{REPEAT_CUSTOMER_KEY_VERSION}\0{normalized}".encode()
     return hashlib.sha256(payload).hexdigest()
+
+
+def classify_item_amounts(*, price: Decimal, freight: Decimal, order_exists: bool) -> AmountQuality:
+    if not price.is_finite() or not freight.is_finite():
+        raise SilverContractError()
+    if not order_exists:
+        return AmountQuality.ORPHAN_ORDER
+    if price <= 0:
+        return AmountQuality.INVALID_PRICE
+    if freight < 0:
+        return AmountQuality.INVALID_FREIGHT
+    return AmountQuality.VALID
+
+
+def classify_payment_amount(
+    *,
+    value: Decimal,
+    installments: int,
+    order_exists: bool,
+) -> AmountQuality:
+    if not value.is_finite():
+        raise SilverContractError()
+    if not order_exists:
+        return AmountQuality.ORPHAN_ORDER
+    if value < 0:
+        return AmountQuality.INVALID_PAYMENT_VALUE
+    if installments < 0:
+        return AmountQuality.INVALID_INSTALLMENTS
+    return AmountQuality.VALID
+
+
+def payment_reconciliation_delta(
+    *,
+    item_amounts: tuple[tuple[Decimal, Decimal], ...],
+    payment_values: tuple[Decimal, ...],
+) -> Decimal:
+    item_total = sum((price + freight for price, freight in item_amounts), Decimal())
+    payment_total = sum(payment_values, Decimal())
+    if not item_total.is_finite() or not payment_total.is_finite():
+        raise SilverContractError()
+    return payment_total - item_total
+
+
+def canonical_category(
+    source_category: str | None, english_category: str | None
+) -> tuple[str, str]:
+    source = normalize_location(source_category or "UNKNOWN")
+    english = normalize_location(english_category or "UNKNOWN")
+    return source, english
+
+
+def classify_review(
+    *,
+    score: int,
+    title: str | None,
+    comment: str | None,
+    order_scope: OrderScope | None,
+    created_at: datetime,
+    answered_at: datetime,
+) -> ReviewClassification:
+    if score < 1 or score > 5 or created_at.tzinfo is not None or answered_at.tzinfo is not None:
+        raise SilverContractError()
+    combined_length = len((title or "").strip()) + len((comment or "").strip())
+    text_present = combined_length > 0
+    response_interval_valid = answered_at >= created_at
+    latency = int((answered_at - created_at).total_seconds()) if response_interval_valid else None
+    if not response_interval_valid:
+        eligibility = ReviewEligibility.INVALID_RESPONSE_INTERVAL
+    elif order_scope is None:
+        eligibility = ReviewEligibility.ORPHAN_ORDER
+    elif order_scope is not OrderScope.IN_SCOPE:
+        eligibility = ReviewEligibility.OUT_OF_SCOPE_ORDER
+    elif not text_present:
+        eligibility = ReviewEligibility.SCORE_ONLY
+    else:
+        eligibility = ReviewEligibility.PENDING_DLP
+    return ReviewClassification(
+        text_present=text_present,
+        text_length=combined_length,
+        eligibility=eligibility,
+        ai_eligible=False,
+        response_interval_valid=response_interval_valid,
+        response_latency_seconds=latency,
+    )
 
 
 def summarize_geolocation(points: tuple[GeolocationPoint, ...]) -> GeolocationSummary:

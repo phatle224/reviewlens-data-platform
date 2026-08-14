@@ -11,6 +11,8 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from threading import Lock
 
+from reviewlens.warehouse.quality import DQGateResult
+
 PROCESSING_ID_VERSION = "reviewlens-processing-id-v1"
 CANDIDATE_STRATEGY_VERSION = "reviewlens-silver-candidate-v1"
 
@@ -328,7 +330,12 @@ class InMemoryCandidateRegistry:
             )
             return next_lease
 
-    def finish(self, lease: CandidateLease, *, success: bool, now: datetime) -> CandidateRecord:
+    def fail(self, lease: CandidateLease, *, now: datetime) -> CandidateRecord:
+        """Mark a build failed without allowing callers to assert test success."""
+
+        return self._finish(lease, success=False, now=now)
+
+    def _finish(self, lease: CandidateLease, *, success: bool, now: datetime) -> CandidateRecord:
         _require_utc(now)
         with self._lock:
             record = self._candidate(lease.candidate_id)
@@ -343,6 +350,19 @@ class InMemoryCandidateRegistry:
             )
             self._candidates[lease.candidate_id] = completed
             return completed
+
+    def finish_quality_gate(
+        self,
+        lease: CandidateLease,
+        *,
+        result: DQGateResult,
+        now: datetime,
+    ) -> CandidateRecord:
+        """Finish a build from the typed DQ result; critical findings fail closed."""
+
+        if not isinstance(result, DQGateResult):
+            raise WarehouseCandidateError()
+        return self._finish(lease, success=result.can_publish, now=now)
 
     def cleanup(
         self,

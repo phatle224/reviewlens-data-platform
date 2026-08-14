@@ -17,6 +17,7 @@ from reviewlens.warehouse.candidates import (
     build_candidate_definition,
     build_processing_run,
 )
+from reviewlens.warehouse.quality import evaluate_quality_gate
 
 SOURCE_RELEASE_ID = f"olist_{'a' * 64}"
 BATCH_ID = f"batch_{'b' * 64}"
@@ -164,7 +165,7 @@ def test_cleanup_only_accepts_failed_unreferenced_candidate() -> None:
 
     with pytest.raises(WarehouseCandidateError):
         registry.cleanup(definition.candidate_id)
-    failed = registry.finish(lease, success=False, now=NOW + timedelta(minutes=1))
+    failed = registry.fail(lease, now=NOW + timedelta(minutes=1))
     assert failed.state is CandidateState.FAILED
     with pytest.raises(WarehouseCandidateError):
         registry.cleanup(
@@ -187,7 +188,11 @@ def test_tested_candidate_cannot_be_cleaned_or_reclaimed() -> None:
         now=NOW,
         expires_at=NOW + timedelta(minutes=10),
     )
-    passed = registry.finish(lease, success=True, now=NOW + timedelta(minutes=1))
+    passed = registry.finish_quality_gate(
+        lease,
+        result=evaluate_quality_gate(()),
+        now=NOW + timedelta(minutes=1),
+    )
 
     assert passed.state is CandidateState.TEST_PASSED
     with pytest.raises(WarehouseCandidateError):

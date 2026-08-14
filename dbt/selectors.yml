@@ -17,3 +17,8 @@ selectors:
     definition:
       method: tag
       value: m3_silver
+  - name: m3_silver_critical
+    description: Fail-closed publication gate for critical metadata-only Silver findings.
+    definition:
+      method: tag
+      value: m3_critical

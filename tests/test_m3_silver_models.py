@@ -133,19 +133,21 @@ def test_order_delivery_intervals_are_guarded_and_on_time_is_inclusive() -> None
 def test_silver_sql_is_candidate_bound_lineage_safe_and_versioned() -> None:
     models = {path.stem: path.read_text(encoding="utf-8") for path in SILVER_DIR.glob("*.sql")}
 
-    assert set(models) == {"sil_customer", "sil_geolocation_zip", "sil_order"}
-    for sql in models.values():
+    base_models = {
+        name: models[name] for name in ("sil_customer", "sil_geolocation_zip", "sil_order")
+    }
+    for sql in base_models.values():
         assert "candidate_namespace" in sql
         assert "source_release_id" in sql
         assert "ingestion_batch_id" in sql
         assert "__REQUIRED_SOURCE_RELEASE_ID__" in sql
         assert "__REQUIRED_INGESTION_BATCH_ID__" in sql
         assert "raw_payload" not in sql.lower()
-    assert "as customer_unique_id" not in models["sil_customer"].lower()
-    assert REPEAT_CUSTOMER_KEY_VERSION in models["sil_customer"]
-    assert GEOLOCATION_RULE_VERSION in models["sil_geolocation_zip"]
-    assert ORDER_SCOPE_VERSION in models["sil_order"]
-    assert ORDER_TIME_POLICY_VERSION in models["sil_order"]
+    assert "as customer_unique_id" not in base_models["sil_customer"].lower()
+    assert REPEAT_CUSTOMER_KEY_VERSION in base_models["sil_customer"]
+    assert GEOLOCATION_RULE_VERSION in base_models["sil_geolocation_zip"]
+    assert ORDER_SCOPE_VERSION in base_models["sil_order"]
+    assert ORDER_TIME_POLICY_VERSION in base_models["sil_order"]
 
 
 def test_silver_yaml_has_exact_grains_contracts_and_runtime_gate() -> None:

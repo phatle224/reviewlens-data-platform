@@ -20,11 +20,11 @@
 | TC-M3-014 | Silver customer | Duplicate/customer geography/privacy fixtures | One customer row and minimized repeat key | `PASS` | Deterministic key/normalization oracle and static dbt grain/privacy contract pass; raw repeat ID is not an output column |
 | TC-M3-015 | Silver geography | ZIP occurrences and malformed coordinates | Deterministic centroid; no join multiplication | `PASS` | Two-point centroid/count fixture plus ambiguous/no-valid-coordinate cases pass at one ZIP row |
 | TC-M3-016 | Silver order | Status/time/scope edge fixtures | Declared analysis scope and intervals deterministic | `PASS` | Six scope cases plus on-time boundary and negative-interval suppression pass against versioned contract oracle |
-| TC-M3-017 | Silver item/payment | Composite keys, amounts and reconciliation | Keys/ranges/counts pass | `PENDING` | Await IMP-M3-007 |
-| TC-M3-018 | Silver product/seller | Translation, corrected length and location | Contracted columns and unknown fallback pass | `PENDING` | Await IMP-M3-008 |
-| TC-M3-019 | Silver review/DLP | Empty, orphan, duplicate and restricted text | Base score retained; AI eligibility minimized | `PENDING` | Await IMP-M3-009 |
-| TC-M3-020 | DQ gate | Critical/warn/quarantine fixtures | Critical failure blocks candidate publication | `PENDING` | Await IMP-M3-010 |
-| TC-M3-021 | Late/unknown | Reordered, late and orphan inputs | Deterministic unknown/correction policy | `PENDING` | Await IMP-M3-011 |
+| TC-M3-017 | Silver item/payment | Composite keys, amounts and reconciliation | Keys/ranges/counts pass | `PASS` | Compound partition/tests, valid/invalid/orphan amount oracles and zero-delta item+freight/payment fixture pass |
+| TC-M3-018 | Silver product/seller | Translation, corrected length and location | Contracted columns and unknown fallback pass | `PASS` | Corrected canonical length aliases, translation `UNKNOWN` fallback, seller normalization and unique ZIP-quality lookup contracts pass |
+| TC-M3-019 | Silver review/DLP | Empty, orphan, duplicate and restricted text | Base score retained; AI eligibility minimized | `PASS` | Five eligibility/interval fixtures plus invalid-score negative test pass; restricted fields deny external transfer and SQL hard-sets `ai_eligible=false` |
+| TC-M3-020 | DQ gate | Critical/warn/quarantine fixtures | Critical failure blocks candidate publication | `PASS` | Order-independent severity/count/fingerprint fixtures pass; warning/quarantine remain nonblocking, critical result moves candidate to `FAILED`; duplicate/raw identifier negatives fail sanitized; dbt critical selector resolves exactly one metadata-only test |
+| TC-M3-021 | Late/unknown | Reordered, late and orphan inputs | Deterministic unknown/correction policy | `PASS` | Four stable distinct unknown keys pass; shuffled/replayed revisions select the same correction and label older effective row `LATE_SUPERSEDED`; mixed-entity/unsafe-time negatives fail closed; eight Silver bases use the shared ranking macro |
 | TC-M3-022 | Dimensions/facts | Declared grains and relationships | No unexpected multiplication or loss | `PENDING` | Await IMP-M3-012/013 |
 | TC-M3-023 | Attribution | Multi-item order review metrics | Allocation labels present; no silent double count | `PENDING` | Await IMP-M3-014 |
 | TC-M3-024 | Marts | Metric dictionary fixture | Golden outputs match declared grain | `PENDING` | Await IMP-M3-015/016 |
@@ -32,8 +32,8 @@
 | TC-M3-026 | CAS/replay | Concurrent activation, rollback and replay | One CAS winner; rollback uses immutable release | `PENDING` | Await IMP-M3-018 |
 | TC-M3-027 | Request pinning | Concurrent requests during activation | Each request uses one complete release | `PENDING` | Await IMP-M3-019 |
 | TC-M3-028 | Equivalence/cost | Full versus incremental two-run drill | Row/hash equality, bounded X-Small usage and suspend | `PENDING` | Await IMP-M3-020; owner opt-in required |
-| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-0864ef467e5cc4c1` and dependency lock pass |
-| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 6/20 done, 18/30 pass, 0 errors and 0 warnings |
+| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-fc561bc55d692647`, dependency audit and project-image dry-run pass |
+| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 11/20 done, 23/30 pass, 0 errors and 0 warnings |
 
 ## Execution log — 2026-08-14
 
@@ -62,3 +62,29 @@
 - Full repository regression after bundle 2: 369 passed, 8 expected opt-in live
   skips and 85.62% coverage. Repository policy reports 0 findings; artifact and
   dependency locks pass. Final retention dry-run reports no stale project image.
+
+## Execution log — 2026-08-15
+
+- `IMP-M3-007…009` adds six candidate-prefixed, contract-enforced dbt models for
+  item/payment, category/product/seller and restricted review bases. No raw
+  payload is selected and review rows cannot become AI-eligible before M4 DLP.
+- Ruff format/lint, strict mypy, dbt 1.12 parse with warnings-as-errors and 41
+  focused M3 tests pass using contract/static and deterministic synthetic oracles.
+- No Docker build and no Snowflake, R2, OpenRouter or Chroma call was performed.
+  Live candidate build remains an explicit later owner-approved gate.
+- Full repository regression: 380 passed, 8 expected opt-in live skips and
+  85.77% coverage. Repository policy reports 0 findings; artifact/dependency
+  locks and status validator pass with 0 errors and 0 warnings.
+- `IMP-M3-010…011` adds a privacy-safe Silver DQ relation, explicit critical
+  selector, typed candidate quality gate, four stable unknown members and
+  order-independent late/correction policy. All existing deduplicated Silver
+  bases now call the shared revision-rank macro.
+- Focused bundle gate: 42 tests pass with Ruff, strict mypy and dbt 1.12 parse
+  `--warn-error`. Selector inspection resolves one critical test and all 11
+  Silver candidate models without opening a Snowflake connection.
+- Full repository regression after implementation: 389 passed, 8 expected
+  opt-in live skips and 86.05% coverage. Repository policy reports 0 findings;
+  dependency audit finds no known vulnerability; artifact lock is
+  `local-sha256-fc561bc55d692647`; project-image retention dry-run is empty.
+- No Docker image was built and no Snowflake, R2, OpenRouter or Chroma call was
+  performed. The first live DQ build remains part of a later explicit gate.

@@ -2,10 +2,10 @@
 
 ReviewLens is an Olist-powered portfolio data platform for e-commerce review and delivery intelligence. The target architecture uses Cloudflare R2, Snowflake, dbt, Airflow, OpenRouter, ChromaDB and Streamlit while keeping provider access behind typed Python adapters.
 
-M3 is in progress: its processing/candidate baseline and first customer,
-geolocation and order Silver slice are complete offline (6/20 work items). The
-project runs as one local demo environment; no staging, production or public URL
-is provisioned.
+M3 is in progress: its processing/candidate baseline, all nine relational
+Silver bases, metadata-only DQ gate and deterministic revision policy are
+complete offline (11/20 work items). The project runs as one
+local demo environment; no staging, production or public URL is provisioned.
 
 ## Data and security boundary
 
