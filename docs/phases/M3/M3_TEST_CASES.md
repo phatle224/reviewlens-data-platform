@@ -25,15 +25,15 @@
 | TC-M3-019 | Silver review/DLP | Empty, orphan, duplicate and restricted text | Base score retained; AI eligibility minimized | `PASS` | Five eligibility/interval fixtures plus invalid-score negative test pass; restricted fields deny external transfer and SQL hard-sets `ai_eligible=false` |
 | TC-M3-020 | DQ gate | Critical/warn/quarantine fixtures | Critical failure blocks candidate publication | `PASS` | Order-independent severity/count/fingerprint fixtures pass; warning/quarantine remain nonblocking, critical result moves candidate to `FAILED`; duplicate/raw identifier negatives fail sanitized; dbt critical selector resolves exactly one metadata-only test |
 | TC-M3-021 | Late/unknown | Reordered, late and orphan inputs | Deterministic unknown/correction policy | `PASS` | Four stable distinct unknown keys pass; shuffled/replayed revisions select the same correction and label older effective row `LATE_SUPERSEDED`; mixed-entity/unsafe-time negatives fail closed; eight Silver bases use the shared ranking macro |
-| TC-M3-022 | Dimensions/facts | Declared grains and relationships | No unexpected multiplication or loss | `PENDING` | Await IMP-M3-012/013 |
+| TC-M3-022 | Dimensions/facts | Declared grains and relationships | No unexpected multiplication or loss | `PASS` | Stable/version-scoped key, unknown, shuffled SCD boundary, overlap-negative and exact fact-partition fixtures pass; manifest has 5 dimensions + 4 facts in `GOLD`; relationships/grains plus count and item/payment amount reconciliation tests are selected by `m3_gold_base`; review fact has no restricted text |
 | TC-M3-023 | Attribution | Multi-item order review metrics | Allocation labels present; no silent double count | `PENDING` | Await IMP-M3-014 |
 | TC-M3-024 | Marts | Metric dictionary fixture | Golden outputs match declared grain | `PENDING` | Await IMP-M3-015/016 |
 | TC-M3-025 | Candidate failure | Silver/Gold candidate fails a gate | Active serving pointer remains unchanged | `PENDING` | Await IMP-M3-017/018 |
 | TC-M3-026 | CAS/replay | Concurrent activation, rollback and replay | One CAS winner; rollback uses immutable release | `PENDING` | Await IMP-M3-018 |
 | TC-M3-027 | Request pinning | Concurrent requests during activation | Each request uses one complete release | `PENDING` | Await IMP-M3-019 |
 | TC-M3-028 | Equivalence/cost | Full versus incremental two-run drill | Row/hash equality, bounded X-Small usage and suspend | `PENDING` | Await IMP-M3-020; owner opt-in required |
-| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-fc561bc55d692647`, dependency audit and project-image dry-run pass |
-| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 11/20 done, 23/30 pass, 0 errors and 0 warnings |
+| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-05a6bf64fae55a3c`, dependency lock and project-image dry-run pass |
+| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 13/20 done, 24/30 pass, 0 errors and 0 warnings |
 
 ## Execution log — 2026-08-14
 
@@ -88,3 +88,16 @@
   `local-sha256-fc561bc55d692647`; project-image retention dry-run is empty.
 - No Docker image was built and no Snowflake, R2, OpenRouter or Chroma call was
   performed. The first live DQ build remains part of a later explicit gate.
+- `IMP-M3-012…013` adds five conformed dimensions and four base facts in exact
+  `GOLD`, with version-aware member keys, stable unknown rows, half-open SCD
+  intervals, as-of fact joins and reusable overlap tests.
+- The Gold reconciliation gate compares eligible Silver/Gold row counts and
+  additive item/payment amounts. `FACT_REVIEW_BASE` is independent of AI
+  coverage and contains no title/comment fields.
+- Focused Gold/Silver/dbt gate: 43 tests pass; Ruff, strict mypy and dbt 1.12
+  parse `--warn-error` pass. Full repository logic: 397 tests pass, 8 expected
+  live skips and 86.11% coverage after refreshing the generated artifact lock.
+- No Docker image or provider call was made; the live Gold build remains an
+  explicit later Snowflake candidate gate.
+- Final artifact for this bundle is `local-sha256-05a6bf64fae55a3c`; the
+  repository-scoped image-retention dry-run reports no stale project image.

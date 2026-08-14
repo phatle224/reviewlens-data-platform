@@ -12,10 +12,9 @@ change the active release pointer.
 | [Implementation plan](../../IMPLEMENTATION_PLAN.md) | Dependencies and acceptance criteria |
 | [ADR-005](../../ADR/ADR-005-ingestion-release-strategy.md) | Immutable candidate and atomic-release baseline |
 
-Phase status: `IN_PROGRESS` with 11/20 work items complete. Bundles
-`IMP-M3-001…011` deliver processing lineage, isolated candidates, complete dbt
-Bronze contracts, all nine relational Silver bases, a metadata-only DQ output
-with a fail-closed critical selector, stable unknown members and deterministic
-late/correction resolution. Their offline gates pass without resuming Snowflake
-or bypassing review DLP. The next dependency-ready bundle is
-`IMP-M3-012…013`.
+Phase status: `IN_PROGRESS` with 13/20 work items complete. Bundles
+`IMP-M3-001…013` deliver processing lineage, isolated candidates, Silver/DQ
+contracts, five conformed dimensions and four reconciled base facts. Dimension
+lookups are version-aware/as-of, fact grains are explicit, and review text stays
+outside Gold. Their offline gates pass without resuming Snowflake or bypassing
+review DLP. The next dependency-ready work item is `IMP-M3-014`.

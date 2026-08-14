@@ -30,3 +30,9 @@ models:
       +contract:
         enforced: true
       +tags: ["m3_silver"]
+    gold:
+      +schema: GOLD
+      +materialized: table
+      +contract:
+        enforced: true
+      +tags: ["m3_gold_base"]

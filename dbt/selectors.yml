@@ -22,3 +22,8 @@ selectors:
     definition:
       method: tag
       value: m3_critical
+  - name: m3_gold_base
+    description: Build and test candidate-bound conformed dimensions and base facts.
+    definition:
+      method: tag
+      value: m3_gold_base

@@ -8,7 +8,7 @@
 |---|---|
 | Trạng thái tổng thể | `ON_TRACK` |
 | Phase hiện tại | `M3` — Conformed Silver, Gold and atomic release |
-| Trạng thái phase hiện tại | `IN_PROGRESS` — 11/20 work items complete; 23/30 phase tests pass |
+| Trạng thái phase hiện tại | `IN_PROGRESS` — 13/20 work items complete; 24/30 phase tests pass |
 | Phase gần nhất hoàn tất | `M2` — nine-file private R2/Bronze ingestion and replay gate |
 | Cập nhật lần cuối | 2026-08-15 |
 | Người thực hiện | Solo Developer |
@@ -23,7 +23,7 @@
 | M0 | `COMPLETE` | Olist product/data/license/security/architecture baseline | [Checklist](./phases/M0/M0_CHECKLIST.md) · [Tests](./phases/M0/M0_TEST_CASES.md) |
 | M1 | `COMPLETE` | Config, identities, provider/dbt/Airflow boundaries, audit/logging, authenticated app shell and fail-closed CI/live rotation gates | [Overview](./phases/M1/README.md) · [Checklist](./phases/M1/M1_CHECKLIST.md) · [Tests](./phases/M1/M1_TEST_CASES.md) |
 | M2 | `COMPLETE` | 18 implementation items and owner-approved full nine-file private DAG + immutable replay reconcile with empty alerts and warehouse suspended | [Overview](./phases/M2/README.md) · [Checklist](./phases/M2/M2_CHECKLIST.md) · [Tests](./phases/M2/M2_TEST_CASES.md) |
-| M3 | `IN_PROGRESS` | Silver bases, metadata-only DQ gate and deterministic revision/unknown policy complete offline (11/20) | [Overview](./phases/M3/README.md) · [Checklist](./phases/M3/M3_CHECKLIST.md) · [Tests](./phases/M3/M3_TEST_CASES.md) |
+| M3 | `IN_PROGRESS` | Silver/DQ plus five conformed dimensions and four reconciled base facts complete offline (13/20) | [Overview](./phases/M3/README.md) · [Checklist](./phases/M3/M3_CHECKLIST.md) · [Tests](./phases/M3/M3_TEST_CASES.md) |
 | M4 | `NOT_STARTED` | DLP-approved review enrichment | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M5 | `NOT_STARTED` | Embeddings, ChromaDB and grounded RAG | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M6 | `NOT_STARTED` | Guarded Text-to-SQL | [Plan](./IMPLEMENTATION_PLAN.md) |
@@ -34,10 +34,10 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 
 ## Kết quả phiên gần nhất
 
-- Hoàn tất offline bundle `IMP-M3-010…011`: DQ severity/quarantine output, fail-closed critical selector, stable unknown members và deterministic late/correction resolution.
-- `SIL_DQ_QUARANTINE` chỉ giữ metadata với business grain đã hash; không chứa review text. `CRITICAL` làm candidate `FAILED`, còn `WARN`/`QUARANTINE` được quan sát mà không giả vờ là critical.
-- Tám Silver base có dedup dùng chung revision-rank macro; shuffled, replayed, late và corrected fixtures cho cùng một kết quả theo versioned policy.
-- Ruff, strict mypy, dbt parse warnings-as-errors, 42 focused tests và full offline regression pass. Không build Docker image và không gọi Snowflake, R2, OpenRouter hoặc Chroma.
+- Hoàn tất offline bundle `IMP-M3-012…013`: 5 conformed dimensions và 4 base facts trong exact schema `GOLD`.
+- Dimension có version-aware surrogate key, stable unknown row, half-open SCD interval và as-of resolution; fact joins dùng đúng grain và fallback unknown mà không nhân row.
+- Singular reconciliation gate so sánh eligible Silver/Gold counts cùng item/payment amounts; `FACT_REVIEW_BASE` không chứa review title/comment và không phụ thuộc AI coverage.
+- Ruff, strict mypy, dbt parse warnings-as-errors, 43 focused tests và full offline regression pass. Không build Docker image và không gọi Snowflake, R2, OpenRouter hoặc Chroma.
 
 ## Kiểm thử
 
@@ -46,9 +46,9 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 | M0 | 18 `PASS`, 3 `DEFERRED`, 0 `FAIL` | [M0 test cases](./phases/M0/M0_TEST_CASES.md) |
 | M1 | 41 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 193 pass/6 live skip plus owner-approved live rotation 1 pass; Chroma quarantine + clean-path/container/Compose/artifact/metrics + CI policy/dependency/AppTest/logging/audit/Airflow/dbt/provider/R2/stage/RBAC/JWT evidence |
 | M2 | 25 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M2 test cases](./phases/M2/M2_TEST_CASES.md); offline, synthetic live and full private nine-file DAG/replay evidence pass |
-| M3 | 23 `PASS`, 7 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M3 test cases](./phases/M3/M3_TEST_CASES.md); first eleven work items pass offline contracts; live candidate build and Gold/release work are not claimed |
-| Quality | `PASS` | 389 offline tests pass + 8 expected opt-in live skips, 86.05% coverage; Ruff, strict mypy, dbt parse, policy/artifact/dependency locks pass |
-| Status validator | `PASS` — 0 errors, 0 warnings | M0–M2 complete; M3 synchronized at 11/20 done and 23/30 pass |
+| M3 | 24 `PASS`, 6 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M3 test cases](./phases/M3/M3_TEST_CASES.md); first thirteen work items pass offline contracts; live candidate build and release work are not claimed |
+| Quality | `PASS` | 397 offline tests pass + 8 expected opt-in live skips, 86.11% coverage; Ruff, strict mypy, dbt parse, policy/artifact/dependency locks pass |
+| Status validator | `PASS` — 0 errors, 0 warnings | M0–M2 complete; M3 synchronized at 13/20 done and 24/30 pass |
 
 ## Blocker và rủi ro
 
@@ -75,7 +75,7 @@ xác nhận của owner; công việc Silver model bằng fixture/offline có th
 
 ## Việc tiếp theo
 
-1. Implement `IMP-M3-012…013`: conformed dimensions and base facts at declared grains.
+1. Implement `IMP-M3-014`: versioned multi-item review attribution policy and bridge without silent double counting.
 2. Keep review text private and `ai_eligible=false`; only M4 may create a DLP-approved external projection.
 3. Avoid Docker builds for dbt/docs-only bundles and keep every model under the candidate namespace.
 4. Defer migration `006` and live dbt build/source freshness until an explicit owner-approved Snowflake gate.

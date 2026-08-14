@@ -14,6 +14,17 @@ from reviewlens.warehouse.candidates import (
     build_candidate_definition,
     build_processing_run,
 )
+from reviewlens.warehouse.gold import (
+    GOLD_FACT_RECONCILIATION_VERSION,
+    GOLD_HISTORY_VERSION,
+    GOLD_KEY_VERSION,
+    DimensionHistoryRow,
+    FactPartitionResult,
+    GoldContractError,
+    gold_dimension_key,
+    reconcile_fact_partition,
+    resolve_dimension_as_of,
+)
 from reviewlens.warehouse.quality import (
     DQ_CONTRACT_VERSION,
     DQFinding,
@@ -38,6 +49,9 @@ from reviewlens.warehouse.revisions import (
 
 __all__ = [
     "DQ_CONTRACT_VERSION",
+    "GOLD_FACT_RECONCILIATION_VERSION",
+    "GOLD_HISTORY_VERSION",
+    "GOLD_KEY_VERSION",
     "REVISION_POLICY_VERSION",
     "UNKNOWN_MEMBER_POLICY_VERSION",
     "CandidateDefinition",
@@ -49,7 +63,10 @@ __all__ = [
     "DQGateStatus",
     "DQSeverity",
     "DimensionEntity",
+    "DimensionHistoryRow",
     "DimensionRevision",
+    "FactPartitionResult",
+    "GoldContractError",
     "InMemoryCandidateRegistry",
     "PhysicalRelationRef",
     "ProcessingInput",
@@ -64,6 +81,9 @@ __all__ = [
     "build_candidate_definition",
     "build_processing_run",
     "evaluate_quality_gate",
+    "gold_dimension_key",
+    "reconcile_fact_partition",
+    "resolve_dimension_as_of",
     "resolve_dimension_revisions",
     "unknown_member",
 ]

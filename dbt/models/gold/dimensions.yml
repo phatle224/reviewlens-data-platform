@@ -1,0 +1,162 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Event-complete Brazilian local-civil calendar dates for the candidate.
+    config:
+      contract: {enforced: true}
+      meta: {grain: full_date, data_class: synthetic_metadata, work_item: IMP-M3-012}
+    columns:
+      - {name: date_key, data_type: "number(38, 0)", data_tests: [not_null, unique]}
+      - {name: full_date, data_type: date, data_tests: [not_null, unique]}
+      - {name: calendar_year, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: calendar_quarter, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: calendar_month, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: month_name, data_type: varchar, data_tests: [not_null]}
+      - {name: iso_week, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: day_of_month, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: iso_day_of_week, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: day_name, data_type: varchar, data_tests: [not_null]}
+      - {name: week_start_date, data_type: date, data_tests: [not_null]}
+      - {name: month_start_date, data_type: date, data_tests: [not_null]}
+      - {name: quarter_start_date, data_type: date, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+
+  - name: dim_geography
+    description: One current conformed ZIP geography plus one stable unknown member.
+    config:
+      contract: {enforced: true}
+      meta: {grain: "geography_key + effective_from", data_class: private_coarse_geography, work_item: IMP-M3-012}
+    columns:
+      - {name: geography_key, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: geolocation_zip_prefix, data_type: varchar, data_tests: [not_null]}
+      - {name: city, data_type: varchar, data_tests: [not_null]}
+      - {name: state, data_type: varchar, data_tests: [not_null]}
+      - {name: centroid_latitude, data_type: "number(38, 18)"}
+      - {name: centroid_longitude, data_type: "number(38, 18)"}
+      - {name: geolocation_quality_status, data_type: varchar, data_tests: [not_null]}
+      - {name: source_point_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: valid_coordinate_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: invalid_coordinate_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: effective_from, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+      - {name: effective_to, data_type: "timestamp_ntz(6)"}
+      - {name: is_current, data_type: boolean, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: observed_at, data_type: "timestamp_tz(6)"}
+      - {name: history_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [geolocation_zip_prefix, effective_from]}
+      - reviewlens_scd_no_overlap:
+          arguments: {natural_key_column: geolocation_zip_prefix}
+      - reviewlens_expression_is_true:
+          arguments: {expression: "is_current = (effective_to is null)"}
+
+  - name: dim_customer
+    description: Minimized customer/repeat identity with conformed geography and SCD fields.
+    config:
+      contract: {enforced: true}
+      meta: {grain: "customer_key + effective_from", data_class: private_pseudonymous, work_item: IMP-M3-012}
+    columns:
+      - {name: customer_key, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: customer_id, data_type: varchar, data_tests: [not_null]}
+      - {name: repeat_customer_key, data_type: varchar, data_tests: [not_null]}
+      - name: geography_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: "ref('dim_geography')", field: geography_key}
+      - {name: customer_zip_prefix, data_type: varchar, data_tests: [not_null]}
+      - {name: customer_city, data_type: varchar, data_tests: [not_null]}
+      - {name: customer_state, data_type: varchar, data_tests: [not_null]}
+      - {name: effective_from, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+      - {name: effective_to, data_type: "timestamp_ntz(6)"}
+      - {name: is_current, data_type: boolean, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: source_record_hash, data_type: varchar}
+      - {name: observed_at, data_type: "timestamp_tz(6)"}
+      - {name: history_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [customer_id, effective_from]}
+      - reviewlens_scd_no_overlap:
+          arguments: {natural_key_column: customer_id}
+      - reviewlens_expression_is_true:
+          arguments: {expression: "is_current = (effective_to is null)"}
+
+  - name: dim_product
+    description: Product/category/physical attributes with stable unknown fallback and SCD fields.
+    config:
+      contract: {enforced: true}
+      meta: {grain: "product_key + effective_from", data_class: private_internal, work_item: IMP-M3-012}
+    columns:
+      - {name: product_key, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: product_id, data_type: varchar, data_tests: [not_null]}
+      - {name: product_category_name, data_type: varchar, data_tests: [not_null]}
+      - {name: product_category_name_english, data_type: varchar, data_tests: [not_null]}
+      - {name: product_name_length, data_type: "number(38, 0)"}
+      - {name: product_description_length, data_type: "number(38, 0)"}
+      - {name: product_photos_qty, data_type: "number(38, 0)"}
+      - {name: product_weight_g, data_type: "number(38, 18)"}
+      - {name: product_length_cm, data_type: "number(38, 18)"}
+      - {name: product_height_cm, data_type: "number(38, 18)"}
+      - {name: product_width_cm, data_type: "number(38, 18)"}
+      - {name: product_quality_status, data_type: varchar, data_tests: [not_null]}
+      - {name: effective_from, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+      - {name: effective_to, data_type: "timestamp_ntz(6)"}
+      - {name: is_current, data_type: boolean, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: source_record_hash, data_type: varchar}
+      - {name: observed_at, data_type: "timestamp_tz(6)"}
+      - {name: history_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [product_id, effective_from]}
+      - reviewlens_scd_no_overlap:
+          arguments: {natural_key_column: product_id}
+      - reviewlens_expression_is_true:
+          arguments: {expression: "is_current = (effective_to is null)"}
+
+  - name: dim_seller
+    description: Seller with conformed coarse geography, stable unknown fallback and SCD fields.
+    config:
+      contract: {enforced: true}
+      meta: {grain: "seller_key + effective_from", data_class: private_pseudonymous, work_item: IMP-M3-012}
+    columns:
+      - {name: seller_key, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: seller_id, data_type: varchar, data_tests: [not_null]}
+      - name: geography_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: "ref('dim_geography')", field: geography_key}
+      - {name: seller_zip_prefix, data_type: varchar, data_tests: [not_null]}
+      - {name: seller_city, data_type: varchar, data_tests: [not_null]}
+      - {name: seller_state, data_type: varchar, data_tests: [not_null]}
+      - {name: geolocation_quality_status, data_type: varchar, data_tests: [not_null]}
+      - {name: effective_from, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+      - {name: effective_to, data_type: "timestamp_ntz(6)"}
+      - {name: is_current, data_type: boolean, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: source_record_hash, data_type: varchar}
+      - {name: observed_at, data_type: "timestamp_tz(6)"}
+      - {name: history_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [seller_id, effective_from]}
+      - reviewlens_scd_no_overlap:
+          arguments: {natural_key_column: seller_id}
+      - reviewlens_expression_is_true:
+          arguments: {expression: "is_current = (effective_to is null)"}

@@ -24,6 +24,14 @@ candidate, while `WARN` and `QUARANTINE` remain visible for controlled handling.
 dimensions, and one reusable revision macro makes current-row tie-breaking
 independent of input order. These outputs never contain review text.
 
+The first Gold slice contains `DIM_DATE`, conformed customer/product/seller/
+geography dimensions and order/item/payment/review base facts. Gold dimensions
+use version-aware surrogate keys, half-open SCD intervals and stable unknown
+members. Facts use as-of dimension joins and a singular reconciliation gate for
+row counts plus item/payment amounts. `FACT_REVIEW_BASE` contains score and
+policy metadata only; it never selects review title/comment or depends on AI
+coverage.
+
 Credentials stay in the ignored root `.env`. The profile reads only:
 
 - `SNOWFLAKE_ACCOUNT`
@@ -83,4 +91,13 @@ any future activation step:
 .venv\Scripts\dotenv.exe -f .env run -- `
   .venv\Scripts\dbt.exe test --project-dir dbt --profiles-dir dbt `
   --selector m3_silver_critical --vars $m3Vars
+```
+
+The offline-safe selector inventory for the Gold base is `m3_gold_base`. Its
+live build remains deferred until the M3 candidate run is explicitly approved:
+
+```powershell
+.venv\Scripts\dotenv.exe -f .env run -- `
+  .venv\Scripts\dbt.exe build --project-dir dbt --profiles-dir dbt `
+  --selector m3_gold_base --vars $m3Vars
 ```
