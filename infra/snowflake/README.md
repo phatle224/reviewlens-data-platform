@@ -153,3 +153,29 @@ This design follows Snowflake's current
 [table/constraint semantics](https://docs.snowflake.com/en/sql-reference/constraints),
 [session-variable contract](https://docs.snowflake.com/en/sql-reference/session-variables),
 and [Snowflake Scripting exception handling](https://docs.snowflake.com/en/developer-guide/snowflake-scripting/exceptions).
+
+## M3 processing and candidate lineage
+
+`006_processing_candidates.sql` adds immutable processing-run definitions,
+ordered 1:N input references and append-only candidate physical-reference events.
+It contains identifiers, physical relation names, versions, hashes and lease state
+only—never Olist values, review text or credentials. `TRANSFORMER_ROLE` and
+`GOLD_BUILDER_ROLE` receive exact `SELECT, INSERT` grants; no runtime role receives
+update/delete/ownership or future-table privileges through this migration.
+
+The M3 candidate strategy keeps objects inside their existing `SILVER`/`GOLD`
+schemas and prefixes every physical relation with a deterministic candidate
+namespace. Concurrent builds therefore cannot overwrite each other and no new
+database-wide `CREATE SCHEMA` privilege is required. Cleanup is allowed only for
+failed, unreferenced candidates; tested/active candidates fail closed.
+
+Run the offline migration and candidate contracts:
+
+```powershell
+.venv\Scripts\pytest.exe tests\test_m3_processing_migration.py `
+  tests\test_warehouse_candidates.py -q -p no:cacheprovider
+```
+
+Applying `006_processing_candidates.sql` to Snowflake is a later explicit opt-in
+gate. The initial `IMP-M3-001…003` bundle validates it offline and does not resume
+the warehouse.

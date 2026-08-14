@@ -2,7 +2,9 @@
 
 ReviewLens is an Olist-powered portfolio data platform for e-commerce review and delivery intelligence. The target architecture uses Cloudflare R2, Snowflake, dbt, Airflow, OpenRouter, ChromaDB and Streamlit while keeping provider access behind typed Python adapters.
 
-M2 is complete and the next milestone is **M3 — Conformed Silver, Gold and atomic release**. The project runs as one local demo environment; no staging, production or public URL is provisioned.
+M3 is in progress: its processing-lineage, isolated-candidate and dbt Bronze
+contract bundle is complete offline (3/20 work items). The project runs as one
+local demo environment; no staging, production or public URL is provisioned.
 
 ## Data and security boundary
 
@@ -62,14 +64,15 @@ uv export --locked --all-groups --all-extras --no-emit-project --no-annotate --o
 uv run pip-audit --requirement .uv-cache/audit-requirements.txt --strict --require-hashes --disable-pip --progress-spinner=off
 ```
 
-Live provider tests are always explicit opt-in. See the completed [M2 test matrix](docs/phases/M2/M2_TEST_CASES.md) for exact commands and metadata-only evidence.
+Live provider tests are always explicit opt-in. See the active
+[M3 test matrix](docs/phases/M3/M3_TEST_CASES.md) for exact status and evidence.
 
 ## Project navigation
 
 - [Current status](docs/PROJECT_STATUS.md)
 - [Product requirements](docs/PRD.md)
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
-- [M2 checklist](docs/phases/M2/M2_CHECKLIST.md)
+- [M3 checklist](docs/phases/M3/M3_CHECKLIST.md)
 - [Architecture decisions](docs/ADR/)
 - [Dataset attribution and obligations](docs/DATA_ATTRIBUTION.md)
 - [Olist source manifest](docs/data/OLIST_SOURCE_MANIFEST.md)

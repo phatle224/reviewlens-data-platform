@@ -7,8 +7,8 @@
 | Thuộc tính | Giá trị |
 |---|---|
 | Trạng thái tổng thể | `ON_TRACK` |
-| Phase hiện tại | `M2` — Olist ingestion, R2 and immutable Bronze |
-| Trạng thái phase hiện tại | `COMPLETE` — 18/18 work items, 25/25 phase tests and full private DAG/replay exit gate pass |
+| Phase hiện tại | `M3` — Conformed Silver, Gold and atomic release |
+| Trạng thái phase hiện tại | `IN_PROGRESS` — 3/20 work items complete; 15/30 phase tests pass |
 | Phase gần nhất hoàn tất | `M2` — nine-file private R2/Bronze ingestion and replay gate |
 | Cập nhật lần cuối | 2026-08-14 |
 | Người thực hiện | Solo Developer |
@@ -23,7 +23,7 @@
 | M0 | `COMPLETE` | Olist product/data/license/security/architecture baseline | [Checklist](./phases/M0/M0_CHECKLIST.md) · [Tests](./phases/M0/M0_TEST_CASES.md) |
 | M1 | `COMPLETE` | Config, identities, provider/dbt/Airflow boundaries, audit/logging, authenticated app shell and fail-closed CI/live rotation gates | [Overview](./phases/M1/README.md) · [Checklist](./phases/M1/M1_CHECKLIST.md) · [Tests](./phases/M1/M1_TEST_CASES.md) |
 | M2 | `COMPLETE` | 18 implementation items and owner-approved full nine-file private DAG + immutable replay reconcile with empty alerts and warehouse suspended | [Overview](./phases/M2/README.md) · [Checklist](./phases/M2/M2_CHECKLIST.md) · [Tests](./phases/M2/M2_TEST_CASES.md) |
-| M3 | `NOT_STARTED` | Conformed Silver, Gold and atomic release | [Plan](./IMPLEMENTATION_PLAN.md) |
+| M3 | `IN_PROGRESS` | Processing lineage, candidate isolation and all nine dbt Bronze contracts complete offline (3/20) | [Overview](./phases/M3/README.md) · [Checklist](./phases/M3/M3_CHECKLIST.md) · [Tests](./phases/M3/M3_TEST_CASES.md) |
 | M4 | `NOT_STARTED` | DLP-approved review enrichment | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M5 | `NOT_STARTED` | Embeddings, ChromaDB and grounded RAG | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M6 | `NOT_STARTED` | Guarded Text-to-SQL | [Plan](./IMPLEMENTATION_PLAN.md) |
@@ -34,10 +34,10 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 
 ## Kết quả phiên gần nhất
 
-- Owner-approved full private DAG run và hai replay runs đều kết thúc `success`; clean replay dùng locked runtime image và final image preserves the same tested code with synchronized metadata.
-- Chín dataset giải thích đủ 1,550,922 source rows thành 1,289,091 accepted/Bronze, 261,831 exact duplicates, 0 invalid quarantine và 0 parse failures.
-- ADR-009 sửa projection DECIMAL scale 18 trong Bronze/Parquet mà vẫn giữ exact source value trong private raw payload; ADR-010 tách duplicate khỏi invalid quarantine để loại false-positive alert.
-- Clean replay ghi 19 object/load replays, 0 task errors, reconciled=1, warehouse-suspended=1 và alert list rỗng. M3+ tasks skip đúng fail-closed guard; OpenRouter/Chroma không được gọi.
+- Hoàn tất offline bundle `IMP-M3-001…003`: deterministic processing/input/candidate IDs, ordered 1:N lineage và append-only physical-reference ledger migration.
+- Silver/Gold candidates dùng deterministic physical object namespace trong schema least-privilege hiện hữu; concurrent lease chỉ có một winner và cleanup từ chối active/tested candidates.
+- dbt khai báo chính xác chín Bronze sources với toàn bộ typed business/lineage columns, canonical grain tests, freshness 2/7 ngày, privacy/license metadata và selector `m3_bronze_contract`.
+- Ruff, strict mypy, 26 focused tests, dbt parse warnings-as-errors, repository policy và artifact/dependency locks đều pass. Không gọi Snowflake, R2, OpenRouter hoặc Chroma.
 
 ## Kiểm thử
 
@@ -46,8 +46,9 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 | M0 | 18 `PASS`, 3 `DEFERRED`, 0 `FAIL` | [M0 test cases](./phases/M0/M0_TEST_CASES.md) |
 | M1 | 41 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 193 pass/6 live skip plus owner-approved live rotation 1 pass; Chroma quarantine + clean-path/container/Compose/artifact/metrics + CI policy/dependency/AppTest/logging/audit/Airflow/dbt/provider/R2/stage/RBAC/JWT evidence |
 | M2 | 25 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M2 test cases](./phases/M2/M2_TEST_CASES.md); offline, synthetic live and full private nine-file DAG/replay evidence pass |
-| Quality | `PASS` | 337 offline tests pass + 8 expected opt-in live skips; Ruff, strict mypy, policy/locks pass; final Airflow image pip/DagBag smoke pass |
-| Status validator | `PASS` — 0 errors, 0 warnings | M0, M1 and M2 complete; M2 synchronized at 18 done/25 pass with live exit evidence |
+| M3 | 15 `PASS`, 15 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M3 test cases](./phases/M3/M3_TEST_CASES.md); first three work items pass offline contracts; live migration/source freshness and remaining Silver/Gold/release work are not claimed |
+| Quality | `PASS` | 352 offline tests pass + 8 expected opt-in live skips, 86.17% coverage; Ruff, strict mypy, dbt parse, policy/artifact/dependency locks pass |
+| Status validator | `PASS` — 0 errors, 0 warnings | M0–M2 complete; M3 synchronized at 3/20 done and 15/30 pass |
 
 ## Blocker và rủi ro
 
@@ -68,16 +69,17 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 
 ## Input cần từ chủ project
 
-Không cần thêm credential hoặc secret cho việc đóng M2. Trước M3 live transformation,
-chỉ cần owner xác nhận khi workflow nêu rõ một provider gate có thể phát sinh thêm
-Snowflake usage; công việc contract/dbt offline có thể bắt đầu ngay.
+Không cần thêm credential hoặc secret cho bundle M3 tiếp theo. Migration `006` và
+dbt source/freshness live gate sẽ chỉ chạy sau khi workflow nêu rõ chi phí và nhận
+xác nhận của owner; công việc Silver model bằng fixture/offline có thể tiếp tục ngay.
 
 ## Việc tiếp theo
 
-1. Initialize M3 phase artifacts and begin `IMP-M3-001…003` for processing ledger, grain contracts and dbt Bronze sources.
-2. Keep `REVIEWLENS_ENABLE_OLIST_PIPELINE=0` outside an intentional private replay.
-3. Build and test Silver/Gold candidates before any atomic release activation.
-4. Re-audit Chroma tại `IMP-M5-001`; không bypass blocked policy để provision sớm.
+1. Implement `IMP-M3-004…006`: customer, ZIP centroid and order Silver models with synthetic fixtures.
+2. Keep every model release-addressable under the candidate namespace; do not mutate serving objects.
+3. Defer migration `006` and live dbt source/freshness execution until an explicit owner-approved Snowflake gate.
+4. Keep `REVIEWLENS_ENABLE_OLIST_PIPELINE=0` outside an intentional private replay.
+5. Re-audit Chroma tại `IMP-M5-001`; không bypass blocked policy để provision sớm.
 
 ## Tài liệu nguồn
 
@@ -92,6 +94,9 @@ Snowflake usage; công việc contract/dbt offline có thể bắt đầu ngay.
 - [M2 overview](./phases/M2/README.md)
 - [M2 checklist](./phases/M2/M2_CHECKLIST.md)
 - [M2 test cases](./phases/M2/M2_TEST_CASES.md)
+- [M3 overview](./phases/M3/README.md)
+- [M3 checklist](./phases/M3/M3_CHECKLIST.md)
+- [M3 test cases](./phases/M3/M3_TEST_CASES.md)
 - [RAG recommendation](./reviewlens_rag_recommendation.md)
 - [Credential rotation runbook](./runbooks/M1_CREDENTIAL_ROTATION.md)
 - [Foundation operations runbook](./runbooks/M1_FOUNDATION_OPERATIONS.md)

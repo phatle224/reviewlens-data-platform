@@ -3,46 +3,228 @@ version: 2
 sources:
   - name: bronze_olist
     description: >-
-      Immutable Olist Bronze relations loaded by the ingestion service. M1 only
-      declares this interface; M2 owns creation, load and reconciliation.
+      Immutable private Olist Bronze relations loaded and reconciled by M2. M3
+      reads typed columns and canonical lineage only; RAW_PAYLOAD is documented
+      but prohibited from public artifacts and downstream serving models.
     database: REVIEWLENS
     schema: BRONZE
     loader: reviewlens_ingestion
     config:
+      loaded_at_field: ingested_at
+      freshness:
+        warn_after: {count: 2, period: day}
+        error_after: {count: 7, period: day}
       meta:
         source_system: olist_brazilian_ecommerce
         license: CC-BY-NC-SA-4.0
         data_access: private
         raw_payload_allowed_in_public_artifacts: false
+        freshness_policy: daily_local_snapshot
     tables:
       - name: customers
         identifier: BRZ_OLIST_CUSTOMERS_RAW
-        description: One immutable source customer row plus canonical lineage metadata.
+        description: One accepted immutable customer source row per physical lineage record.
+        columns:
+          - {name: customer_id, data_type: varchar, data_tests: [not_null]}
+          - {name: customer_unique_id, data_type: varchar, data_tests: [not_null]}
+          - {name: customer_zip_code_prefix, data_type: varchar, data_tests: [not_null]}
+          - {name: customer_city, data_type: varchar, data_tests: [not_null]}
+          - {name: customer_state, data_type: varchar, data_tests: [not_null]}
+          - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+          - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+          - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+          - {name: source_file_name, data_type: varchar, data_tests: [not_null]}
+          - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+          - {name: source_object_sha256, data_type: varchar, data_tests: [not_null]}
+          - {name: record_hash, data_type: varchar, data_tests: [not_null]}
+          - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+          - {name: schema_version, data_type: varchar, data_tests: [not_null]}
+          - name: raw_payload
+            data_type: varchar
+            data_tests: [not_null]
+            description: Private exact-source audit payload; forbidden in Silver/Gold/public output.
+            config: {meta: {data_class: restricted, downstream_allowed: false}}
+        data_tests: &bronze_physical_grain
+          - reviewlens_unique_combination:
+              arguments:
+                combination_of_columns:
+                  [ingestion_batch_id, dataset_run_id, record_hash, source_row_number]
+
       - name: geolocation
         identifier: BRZ_OLIST_GEOLOCATION_RAW
-        description: One immutable source geolocation occurrence plus canonical lineage metadata.
+        description: One accepted deduplicated geolocation occurrence with fixed-scale coordinates.
+        columns:
+          - {name: geolocation_zip_code_prefix, data_type: varchar, data_tests: [not_null]}
+          - {name: geolocation_lat, data_type: "number(38, 18)", data_tests: [not_null]}
+          - {name: geolocation_lng, data_type: "number(38, 18)", data_tests: [not_null]}
+          - {name: geolocation_city, data_type: varchar, data_tests: [not_null]}
+          - {name: geolocation_state, data_type: varchar, data_tests: [not_null]}
+          - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+          - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+          - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+          - {name: source_file_name, data_type: varchar, data_tests: [not_null]}
+          - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+          - {name: source_object_sha256, data_type: varchar, data_tests: [not_null]}
+          - {name: record_hash, data_type: varchar, data_tests: [not_null]}
+          - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+          - {name: schema_version, data_type: varchar, data_tests: [not_null]}
+          - {name: raw_payload, data_type: varchar, data_tests: [not_null], config: {meta: {data_class: restricted, downstream_allowed: false}}}
+        data_tests: *bronze_physical_grain
+
       - name: order_items
         identifier: BRZ_OLIST_ORDER_ITEMS_RAW
-        description: One immutable source order-item row plus canonical lineage metadata.
+        description: One accepted order item per order_id and order_item_id source occurrence.
+        columns:
+          - {name: order_id, data_type: varchar, data_tests: [not_null]}
+          - {name: order_item_id, data_type: "number(38, 0)", data_tests: [not_null]}
+          - {name: product_id, data_type: varchar, data_tests: [not_null]}
+          - {name: seller_id, data_type: varchar, data_tests: [not_null]}
+          - {name: shipping_limit_date, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+          - {name: price, data_type: "number(38, 18)", data_tests: [not_null]}
+          - {name: freight_value, data_type: "number(38, 18)", data_tests: [not_null]}
+          - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+          - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+          - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+          - {name: source_file_name, data_type: varchar, data_tests: [not_null]}
+          - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+          - {name: source_object_sha256, data_type: varchar, data_tests: [not_null]}
+          - {name: record_hash, data_type: varchar, data_tests: [not_null]}
+          - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+          - {name: schema_version, data_type: varchar, data_tests: [not_null]}
+          - {name: raw_payload, data_type: varchar, data_tests: [not_null], config: {meta: {data_class: restricted, downstream_allowed: false}}}
+        data_tests: *bronze_physical_grain
+
       - name: order_payments
         identifier: BRZ_OLIST_ORDER_PAYMENTS_RAW
-        description: One immutable source payment row plus canonical lineage metadata.
+        description: One accepted payment sequence per order.
+        columns:
+          - {name: order_id, data_type: varchar, data_tests: [not_null]}
+          - {name: payment_sequential, data_type: "number(38, 0)", data_tests: [not_null]}
+          - {name: payment_type, data_type: varchar, data_tests: [not_null]}
+          - {name: payment_installments, data_type: "number(38, 0)", data_tests: [not_null]}
+          - {name: payment_value, data_type: "number(38, 18)", data_tests: [not_null]}
+          - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+          - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+          - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+          - {name: source_file_name, data_type: varchar, data_tests: [not_null]}
+          - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+          - {name: source_object_sha256, data_type: varchar, data_tests: [not_null]}
+          - {name: record_hash, data_type: varchar, data_tests: [not_null]}
+          - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+          - {name: schema_version, data_type: varchar, data_tests: [not_null]}
+          - {name: raw_payload, data_type: varchar, data_tests: [not_null], config: {meta: {data_class: restricted, downstream_allowed: false}}}
+        data_tests: *bronze_physical_grain
+
       - name: order_reviews
         identifier: BRZ_OLIST_ORDER_REVIEWS_RAW
-        description: One immutable restricted review row plus canonical lineage metadata.
+        description: One accepted restricted review source record; text stays private.
         config:
           meta:
             contains_restricted_ugc: true
             external_ai_requires_dlp_projection: true
+        columns:
+          - {name: review_id, data_type: varchar, data_tests: [not_null]}
+          - {name: order_id, data_type: varchar, data_tests: [not_null]}
+          - {name: review_score, data_type: "number(38, 0)", data_tests: [not_null]}
+          - {name: review_comment_title, data_type: varchar}
+          - {name: review_comment_message, data_type: varchar, config: {meta: {data_class: restricted, external_transfer: denied}}}
+          - {name: review_creation_date, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+          - {name: review_answer_timestamp, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+          - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+          - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+          - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+          - {name: source_file_name, data_type: varchar, data_tests: [not_null]}
+          - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+          - {name: source_object_sha256, data_type: varchar, data_tests: [not_null]}
+          - {name: record_hash, data_type: varchar, data_tests: [not_null]}
+          - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+          - {name: schema_version, data_type: varchar, data_tests: [not_null]}
+          - {name: raw_payload, data_type: varchar, data_tests: [not_null], config: {meta: {data_class: restricted, downstream_allowed: false}}}
+        data_tests: *bronze_physical_grain
+
       - name: orders
         identifier: BRZ_OLIST_ORDERS_RAW
-        description: One immutable source order row plus canonical lineage metadata.
+        description: One accepted order record with typed lifecycle timestamps.
+        columns:
+          - {name: order_id, data_type: varchar, data_tests: [not_null]}
+          - {name: customer_id, data_type: varchar, data_tests: [not_null]}
+          - {name: order_status, data_type: varchar, data_tests: [not_null]}
+          - {name: order_purchase_timestamp, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+          - {name: order_approved_at, data_type: "timestamp_ntz(6)"}
+          - {name: order_delivered_carrier_date, data_type: "timestamp_ntz(6)"}
+          - {name: order_delivered_customer_date, data_type: "timestamp_ntz(6)"}
+          - {name: order_estimated_delivery_date, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+          - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+          - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+          - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+          - {name: source_file_name, data_type: varchar, data_tests: [not_null]}
+          - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+          - {name: source_object_sha256, data_type: varchar, data_tests: [not_null]}
+          - {name: record_hash, data_type: varchar, data_tests: [not_null]}
+          - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+          - {name: schema_version, data_type: varchar, data_tests: [not_null]}
+          - {name: raw_payload, data_type: varchar, data_tests: [not_null], config: {meta: {data_class: restricted, downstream_allowed: false}}}
+        data_tests: *bronze_physical_grain
+
       - name: products
         identifier: BRZ_OLIST_PRODUCTS_RAW
-        description: One immutable source product row plus canonical lineage metadata.
+        description: One accepted product record retaining source-spelled length fields in Bronze.
+        columns:
+          - {name: product_id, data_type: varchar, data_tests: [not_null]}
+          - {name: product_category_name, data_type: varchar}
+          - {name: product_name_lenght, data_type: "number(38, 0)"}
+          - {name: product_description_lenght, data_type: "number(38, 0)"}
+          - {name: product_photos_qty, data_type: "number(38, 0)"}
+          - {name: product_weight_g, data_type: "number(38, 18)"}
+          - {name: product_length_cm, data_type: "number(38, 18)"}
+          - {name: product_height_cm, data_type: "number(38, 18)"}
+          - {name: product_width_cm, data_type: "number(38, 18)"}
+          - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+          - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+          - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+          - {name: source_file_name, data_type: varchar, data_tests: [not_null]}
+          - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+          - {name: source_object_sha256, data_type: varchar, data_tests: [not_null]}
+          - {name: record_hash, data_type: varchar, data_tests: [not_null]}
+          - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+          - {name: schema_version, data_type: varchar, data_tests: [not_null]}
+          - {name: raw_payload, data_type: varchar, data_tests: [not_null], config: {meta: {data_class: restricted, downstream_allowed: false}}}
+        data_tests: *bronze_physical_grain
+
       - name: sellers
         identifier: BRZ_OLIST_SELLERS_RAW
-        description: One immutable source seller row plus canonical lineage metadata.
+        description: One accepted seller record with private source geography.
+        columns:
+          - {name: seller_id, data_type: varchar, data_tests: [not_null]}
+          - {name: seller_zip_code_prefix, data_type: varchar, data_tests: [not_null]}
+          - {name: seller_city, data_type: varchar, data_tests: [not_null]}
+          - {name: seller_state, data_type: varchar, data_tests: [not_null]}
+          - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+          - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+          - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+          - {name: source_file_name, data_type: varchar, data_tests: [not_null]}
+          - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+          - {name: source_object_sha256, data_type: varchar, data_tests: [not_null]}
+          - {name: record_hash, data_type: varchar, data_tests: [not_null]}
+          - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+          - {name: schema_version, data_type: varchar, data_tests: [not_null]}
+          - {name: raw_payload, data_type: varchar, data_tests: [not_null], config: {meta: {data_class: restricted, downstream_allowed: false}}}
+        data_tests: *bronze_physical_grain
+
       - name: category_translation
         identifier: BRZ_PRODUCT_CATEGORY_TRANSLATION_RAW
-        description: One immutable category-translation row plus canonical lineage metadata.
+        description: One accepted Portuguese-to-English category label mapping.
+        columns:
+          - {name: product_category_name, data_type: varchar, data_tests: [not_null]}
+          - {name: product_category_name_english, data_type: varchar, data_tests: [not_null]}
+          - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+          - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+          - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+          - {name: source_file_name, data_type: varchar, data_tests: [not_null]}
+          - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+          - {name: source_object_sha256, data_type: varchar, data_tests: [not_null]}
+          - {name: record_hash, data_type: varchar, data_tests: [not_null]}
+          - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+          - {name: schema_version, data_type: varchar, data_tests: [not_null]}
+          - {name: raw_payload, data_type: varchar, data_tests: [not_null], config: {meta: {data_class: restricted, downstream_allowed: false}}}
+        data_tests: *bronze_physical_grain

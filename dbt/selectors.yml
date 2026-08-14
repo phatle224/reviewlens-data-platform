@@ -7,3 +7,8 @@ selectors:
           value: m1_foundation
         - method: source
           value: bronze_olist
+  - name: m3_bronze_contract
+    description: Test all nine immutable Olist Bronze sources before a Silver candidate build.
+    definition:
+      method: source
+      value: bronze_olist
