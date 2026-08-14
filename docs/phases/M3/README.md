@@ -12,7 +12,8 @@ change the active release pointer.
 | [Implementation plan](../../IMPLEMENTATION_PLAN.md) | Dependencies and acceptance criteria |
 | [ADR-005](../../ADR/ADR-005-ingestion-release-strategy.md) | Immutable candidate and atomic-release baseline |
 
-Phase status: `IN_PROGRESS` with 3/20 work items complete. The first bundle,
-`IMP-M3-001…003`, delivers processing lineage, isolated Silver candidate strategy
-and complete dbt Bronze source contracts. Its offline gates pass without resuming
-Snowflake. The next dependency-ready bundle is `IMP-M3-004…006`.
+Phase status: `IN_PROGRESS` with 6/20 work items complete. The first two bundles,
+`IMP-M3-001…006`, deliver processing lineage, isolated candidates, complete dbt
+Bronze contracts and the customer/geolocation/order Silver slice. Their offline
+gates pass without resuming Snowflake. The next dependency-ready bundle is
+`IMP-M3-007…009`.

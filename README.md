@@ -2,9 +2,10 @@
 
 ReviewLens is an Olist-powered portfolio data platform for e-commerce review and delivery intelligence. The target architecture uses Cloudflare R2, Snowflake, dbt, Airflow, OpenRouter, ChromaDB and Streamlit while keeping provider access behind typed Python adapters.
 
-M3 is in progress: its processing-lineage, isolated-candidate and dbt Bronze
-contract bundle is complete offline (3/20 work items). The project runs as one
-local demo environment; no staging, production or public URL is provisioned.
+M3 is in progress: its processing/candidate baseline and first customer,
+geolocation and order Silver slice are complete offline (6/20 work items). The
+project runs as one local demo environment; no staging, production or public URL
+is provisioned.
 
 ## Data and security boundary
 
@@ -66,6 +67,19 @@ uv run pip-audit --requirement .uv-cache/audit-requirements.txt --strict --requi
 
 Live provider tests are always explicit opt-in. See the active
 [M3 test matrix](docs/phases/M3/M3_TEST_CASES.md) for exact status and evidence.
+
+Keep local Docker usage bounded after a successful image smoke. The first
+command is a repository-scoped dry run; `--apply` removes only stale
+`reviewlens/app` and `reviewlens/airflow` tags while preserving the manifest tag,
+the newest built image and any image used by a container:
+
+```powershell
+uv run reviewlens-images
+uv run reviewlens-images --apply
+```
+
+The command never runs a global Docker prune and never removes volumes or build
+cache. See the [foundation runbook](docs/runbooks/M1_FOUNDATION_OPERATIONS.md#51-dọn-image-reviewlens-cũ-giữ-final-tag).
 
 ## Project navigation
 

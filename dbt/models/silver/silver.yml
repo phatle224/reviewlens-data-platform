@@ -1,0 +1,136 @@
+version: 2
+
+models:
+  - name: sil_customer
+    description: >-
+      One deterministic row per customer_id for one explicit candidate input.
+      The raw customer_unique_id is excluded and replaced by a versioned hash.
+    config:
+      contract: {enforced: true}
+      meta:
+        grain: customer_id
+        data_class: private_minimized
+        contains_raw_customer_unique_id: false
+        work_item: IMP-M3-004
+    columns:
+      - {name: customer_id, data_type: varchar, data_tests: [not_null, unique]}
+      - name: repeat_customer_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - reviewlens_expression_is_true:
+              arguments: {expression: "length(repeat_customer_key) = 64"}
+      - {name: customer_zip_prefix, data_type: varchar, data_tests: [not_null]}
+      - {name: customer_city, data_type: varchar, data_tests: [not_null]}
+      - {name: customer_state, data_type: varchar, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: source_record_hash, data_type: varchar, data_tests: [not_null]}
+      - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+
+  - name: sil_geolocation_zip
+    description: >-
+      One ZIP-prefix row using a deterministic fixed-scale centroid, source
+      occurrence counts and explicit ambiguity/coordinate quality state.
+    config:
+      contract: {enforced: true}
+      meta:
+        grain: geolocation_zip_prefix
+        data_class: private_coarse_geography
+        work_item: IMP-M3-005
+    columns:
+      - {name: geolocation_zip_prefix, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: centroid_latitude, data_type: "number(38, 18)"}
+      - {name: centroid_longitude, data_type: "number(38, 18)"}
+      - name: source_point_count
+        data_type: "number(38, 0)"
+        data_tests:
+          - not_null
+          - reviewlens_expression_is_true:
+              arguments: {expression: "source_point_count > 0"}
+      - {name: valid_coordinate_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: invalid_coordinate_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: representative_city, data_type: varchar, data_tests: [not_null]}
+      - {name: representative_state, data_type: varchar, data_tests: [not_null]}
+      - {name: distinct_city_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: distinct_state_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - name: geolocation_quality_status
+        data_type: varchar
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [VALID, AMBIGUOUS_LOCATION, PARTIAL_COORDINATE, NO_VALID_COORDINATE]
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+      - {name: geolocation_rule_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              source_point_count = valid_coordinate_count + invalid_coordinate_count
+
+  - name: sil_order
+    description: >-
+      One deterministic order row with versioned analytical population, Brazilian
+      local civil-time semantics and guarded delivery interval flags.
+    config:
+      contract: {enforced: true}
+      meta:
+        grain: order_id
+        data_class: private_internal
+        work_item: IMP-M3-006
+    columns:
+      - {name: order_id, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: customer_id, data_type: varchar, data_tests: [not_null]}
+      - name: order_status
+        data_type: varchar
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [approved, canceled, created, delivered, invoiced, processing, shipped, unavailable]
+      - {name: order_purchase_timestamp, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+      - {name: order_approved_at, data_type: "timestamp_ntz(6)"}
+      - {name: order_delivered_carrier_date, data_type: "timestamp_ntz(6)"}
+      - {name: order_delivered_customer_date, data_type: "timestamp_ntz(6)"}
+      - {name: order_estimated_delivery_date, data_type: "timestamp_ntz(6)", data_tests: [not_null]}
+      - {name: customer_exists, data_type: boolean, data_tests: [not_null]}
+      - {name: valid_item_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: delivery_interval_valid, data_type: boolean, data_tests: [not_null]}
+      - name: analysis_scope_status
+        data_type: varchar
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [IN_SCOPE, OUT_OF_SCOPE_DELIVERY, QUARANTINED, UNKNOWN]
+      - {name: analysis_scope_reason, data_type: varchar, data_tests: [not_null]}
+      - {name: analysis_scope_version, data_type: varchar, data_tests: [not_null]}
+      - {name: time_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: delivery_lead_seconds, data_type: "number(38, 0)"}
+      - {name: delivery_delay_seconds, data_type: "number(38, 0)"}
+      - {name: is_on_time_delivery, data_type: boolean}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: ingestion_batch_id, data_type: varchar, data_tests: [not_null]}
+      - {name: dataset_run_id, data_type: varchar, data_tests: [not_null]}
+      - {name: source_record_hash, data_type: varchar, data_tests: [not_null]}
+      - {name: source_row_number, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: ingested_at, data_type: "timestamp_tz(6)", data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              analysis_scope_status != 'IN_SCOPE'
+              or (order_status = 'delivered' and customer_exists and valid_item_count > 0)
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              not delivery_interval_valid
+              or (delivery_lead_seconds >= 0 and is_on_time_delivery is not null)

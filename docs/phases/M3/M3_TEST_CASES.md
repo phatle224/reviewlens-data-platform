@@ -17,9 +17,9 @@
 | TC-M3-011 | Freshness | Inspect all source freshness contracts | `INGESTED_AT` loaded-at field and bounded warn/error rules present | `PASS` | Warn 2 days/error 7 days on `ingested_at` verified |
 | TC-M3-012 | dbt source tests | Inspect key, not-null and relationship-ready tests | Grain/lineage tests exist without exposing raw payload | `PASS` | Nine canonical four-column grain tests, lineage not-null and fail-closed raw metadata verified |
 | TC-M3-013 | dbt parse/docs | Offline parse with synthetic environment | Zero warnings/errors; docs/meta retain privacy and license | `PASS` | dbt 1.12 parse `--warn-error` passes offline; CC BY-NC-SA/private/DLP metadata and selector verified |
-| TC-M3-014 | Silver customer | Duplicate/customer geography/privacy fixtures | One customer row and minimized repeat key | `PENDING` | Await IMP-M3-004 |
-| TC-M3-015 | Silver geography | ZIP occurrences and malformed coordinates | Deterministic centroid; no join multiplication | `PENDING` | Await IMP-M3-005 |
-| TC-M3-016 | Silver order | Status/time/scope edge fixtures | Declared analysis scope and intervals deterministic | `PENDING` | Await IMP-M3-006 |
+| TC-M3-014 | Silver customer | Duplicate/customer geography/privacy fixtures | One customer row and minimized repeat key | `PASS` | Deterministic key/normalization oracle and static dbt grain/privacy contract pass; raw repeat ID is not an output column |
+| TC-M3-015 | Silver geography | ZIP occurrences and malformed coordinates | Deterministic centroid; no join multiplication | `PASS` | Two-point centroid/count fixture plus ambiguous/no-valid-coordinate cases pass at one ZIP row |
+| TC-M3-016 | Silver order | Status/time/scope edge fixtures | Declared analysis scope and intervals deterministic | `PASS` | Six scope cases plus on-time boundary and negative-interval suppression pass against versioned contract oracle |
 | TC-M3-017 | Silver item/payment | Composite keys, amounts and reconciliation | Keys/ranges/counts pass | `PENDING` | Await IMP-M3-007 |
 | TC-M3-018 | Silver product/seller | Translation, corrected length and location | Contracted columns and unknown fallback pass | `PENDING` | Await IMP-M3-008 |
 | TC-M3-019 | Silver review/DLP | Empty, orphan, duplicate and restricted text | Base score retained; AI eligibility minimized | `PENDING` | Await IMP-M3-009 |
@@ -32,8 +32,8 @@
 | TC-M3-026 | CAS/replay | Concurrent activation, rollback and replay | One CAS winner; rollback uses immutable release | `PENDING` | Await IMP-M3-018 |
 | TC-M3-027 | Request pinning | Concurrent requests during activation | Each request uses one complete release | `PENDING` | Await IMP-M3-019 |
 | TC-M3-028 | Equivalence/cost | Full versus incremental two-run drill | Row/hash equality, bounded X-Small usage and suspend | `PENDING` | Await IMP-M3-020; owner opt-in required |
-| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact metadata and dependency lock pass |
-| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 3/20 done, 15/30 pass, 0 errors and 0 warnings |
+| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-0864ef467e5cc4c1` and dependency lock pass |
+| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 6/20 done, 18/30 pass, 0 errors and 0 warnings |
 
 ## Execution log — 2026-08-14
 
@@ -51,3 +51,14 @@
 - No managed provider was called. Applying migration `006` and executing the live
   dbt source/freshness selector remain explicit later gates, not evidence claimed
   by this offline bundle.
+- `IMP-M3-004…006` adds three candidate-prefixed, contract-enforced dbt tables and
+  a fail-closed runtime identifier test. Ruff, strict mypy, offline dbt parse and
+  41 focused M3/retention tests pass; no Snowflake model was built in this session.
+- Docker inventory found 12 unused Airflow tags caused by repeated source-hash
+  builds. Eleven exact stale `reviewlens/airflow:*` references were removed while
+  preserving the latest tested Airflow image, the only app image and the named
+  Airflow volume. `reviewlens-images` now provides allowlisted dry-run/apply
+  retention; it never performs global prune or build-cache/volume deletion.
+- Full repository regression after bundle 2: 369 passed, 8 expected opt-in live
+  skips and 85.62% coverage. Repository policy reports 0 findings; artifact and
+  dependency locks pass. Final retention dry-run reports no stale project image.

@@ -120,8 +120,13 @@ def test_dbt_parse_manifest_is_snowflake_only_and_complete(tmp_path: Path) -> No
     actual_sources = {node["name"]: node["identifier"] for node in sources.values()}
     assert actual_sources == EXPECTED_SOURCES
     models = [node for node in manifest["nodes"].values() if node["resource_type"] == "model"]
-    assert len(models) == 1
-    model = models[0]
+    assert {model["name"] for model in models} == {
+        "source_contract_registry",
+        "sil_customer",
+        "sil_geolocation_zip",
+        "sil_order",
+    }
+    model = next(item for item in models if item["name"] == "source_contract_registry")
     assert model["name"] == "source_contract_registry"
     assert model["config"]["contract"]["enforced"] is True
     assert model["config"]["materialized"] == "view"

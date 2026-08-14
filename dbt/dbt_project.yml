@@ -25,3 +25,8 @@ models:
       +contract:
         enforced: true
       +tags: ["m1_foundation", "synthetic_safe"]
+    silver:
+      +materialized: table
+      +contract:
+        enforced: true
+      +tags: ["m3_silver"]

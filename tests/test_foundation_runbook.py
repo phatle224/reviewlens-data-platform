@@ -49,10 +49,10 @@ def test_image_cleanup_is_allowlisted_dry_run_first_and_never_forced() -> None:
     text = _text()
     powershell = "\n".join(_fenced_blocks("powershell"))
 
-    assert "@('reviewlens/app', 'reviewlens/airflow')" in powershell
-    assert '$_ -ne "${repository}:$currentTag"' in powershell
-    assert "$staleReviewlensImages" in powershell
-    assert "docker image rm @staleReviewlensImages" in powershell
+    assert "reviewlens-images.exe" in powershell
+    assert powershell.index("reviewlens-images.exe\n") < powershell.index(
+        "reviewlens-images.exe --apply"
+    )
     assert "docker image rm --force" not in powershell
     assert "docker image prune" not in powershell
     assert "docker system prune" not in powershell

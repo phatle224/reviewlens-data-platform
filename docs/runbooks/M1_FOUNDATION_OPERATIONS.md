@@ -131,38 +131,28 @@ docker compose build app airflow
 
 ### 5.1 Dọn image ReviewLens cũ, giữ final tag
 
-Đoạn đầu chỉ in kế hoạch, không xóa. Nó chỉ xét hai repository allowlist của
-project và luôn giữ tag trong `deploy/artifacts.lock.json`:
-
-```powershell
-$artifact = Get-Content -Raw -LiteralPath 'deploy/artifacts.lock.json' | ConvertFrom-Json
-$currentTag = [string]$artifact.artifact_tag
-$reviewlensRepositories = @('reviewlens/app', 'reviewlens/airflow')
-$staleReviewlensImages = @(
-    foreach ($repository in $reviewlensRepositories) {
-        docker image ls $repository --format '{{.Repository}}:{{.Tag}}' |
-            Where-Object {
-                $_ -ne "${repository}:$currentTag" -and $_ -notmatch ':<none>$'
-            }
-    }
-)
-$staleReviewlensImages
-```
-
-Review danh sách. Chỉ khi mọi reference đều bắt đầu bằng `reviewlens/app:` hoặc
-`reviewlens/airflow:` mới apply; lệnh không dùng force nên Docker sẽ từ chối
+Lệnh mặc định chỉ in kế hoạch JSON, không xóa. Nó chỉ xét hai repository
+`reviewlens/app` và `reviewlens/airflow`, luôn giữ tag trong
+`deploy/artifacts.lock.json`, image mới nhất hiện có của mỗi repository và mọi
 image đang được container sử dụng:
 
 ```powershell
-if ($staleReviewlensImages.Count -gt 0) {
-    docker image rm @staleReviewlensImages
-}
+.venv\Scripts\reviewlens-images.exe
+```
+
+Review trường `stale`. Chỉ khi đúng các tag cũ của project mới apply. Lệnh dùng
+exact reference, không dùng force và không đụng volume/build cache/image khác:
+
+```powershell
+.venv\Scripts\reviewlens-images.exe --apply
 docker image ls reviewlens/app
 docker image ls reviewlens/airflow
 ```
 
 Không dùng `docker system prune`, `docker image prune -a` hoặc xóa base images
-theo wildcard vì máy có thể chứa image của project khác.
+theo wildcard vì máy có thể chứa image của project khác. Chạy dry-run/apply sau
+mỗi final image smoke thành công; không build image ở các bundle chỉ thay đổi
+dbt/docs/tests và không cần container runtime.
 
 ## 6. Start và verify local stack
 

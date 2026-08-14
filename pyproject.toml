@@ -30,6 +30,7 @@ reviewlens-config = "reviewlens.config:main"
 reviewlens-fixtures = "reviewlens.synthetic.generator:main"
 reviewlens-app = "reviewlens.app.launcher:main"
 reviewlens-artifacts = "reviewlens.deploy.artifacts:main"
+reviewlens-images = "reviewlens.deploy.images:main"
 reviewlens-health = "reviewlens.observability.health:main"
 reviewlens-policy = "reviewlens.ci.policy:main"
 

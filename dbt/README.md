@@ -9,7 +9,9 @@ now declares every Bronze business/lineage column and type, a canonical physical
 grain test, `INGESTED_AT` freshness (warn after 2 days, error after 7 days), and
 privacy metadata that prevents `RAW_PAYLOAD` or restricted review text from being
 treated as a public/downstream interface. Conformed Silver/Gold models remain M3
-work and build under versioned candidate physical namespaces.
+work and build under versioned candidate physical namespaces. The first Silver
+slice now includes `SIL_CUSTOMER`, `SIL_GEOLOCATION_ZIP` and `SIL_ORDER`; each
+requires an explicit candidate namespace, source release and ingestion batch.
 
 Credentials stay in the ignored root `.env`. The profile reads only:
 
@@ -46,3 +48,19 @@ source/freshness contract against Snowflake with:
 
 These commands are live and can resume the configured warehouse; they are not
 part of the offline M3 bootstrap bundle.
+
+Build the first isolated Silver candidate only after migration `006` and the
+Bronze gate pass. Replace the three example identifiers with values emitted by
+the processing/candidate planner:
+
+```powershell
+$m3Vars = '{candidate_namespace: C_<64_HEX>, source_release_id: olist_<64_hex>, ingestion_batch_id: batch_<64_hex>}'
+.venv\Scripts\dotenv.exe -f .env run -- `
+  .venv\Scripts\dbt.exe build --project-dir dbt --profiles-dir dbt `
+  --selector m3_silver_candidate --vars $m3Vars
+```
+
+The selector contains a runtime regex gate and fails when a placeholder or
+malformed identifier is used. Candidate objects are not serving objects and a
+successful dbt build alone never activates a release. This live command is
+deferred until an explicit owner-approved Snowflake gate.

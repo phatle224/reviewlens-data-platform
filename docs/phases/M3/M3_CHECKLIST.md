@@ -3,10 +3,10 @@
 | Attribute | Value |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 3/20 work items |
+| Completed | 6/20 work items |
 | Partial | 0/20 work items |
 | Blocked | 0/20 work items |
-| Not started | 17/20 work items |
+| Not started | 14/20 work items |
 | Last updated | 2026-08-14 |
 
 ## Implementation-plan checklist
@@ -16,9 +16,9 @@
 | IMP-M3-001 | `DONE` | Processing-run/input and candidate physical-reference ledger | Deterministic SHA-256 run/input/candidate identities, ordered 1:N lineage and replay-safe in-memory registry; additive `006_processing_candidates.sql` creates three secret-free append-only ledgers with exact grants; migration replay and contract tests pass |
 | IMP-M3-002 | `DONE` | Versioned Silver candidate build/cleanup strategy | Versioned candidate IDs produce isolated physical object namespaces inside least-privilege `SILVER`/`GOLD` schemas; thread-safe lease tests allow one concurrent owner and cleanup only terminal failed/unreferenced candidates |
 | IMP-M3-003 | `DONE` | dbt Bronze sources, freshness, contracts and docs | All nine Bronze relations declare exact typed business/lineage columns, canonical physical-grain tests, bounded freshness, privacy/license metadata and `m3_bronze_contract`; offline dbt parse passes with warnings-as-errors |
-| IMP-M3-004 | `NOT_STARTED` | `SIL_CUSTOMER`, minimized repeat-customer key and geography | Await M3-002/003 |
-| IMP-M3-005 | `NOT_STARTED` | Deterministic `SIL_GEOLOCATION_ZIP` centroid/quality model | Await M3-002/003 |
-| IMP-M3-006 | `NOT_STARTED` | `SIL_ORDER` status/time/scope/delivery flags | Await M3-002/003 and M0 scope rules |
+| IMP-M3-004 | `DONE` | `SIL_CUSTOMER`, minimized repeat-customer key and geography | Candidate-bound table contract deduplicates by deterministic lineage order, excludes raw `customer_unique_id`, emits versioned SHA-256 repeat key and normalized ZIP/city/state; privacy/type/dedup fixture tests pass |
+| IMP-M3-005 | `DONE` | Deterministic `SIL_GEOLOCATION_ZIP` centroid/quality model | One row per normalized ZIP, fixed-scale valid-point centroid, occurrence/reconciliation counts and explicit valid/ambiguous/partial/no-valid quality states; known-count/no-multiplication fixtures pass |
+| IMP-M3-006 | `DONE` | `SIL_ORDER` status/time/scope/delivery flags | One deterministic order with M0 `olist_order_scope_v1`, Brazilian local-civil policy, parent/item guards and nonnegative delivery interval/on-time rules; delivered/canceled/missing/unknown/time-edge fixtures pass |
 | IMP-M3-007 | `NOT_STARTED` | `SIL_ORDER_ITEM` and `SIL_ORDER_PAYMENT` | Await M3-006 |
 | IMP-M3-008 | `NOT_STARTED` | `SIL_PRODUCT`, translation and `SIL_SELLER` | Await M3-005 |
 | IMP-M3-009 | `NOT_STARTED` | `SIL_ORDER_REVIEW` and DLP eligibility flags | Await M3-006 and privacy rules |

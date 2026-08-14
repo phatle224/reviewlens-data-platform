@@ -12,3 +12,8 @@ selectors:
     definition:
       method: source
       value: bronze_olist
+  - name: m3_silver_candidate
+    description: Build and test the isolated M3 Silver candidate models and runtime gate.
+    definition:
+      method: tag
+      value: m3_silver
