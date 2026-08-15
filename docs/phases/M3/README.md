@@ -12,11 +12,12 @@ change the active release pointer.
 | [Implementation plan](../../IMPLEMENTATION_PLAN.md) | Dependencies and acceptance criteria |
 | [ADR-005](../../ADR/ADR-005-ingestion-release-strategy.md) | Immutable candidate and atomic-release baseline |
 
-Phase status: `IN_PROGRESS` with 14/20 work items complete. Bundles
-`IMP-M3-001…014` deliver processing lineage, isolated candidates, Silver/DQ
+Phase status: `IN_PROGRESS` with 15/20 work items complete. Bundles
+`IMP-M3-001…015` deliver processing lineage, isolated candidates, Silver/DQ
 contracts, five conformed dimensions, four reconciled base facts and a versioned
-review-to-item allocation bridge. Dimension lookups are version-aware/as-of,
-fact grains are explicit, and review text stays outside Gold. Multi-item review
+review-to-item allocation bridge. Four monthly Gold marts apply metric dictionary
+v1 only after pre-aggregating incompatible fact grains. Dimension lookups are
+version-aware/as-of, review text stays outside Gold, and multi-item review
 weights reconcile exactly to one without claiming item-level evidence. Their
 offline gates pass without resuming Snowflake or bypassing review DLP. The next
-dependency-ready work item is `IMP-M3-015`.
+dependency-ready work item is `IMP-M3-016`.

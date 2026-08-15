@@ -3,10 +3,10 @@
 | Attribute | Value |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 14/20 work items |
+| Completed | 15/20 work items |
 | Partial | 0/20 work items |
 | Blocked | 0/20 work items |
-| Not started | 6/20 work items |
+| Not started | 5/20 work items |
 | Last updated | 2026-08-15 |
 
 ## Implementation-plan checklist
@@ -27,8 +27,8 @@
 | IMP-M3-012 | `DONE` | Conformed date/customer/product/seller/geography dimensions | Five candidate-bound models resolve to exact `GOLD` schema; event-complete date keys, version-aware SHA-256 member keys, stable entity unknowns, half-open SCD intervals and reusable non-overlap/as-of tests pass; customer/seller geography joins cannot multiply the declared grain |
 | IMP-M3-013 | `DONE` | Order/item/payment/review base facts | Four candidate-bound facts enforce order, compound item/payment and review/order grains; invalid Silver rows are filtered through explicit quality states, dimension lookup is as-of with unknown fallback, and a singular gate reconciles eligible counts plus item/payment amounts; review fact contains no title/comment and remains independent of AI coverage |
 | IMP-M3-014 | `DONE` | Versioned multi-item review attribution policy/bridge | ADR-011 freezes transparent equal-item weighting with deterministic 18-decimal residual and unknown-item fallback; candidate-bound bridge exposes policy labels and only allocated additive measures; Python single/two/three/zero-item, reorder and invalid/duplicate fixtures plus dbt grain/relationship/privacy and exact per-review reconciliation gates pass |
-| IMP-M3-015 | `NOT_STARTED` | Delivery, product-review, seller and customer marts | Dependency ready after M3-014; implement metric-dictionary fixtures next |
-| IMP-M3-016 | `NOT_STARTED` | Release-bound dashboard/SQL semantic views | Await marts |
+| IMP-M3-015 | `DONE` | Delivery, product-review, seller and customer marts | Four candidate-bound monthly marts pre-aggregate item/payment/seller-order grains before joins; metric dictionary v1, ADR-011 allocation and ADR-012 mart/repeat-customer semantics are labeled; golden delivery/value/review/customer fixtures, zero-denominator/invalid negatives, dbt grain/relationship/privacy contracts and cross-mart reconciliation pass |
+| IMP-M3-016 | `NOT_STARTED` | Release-bound dashboard/SQL semantic views | Dependency ready after M3-015; expose approved columns and usage rules next |
 | IMP-M3-017 | `NOT_STARTED` | Candidate Gold build/test target | Await semantic views |
 | IMP-M3-018 | `NOT_STARTED` | Release events, immutable definition and CAS active pointer | Await tested Gold candidate |
 | IMP-M3-019 | `NOT_STARTED` | Request resolver pins explicit Silver/Gold physical refs | Await atomic release pointer |

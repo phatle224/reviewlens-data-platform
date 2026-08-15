@@ -1,0 +1,215 @@
+version: 2
+
+models:
+  - name: mart_order_delivery
+    description: Monthly order, delivery and value metrics at customer geography grain.
+    config:
+      contract: {enforced: true}
+      meta:
+        grain: "period_month + geography_key"
+        data_class: private_aggregate
+        work_item: IMP-M3-015
+        contains_review_text: false
+        metric_policy_version: olist-metric-dictionary-v1
+    columns:
+      - {name: delivery_mart_key, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: period_month, data_type: date, data_tests: [not_null]}
+      - name: geography_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: "ref('dim_geography')", field: geography_key}
+      - {name: geography_state, data_type: varchar, data_tests: [not_null]}
+      - {name: geography_city, data_type: varchar, data_tests: [not_null]}
+      - {name: order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: delivered_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: cancelled_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: delivery_eligible_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: on_time_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: on_time_delivery_rate, data_type: "number(38, 18)"}
+      - {name: average_delivery_lead_seconds, data_type: "number(38, 6)"}
+      - {name: average_delivery_delay_seconds, data_type: "number(38, 6)"}
+      - {name: gross_merchandise_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: freight_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: payment_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: payment_reconciliation_delta, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: metric_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [period_month, geography_key]}
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              order_count >= delivered_order_count
+              and order_count >= cancelled_order_count
+              and delivery_eligible_order_count >= on_time_order_count
+              and (delivery_eligible_order_count > 0) = (on_time_delivery_rate is not null)
+              and (on_time_delivery_rate is null
+                   or on_time_delivery_rate between 0 and 1)
+              and payment_reconciliation_delta
+                  = payment_value - gross_merchandise_value - freight_value
+              and metric_policy_version = 'olist-metric-dictionary-v1'
+
+  - name: mart_product_review
+    description: Monthly product/category commerce and allocated review score metrics.
+    config:
+      contract: {enforced: true}
+      meta:
+        grain: "period_month + product_key"
+        data_class: private_aggregate
+        work_item: IMP-M3-015
+        contains_review_text: false
+        review_metrics: allocated_only
+        metric_policy_version: olist-metric-dictionary-v1
+    columns:
+      - {name: product_review_mart_key, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: period_month, data_type: date, data_tests: [not_null]}
+      - name: product_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: "ref('dim_product')", field: product_key}
+      - {name: product_category_name, data_type: varchar, data_tests: [not_null]}
+      - {name: product_category_name_english, data_type: varchar, data_tests: [not_null]}
+      - {name: order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: item_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: gross_merchandise_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: freight_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: allocated_review_count, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: allocated_review_score, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: average_review_score, data_type: "number(38, 6)"}
+      - {name: allocation_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: metric_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [period_month, product_key]}
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              order_count >= 0 and item_count >= 0
+              and allocated_review_count >= 0
+              and (allocated_review_count > 0) = (average_review_score is not null)
+              and (average_review_score is null or average_review_score between 1 and 5)
+              and allocation_policy_version = 'olist-review-item-equal-weight-v1'
+              and metric_policy_version = 'olist-metric-dictionary-v1'
+
+  - name: mart_seller_performance
+    description: Monthly seller commerce, delivery and allocated review metrics.
+    config:
+      contract: {enforced: true}
+      meta:
+        grain: "period_month + seller_key"
+        data_class: private_aggregate
+        work_item: IMP-M3-015
+        contains_review_text: false
+        review_metrics: allocated_only
+        metric_policy_version: olist-metric-dictionary-v1
+    columns:
+      - {name: seller_performance_mart_key, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: period_month, data_type: date, data_tests: [not_null]}
+      - name: seller_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: "ref('dim_seller')", field: seller_key}
+      - name: geography_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: "ref('dim_geography')", field: geography_key}
+      - {name: seller_state, data_type: varchar, data_tests: [not_null]}
+      - {name: seller_city, data_type: varchar, data_tests: [not_null]}
+      - {name: order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: item_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: delivered_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: delivery_eligible_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: on_time_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: on_time_delivery_rate, data_type: "number(38, 18)"}
+      - {name: average_delivery_lead_seconds, data_type: "number(38, 6)"}
+      - {name: gross_merchandise_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: freight_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: allocated_review_count, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: allocated_review_score, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: average_review_score, data_type: "number(38, 6)"}
+      - {name: allocation_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: metric_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [period_month, seller_key]}
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              order_count >= delivered_order_count
+              and item_count >= order_count
+              and delivery_eligible_order_count >= on_time_order_count
+              and (delivery_eligible_order_count > 0) = (on_time_delivery_rate is not null)
+              and (on_time_delivery_rate is null or on_time_delivery_rate between 0 and 1)
+              and allocated_review_count >= 0
+              and (allocated_review_count > 0) = (average_review_score is not null)
+              and (average_review_score is null or average_review_score between 1 and 5)
+              and allocation_policy_version = 'olist-review-item-equal-weight-v1'
+              and metric_policy_version = 'olist-metric-dictionary-v1'
+
+  - name: mart_customer_overview
+    description: Monthly customer cohort behavior at customer geography grain.
+    config:
+      contract: {enforced: true}
+      meta:
+        grain: "period_month + geography_key"
+        data_class: private_aggregate
+        work_item: IMP-M3-015
+        contains_review_text: false
+        repeat_customer_basis: lifetime_orders_for_active_monthly_customers
+        metric_policy_version: olist-metric-dictionary-v1
+    columns:
+      - {name: customer_overview_mart_key, data_type: varchar, data_tests: [not_null, unique]}
+      - {name: period_month, data_type: date, data_tests: [not_null]}
+      - name: geography_key
+        data_type: varchar
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: "ref('dim_geography')", field: geography_key}
+      - {name: geography_state, data_type: varchar, data_tests: [not_null]}
+      - {name: geography_city, data_type: varchar, data_tests: [not_null]}
+      - {name: order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: delivered_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: cancelled_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: unknown_customer_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: customer_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: repeat_customer_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: repeat_customer_rate, data_type: "number(38, 18)"}
+      - {name: gross_merchandise_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: freight_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: payment_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: payment_reconciliation_delta, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: repeat_customer_definition_version, data_type: varchar, data_tests: [not_null]}
+      - {name: metric_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: source_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: model_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [period_month, geography_key]}
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              order_count >= delivered_order_count
+              and order_count >= cancelled_order_count
+              and order_count >= unknown_customer_order_count
+              and customer_count >= repeat_customer_count
+              and (customer_count > 0) = (repeat_customer_rate is not null)
+              and (repeat_customer_rate is null or repeat_customer_rate between 0 and 1)
+              and payment_reconciliation_delta
+                  = payment_value - gross_merchandise_value - freight_value
+              and repeat_customer_definition_version = 'olist-repeat-customer-lifetime-v1'
+              and metric_policy_version = 'olist-metric-dictionary-v1'

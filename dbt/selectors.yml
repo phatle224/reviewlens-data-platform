@@ -32,3 +32,8 @@ selectors:
     definition:
       method: tag
       value: m3_review_attribution
+  - name: m3_gold_marts
+    description: Build and reconcile the four metric-dictionary v1 Gold marts.
+    definition:
+      method: tag
+      value: m3_gold_marts

@@ -8,7 +8,7 @@
 |---|---|
 | Trạng thái tổng thể | `ON_TRACK` |
 | Phase hiện tại | `M3` — Conformed Silver, Gold and atomic release |
-| Trạng thái phase hiện tại | `IN_PROGRESS` — 14/20 work items complete; 25/30 phase tests pass |
+| Trạng thái phase hiện tại | `IN_PROGRESS` — 15/20 work items complete; 26/30 phase tests pass |
 | Phase gần nhất hoàn tất | `M2` — nine-file private R2/Bronze ingestion and replay gate |
 | Cập nhật lần cuối | 2026-08-15 |
 | Người thực hiện | Solo Developer |
@@ -23,7 +23,7 @@
 | M0 | `COMPLETE` | Olist product/data/license/security/architecture baseline | [Checklist](./phases/M0/M0_CHECKLIST.md) · [Tests](./phases/M0/M0_TEST_CASES.md) |
 | M1 | `COMPLETE` | Config, identities, provider/dbt/Airflow boundaries, audit/logging, authenticated app shell and fail-closed CI/live rotation gates | [Overview](./phases/M1/README.md) · [Checklist](./phases/M1/M1_CHECKLIST.md) · [Tests](./phases/M1/M1_TEST_CASES.md) |
 | M2 | `COMPLETE` | 18 implementation items and owner-approved full nine-file private DAG + immutable replay reconcile with empty alerts and warehouse suspended | [Overview](./phases/M2/README.md) · [Checklist](./phases/M2/M2_CHECKLIST.md) · [Tests](./phases/M2/M2_TEST_CASES.md) |
-| M3 | `IN_PROGRESS` | Silver/DQ, conformed dimensions/base facts and versioned review-item allocation complete offline (14/20) | [Overview](./phases/M3/README.md) · [Checklist](./phases/M3/M3_CHECKLIST.md) · [Tests](./phases/M3/M3_TEST_CASES.md) |
+| M3 | `IN_PROGRESS` | Silver/DQ, conformed facts/dimensions, review allocation and four metric-dictionary marts complete offline (15/20) | [Overview](./phases/M3/README.md) · [Checklist](./phases/M3/M3_CHECKLIST.md) · [Tests](./phases/M3/M3_TEST_CASES.md) |
 | M4 | `NOT_STARTED` | DLP-approved review enrichment | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M5 | `NOT_STARTED` | Embeddings, ChromaDB and grounded RAG | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M6 | `NOT_STARTED` | Guarded Text-to-SQL | [Plan](./IMPLEMENTATION_PLAN.md) |
@@ -34,10 +34,10 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 
 ## Kết quả phiên gần nhất
 
-- Hoàn tất offline `IMP-M3-014`: bridge phân bổ review theo item với policy `olist-review-item-equal-weight-v1` và ADR-011.
-- Trọng số/count của mỗi review cộng đúng 1, allocated score cộng đúng score gốc; phần dư 18 chữ số được gán xác định và review không có item hợp lệ đi qua unknown fallback.
-- Review score lặp lại được đánh dấu không naturally additive; product/seller marts chỉ được dùng allocated measures và phải hiển thị policy version.
-- Ruff, strict mypy, dbt parse warnings-as-errors, 59 focused M3 tests và full offline regression pass. Không build Docker image và không gọi Snowflake, R2, OpenRouter hoặc Chroma.
+- Hoàn tất offline `IMP-M3-015`: bốn monthly Gold marts cho delivery, product-review, seller và customer theo metric dictionary v1/ADR-012.
+- Item/payment/seller-order được pre-aggregate trước khi join; counts/amounts reconcile về facts và product/seller reviews chỉ dùng allocated measures của ADR-011.
+- Repeat-customer rate dùng lifetime order count cho known identities hoạt động trong cohort tháng; unknown customers hiển thị riêng và không vào denominator.
+- Ruff, strict mypy, dbt parse warnings-as-errors, 71 focused M3 tests và full offline regression pass. Không build Docker image và không gọi Snowflake, R2, OpenRouter hoặc Chroma.
 
 ## Kiểm thử
 
@@ -46,16 +46,16 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 | M0 | 18 `PASS`, 3 `DEFERRED`, 0 `FAIL` | [M0 test cases](./phases/M0/M0_TEST_CASES.md) |
 | M1 | 41 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 193 pass/6 live skip plus owner-approved live rotation 1 pass; Chroma quarantine + clean-path/container/Compose/artifact/metrics + CI policy/dependency/AppTest/logging/audit/Airflow/dbt/provider/R2/stage/RBAC/JWT evidence |
 | M2 | 25 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M2 test cases](./phases/M2/M2_TEST_CASES.md); offline, synthetic live and full private nine-file DAG/replay evidence pass |
-| M3 | 25 `PASS`, 5 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M3 test cases](./phases/M3/M3_TEST_CASES.md); first fourteen work items pass offline contracts; live candidate build and release work are not claimed |
-| Quality | `PASS` | 405 offline tests pass + 8 expected opt-in live skips, 86.16% coverage; Ruff, strict mypy, dbt parse, policy/artifact/dependency locks pass |
-| Status validator | `PASS` — 0 errors, 0 warnings | M0–M2 complete; M3 synchronized at 14/20 done and 25/30 pass |
+| M3 | 26 `PASS`, 4 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M3 test cases](./phases/M3/M3_TEST_CASES.md); first fifteen work items pass offline contracts; live candidate build and release work are not claimed |
+| Quality | `PASS` | 417 offline tests pass + 8 expected opt-in live skips, 86.39% coverage; Ruff, strict mypy, dbt parse, policy/artifact/dependency locks pass |
+| Status validator | `PASS` — 0 errors, 0 warnings | M0–M2 complete; M3 synchronized at 15/20 done and 26/30 pass |
 
 ## Blocker và rủi ro
 
 - Raw Olist hiện nằm trong private R2 dưới immutable release prefix. Không public object, không cleanup/overwrite thủ công; retention 90 ngày vẫn áp dụng theo baseline.
 - Olist license cho phép non-commercial portfolio use theo CC BY-NC-SA, nhưng review free text vẫn cần DLP/privacy gate trước OpenRouter/Chroma và không được public raw.
 - Snowflake trial hết hạn `2026-09-03`; ưu tiên M3 vertical slice, giữ X-Small/60s/resource monitor.
-- Product/seller insights từ review có multi-item ambiguity; M3 phải implement allocation/label policy, không nhân review rồi sum.
+- Product/seller review insights remain allocations, not item-level evidence; semantic views must expose the policy label and prevent summing raw bridge rows.
 - Chroma adapter M1 vẫn là lazy/fake-tested boundary. Machine-readable quarantine chặn package/server 1.5.9 và mọi addition chưa được review; `IMP-M5-001` phải thay policy có chủ đích chỉ sau khi một patched release qua dependency/image audit và negative access smoke.
 
 ## Chi phí và tài nguyên
@@ -69,13 +69,13 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 
 ## Input cần từ chủ project
 
-Không cần thêm credential hoặc secret cho bundle M3 tiếp theo. Migration `006` và
-dbt source/freshness live gate sẽ chỉ chạy sau khi workflow nêu rõ chi phí và nhận
-xác nhận của owner; công việc Silver model bằng fixture/offline có thể tiếp tục ngay.
+Không cần thêm credential hoặc secret cho bundle M3 tiếp theo. Curated semantic
+views và access contracts có thể tiếp tục offline; live candidate build chỉ chạy
+sau khi workflow nêu rõ chi phí và nhận xác nhận của owner.
 
 ## Việc tiếp theo
 
-1. Implement `IMP-M3-015`: delivery, product-review, seller and customer marts using the frozen metric/allocation contracts.
+1. Implement `IMP-M3-016`: curated release-bound dashboard/SQL semantic views with approved columns and metric usage rules.
 2. Keep review text private and `ai_eligible=false`; only M4 may create a DLP-approved external projection.
 3. Avoid Docker builds for dbt/docs-only bundles and keep every model under the candidate namespace.
 4. Defer migration `006` and live dbt build/source freshness until an explicit owner-approved Snowflake gate.
@@ -91,6 +91,7 @@ xác nhận của owner; công việc Silver model bằng fixture/offline có th
 - [ADR-009 — Bronze decimal projection](./ADR/ADR-009-bronze-decimal-projection.md)
 - [ADR-010 — duplicate observability semantics](./ADR/ADR-010-duplicate-observability-semantics.md)
 - [ADR-011 — review-to-item attribution policy](./ADR/ADR-011-review-item-attribution-policy.md)
+- [ADR-012 — Gold mart grains and metric semantics](./ADR/ADR-012-gold-mart-metric-semantics.md)
 - [M0 decision register](./phases/M0/M0_DECISION_REGISTER.md)
 - [M2 overview](./phases/M2/README.md)
 - [M2 checklist](./phases/M2/M2_CHECKLIST.md)

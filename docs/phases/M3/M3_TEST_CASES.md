@@ -27,13 +27,13 @@
 | TC-M3-021 | Late/unknown | Reordered, late and orphan inputs | Deterministic unknown/correction policy | `PASS` | Four stable distinct unknown keys pass; shuffled/replayed revisions select the same correction and label older effective row `LATE_SUPERSEDED`; mixed-entity/unsafe-time negatives fail closed; eight Silver bases use the shared ranking macro |
 | TC-M3-022 | Dimensions/facts | Declared grains and relationships | No unexpected multiplication or loss | `PASS` | Stable/version-scoped key, unknown, shuffled SCD boundary, overlap-negative and exact fact-partition fixtures pass; manifest has 5 dimensions + 4 facts in `GOLD`; relationships/grains plus count and item/payment amount reconciliation tests are selected by `m3_gold_base`; review fact has no restricted text |
 | TC-M3-023 | Attribution | Multi-item order review metrics | Allocation labels present; no silent double count | `PASS` | Policy `olist-review-item-equal-weight-v1` labels every bridge row; deterministic residual makes weight/count sum exactly 1 and allocated score sum to source score for one/two/three items; zero-item fallback preserves review; shuffled inputs are invariant and duplicate/invalid grains fail closed |
-| TC-M3-024 | Marts | Metric dictionary fixture | Golden outputs match declared grain | `PENDING` | Await IMP-M3-015/016 |
+| TC-M3-024 | Marts | Metric dictionary fixture | Golden outputs match declared grain | `PASS` | Golden fixtures verify order/delivery/value totals, null zero-denominators, fractional allocated review sample/score and distinct lifetime repeat-customer rate with unknown exclusion; four monthly mart grains, relationships, policy labels and fact/bridge count-amount reconciliation pass offline |
 | TC-M3-025 | Candidate failure | Silver/Gold candidate fails a gate | Active serving pointer remains unchanged | `PENDING` | Await IMP-M3-017/018 |
 | TC-M3-026 | CAS/replay | Concurrent activation, rollback and replay | One CAS winner; rollback uses immutable release | `PENDING` | Await IMP-M3-018 |
 | TC-M3-027 | Request pinning | Concurrent requests during activation | Each request uses one complete release | `PENDING` | Await IMP-M3-019 |
 | TC-M3-028 | Equivalence/cost | Full versus incremental two-run drill | Row/hash equality, bounded X-Small usage and suspend | `PENDING` | Await IMP-M3-020; owner opt-in required |
-| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-d7ada72f9e6c6bf7`, dependency lock and project-image dry-run pass |
-| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 14/20 done, 25/30 pass, 0 errors and 0 warnings |
+| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-47fd6d176c1fa12d`, dependency lock and project-image dry-run pass |
+| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 15/20 done, 26/30 pass, 0 errors and 0 warnings |
 
 ## Execution log — 2026-08-14
 
@@ -120,3 +120,22 @@
   `local-sha256-d7ada72f9e6c6bf7`.
 - No Docker image was built and no Snowflake, R2, OpenRouter or Chroma call was
   performed. The first live candidate execution remains a later explicit gate.
+
+## Execution log — 2026-08-15 (`IMP-M3-015`)
+
+- Added four candidate-bound monthly marts for order delivery, product review,
+  seller performance and customer overview. Item/payment facts are first reduced
+  to compatible order or seller-order grains, preventing metric multiplication.
+- ADR-012 freezes purchase-month grains, delivery denominator, payment delta and
+  lifetime repeat-customer cohort semantics. ADR-011 allocated fields are the
+  only review measures used by product/seller marts; raw review text is absent.
+- Deterministic Python fixtures cover delivery/value totals, zero denominators,
+  fractional review allocation, repeat identity deduplication, unknown exclusion
+  and sanitized invalid/conflicting inputs. Singular dbt tests reconcile mart
+  counts and amounts to facts/bridge.
+- M3 focused suite: 71 tests pass. Ruff, strict mypy, dbt 1.12 parse
+  `--warn-error` and the `m3_gold_marts` selector pass offline.
+- Full offline regression: 417 tests pass, 8 expected live skips and 86.39%
+  coverage. Final artifact is `local-sha256-47fd6d176c1fa12d`.
+- No Docker image was built and no Snowflake, R2, OpenRouter or Chroma call was
+  performed. Live mart execution remains part of the later candidate build gate.
