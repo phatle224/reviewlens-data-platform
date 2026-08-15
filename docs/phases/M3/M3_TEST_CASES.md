@@ -27,13 +27,13 @@
 | TC-M3-021 | Late/unknown | Reordered, late and orphan inputs | Deterministic unknown/correction policy | `PASS` | Four stable distinct unknown keys pass; shuffled/replayed revisions select the same correction and label older effective row `LATE_SUPERSEDED`; mixed-entity/unsafe-time negatives fail closed; eight Silver bases use the shared ranking macro |
 | TC-M3-022 | Dimensions/facts | Declared grains and relationships | No unexpected multiplication or loss | `PASS` | Stable/version-scoped key, unknown, shuffled SCD boundary, overlap-negative and exact fact-partition fixtures pass; manifest has 5 dimensions + 4 facts in `GOLD`; relationships/grains plus count and item/payment amount reconciliation tests are selected by `m3_gold_base`; review fact has no restricted text |
 | TC-M3-023 | Attribution | Multi-item order review metrics | Allocation labels present; no silent double count | `PASS` | Policy `olist-review-item-equal-weight-v1` labels every bridge row; deterministic residual makes weight/count sum exactly 1 and allocated score sum to source score for one/two/three items; zero-item fallback preserves review; shuffled inputs are invariant and duplicate/invalid grains fail closed |
-| TC-M3-024 | Marts | Metric dictionary fixture | Golden outputs match declared grain | `PASS` | Golden fixtures verify order/delivery/value totals, null zero-denominators, fractional allocated review sample/score and distinct lifetime repeat-customer rate with unknown exclusion; four monthly mart grains, relationships, policy labels and fact/bridge count-amount reconciliation pass offline |
+| TC-M3-024 | Marts/semantic | Metric dictionary and serving allowlist fixtures | Golden outputs and approved semantic fields match declared grains | `PASS` | Golden fixtures verify order/delivery/value totals, null zero-denominators, fractional allocated review sample/score and distinct lifetime repeat-customer rate with unknown exclusion; four monthly mart grains reconcile offline; semantic catalog/dbt contracts expose only four logical views with approved dimensions/measures, policy labels and partial-AI state while physical names, restricted IDs/text and unsafe roles fail closed |
 | TC-M3-025 | Candidate failure | Silver/Gold candidate fails a gate | Active serving pointer remains unchanged | `PENDING` | Await IMP-M3-017/018 |
 | TC-M3-026 | CAS/replay | Concurrent activation, rollback and replay | One CAS winner; rollback uses immutable release | `PENDING` | Await IMP-M3-018 |
 | TC-M3-027 | Request pinning | Concurrent requests during activation | Each request uses one complete release | `PENDING` | Await IMP-M3-019 |
 | TC-M3-028 | Equivalence/cost | Full versus incremental two-run drill | Row/hash equality, bounded X-Small usage and suspend | `PENDING` | Await IMP-M3-020; owner opt-in required |
-| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-47fd6d176c1fa12d`, dependency lock and project-image dry-run pass |
-| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 15/20 done, 26/30 pass, 0 errors and 0 warnings |
+| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-49e72eb94ce0de2a`, dependency lock and project-image dry-run pass |
+| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 16/20 done, 26/30 pass, 0 errors and 0 warnings |
 
 ## Execution log — 2026-08-14
 
@@ -139,3 +139,21 @@
   coverage. Final artifact is `local-sha256-47fd6d176c1fa12d`.
 - No Docker image was built and no Snowflake, R2, OpenRouter or Chroma call was
   performed. Live mart execution remains part of the later candidate build gate.
+
+## Execution log — 2026-08-15 (`IMP-M3-016`)
+
+- Added semantic catalog v1 and four candidate-bound dbt views for order
+  delivery, product review, seller performance and customer overview. Consumers
+  use stable logical names; server-side release resolution remains reserved for
+  `IMP-M3-018/019` and candidate views receive no early serving grants.
+- Exact catalog/YAML contracts allow only approved dimensions and measures for
+  `ANALYST_ROLE` and `TEXT_TO_SQL_ROLE`. Natural IDs, review text, raw/physical
+  identifiers and unapproved roles fail closed. Product/seller order counts are
+  labeled nonadditive and AI enrichment remains explicitly unavailable until M4.
+- ADR-013 records the serving boundary. Offline dbt 1.12 parse with
+  warnings-as-errors and the `m3_semantic` selector pass; focused M3 suite reports
+  82 passed. Ruff, strict mypy and schema/catalog negative tests pass.
+- Full offline regression: 428 passed, 8 expected live skips and 86.41% coverage.
+  Final artifact is `local-sha256-49e72eb94ce0de2a`.
+- No Docker image was built and no Snowflake, R2, OpenRouter or Chroma call was
+  performed. The candidate execution target is the next offline work item.

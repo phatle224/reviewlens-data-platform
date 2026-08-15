@@ -61,6 +61,16 @@ from reviewlens.warehouse.revisions import (
     resolve_dimension_revisions,
     unknown_member,
 )
+from reviewlens.warehouse.semantic import (
+    SEMANTIC_CATALOG_VERSION,
+    SEMANTIC_PHYSICAL_NAME_POLICY,
+    SemanticCatalog,
+    SemanticCatalogError,
+    SemanticViewContract,
+    load_semantic_catalog,
+    parse_semantic_catalog,
+    resolve_semantic_view,
+)
 
 __all__ = [
     "DQ_CONTRACT_VERSION",
@@ -71,6 +81,8 @@ __all__ = [
     "REPEAT_CUSTOMER_POLICY_VERSION",
     "REVIEW_ALLOCATION_POLICY_VERSION",
     "REVISION_POLICY_VERSION",
+    "SEMANTIC_CATALOG_VERSION",
+    "SEMANTIC_PHYSICAL_NAME_POLICY",
     "UNKNOWN_MEMBER_POLICY_VERSION",
     "CandidateDefinition",
     "CandidateLayer",
@@ -99,6 +111,9 @@ __all__ = [
     "ReviewMetricSummary",
     "RevisionDisposition",
     "RevisionResolution",
+    "SemanticCatalog",
+    "SemanticCatalogError",
+    "SemanticViewContract",
     "UnknownMember",
     "WarehouseCandidateError",
     "WarehouseQualityError",
@@ -107,9 +122,12 @@ __all__ = [
     "build_processing_run",
     "evaluate_quality_gate",
     "gold_dimension_key",
+    "load_semantic_catalog",
+    "parse_semantic_catalog",
     "reconcile_fact_partition",
     "resolve_dimension_as_of",
     "resolve_dimension_revisions",
+    "resolve_semantic_view",
     "summarize_customer_cohort",
     "summarize_order_metrics",
     "summarize_review_metrics",

@@ -37,3 +37,8 @@ selectors:
     definition:
       method: tag
       value: m3_gold_marts
+  - name: m3_semantic
+    description: Build and test the four candidate-bound curated semantic views.
+    definition:
+      method: tag
+      value: m3_semantic

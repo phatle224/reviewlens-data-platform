@@ -1,0 +1,186 @@
+version: 2
+
+models:
+  - name: sem_order_delivery
+    description: Curated release-bound delivery and value view for dashboard and guarded SQL.
+    config:
+      materialized: view
+      contract: {enforced: true}
+      meta:
+        logical_name: ORDER_DELIVERY
+        grain: "data_release_id + period_month + geography_key"
+        audiences: [DASHBOARD, TEXT_TO_SQL]
+        work_item: IMP-M3-016
+        contains_review_text: false
+        exposes_physical_identifier: false
+        semantic_contract_version: reviewlens-semantic-catalog-v1
+    columns:
+      - {name: data_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: period_month, data_type: date, data_tests: [not_null]}
+      - {name: geography_key, data_type: varchar, data_tests: [not_null]}
+      - {name: geography_state, data_type: varchar, data_tests: [not_null]}
+      - {name: geography_city, data_type: varchar, data_tests: [not_null]}
+      - {name: order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: delivered_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: cancelled_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: delivery_eligible_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: on_time_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: on_time_delivery_rate, data_type: "number(38, 18)"}
+      - {name: average_delivery_lead_seconds, data_type: "number(38, 6)"}
+      - {name: average_delivery_delay_seconds, data_type: "number(38, 6)"}
+      - {name: gross_merchandise_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: freight_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: payment_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: payment_reconciliation_delta, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: gmv_semantics, data_type: varchar, data_tests: [not_null]}
+      - {name: metric_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: semantic_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments:
+            combination_of_columns:
+              [data_release_id, period_month, geography_key]
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              semantic_contract_version = 'reviewlens-semantic-catalog-v1'
+              and metric_policy_version = 'olist-metric-dictionary-v1'
+              and gmv_semantics = 'DATASET_GMV_PROXY_NOT_ACCOUNTING_REVENUE'
+
+  - name: sem_product_review
+    description: Curated release-bound product/category and allocated-review view.
+    config:
+      materialized: view
+      contract: {enforced: true}
+      meta:
+        logical_name: PRODUCT_REVIEW
+        grain: "data_release_id + period_month + product_key"
+        audiences: [DASHBOARD, TEXT_TO_SQL]
+        work_item: IMP-M3-016
+        contains_review_text: false
+        exposes_physical_identifier: false
+        semantic_contract_version: reviewlens-semantic-catalog-v1
+    columns:
+      - {name: data_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: period_month, data_type: date, data_tests: [not_null]}
+      - {name: product_key, data_type: varchar, data_tests: [not_null]}
+      - {name: product_category_name, data_type: varchar, data_tests: [not_null]}
+      - {name: product_category_name_english, data_type: varchar, data_tests: [not_null]}
+      - {name: order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: item_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: gross_merchandise_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: freight_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: allocated_review_sample_size, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: allocated_review_score, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: average_review_score, data_type: "number(38, 6)"}
+      - {name: allocation_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: order_count_usage, data_type: varchar, data_tests: [not_null]}
+      - {name: ai_enrichment_status, data_type: varchar, data_tests: [not_null]}
+      - {name: metric_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: semantic_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [data_release_id, period_month, product_key]}
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              semantic_contract_version = 'reviewlens-semantic-catalog-v1'
+              and metric_policy_version = 'olist-metric-dictionary-v1'
+              and allocation_policy_version = 'olist-review-item-equal-weight-v1'
+              and order_count_usage = 'NON_ADDITIVE_ACROSS_PRODUCTS'
+              and ai_enrichment_status = 'NOT_AVAILABLE_UNTIL_M4'
+
+  - name: sem_seller_performance
+    description: Curated release-bound seller delivery, value and allocated-review view.
+    config:
+      materialized: view
+      contract: {enforced: true}
+      meta:
+        logical_name: SELLER_PERFORMANCE
+        grain: "data_release_id + period_month + seller_key"
+        audiences: [DASHBOARD, TEXT_TO_SQL]
+        work_item: IMP-M3-016
+        contains_review_text: false
+        exposes_physical_identifier: false
+        semantic_contract_version: reviewlens-semantic-catalog-v1
+    columns:
+      - {name: data_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: period_month, data_type: date, data_tests: [not_null]}
+      - {name: seller_key, data_type: varchar, data_tests: [not_null]}
+      - {name: seller_state, data_type: varchar, data_tests: [not_null]}
+      - {name: seller_city, data_type: varchar, data_tests: [not_null]}
+      - {name: order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: item_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: delivered_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: delivery_eligible_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: on_time_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: on_time_delivery_rate, data_type: "number(38, 18)"}
+      - {name: average_delivery_lead_seconds, data_type: "number(38, 6)"}
+      - {name: gross_merchandise_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: freight_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: allocated_review_sample_size, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: allocated_review_score, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: average_review_score, data_type: "number(38, 6)"}
+      - {name: allocation_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: order_count_usage, data_type: varchar, data_tests: [not_null]}
+      - {name: ai_enrichment_status, data_type: varchar, data_tests: [not_null]}
+      - {name: metric_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: semantic_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments: {combination_of_columns: [data_release_id, period_month, seller_key]}
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              semantic_contract_version = 'reviewlens-semantic-catalog-v1'
+              and metric_policy_version = 'olist-metric-dictionary-v1'
+              and allocation_policy_version = 'olist-review-item-equal-weight-v1'
+              and order_count_usage = 'NON_ADDITIVE_ACROSS_SELLERS'
+              and ai_enrichment_status = 'NOT_AVAILABLE_UNTIL_M4'
+
+  - name: sem_customer_overview
+    description: Curated release-bound customer cohort and value view.
+    config:
+      materialized: view
+      contract: {enforced: true}
+      meta:
+        logical_name: CUSTOMER_OVERVIEW
+        grain: "data_release_id + period_month + geography_key"
+        audiences: [DASHBOARD, TEXT_TO_SQL]
+        work_item: IMP-M3-016
+        contains_review_text: false
+        exposes_physical_identifier: false
+        semantic_contract_version: reviewlens-semantic-catalog-v1
+    columns:
+      - {name: data_release_id, data_type: varchar, data_tests: [not_null]}
+      - {name: period_month, data_type: date, data_tests: [not_null]}
+      - {name: geography_key, data_type: varchar, data_tests: [not_null]}
+      - {name: geography_state, data_type: varchar, data_tests: [not_null]}
+      - {name: geography_city, data_type: varchar, data_tests: [not_null]}
+      - {name: order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: delivered_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: cancelled_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: unknown_customer_order_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: customer_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: repeat_customer_count, data_type: "number(38, 0)", data_tests: [not_null]}
+      - {name: repeat_customer_rate, data_type: "number(38, 18)"}
+      - {name: gross_merchandise_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: freight_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: payment_value, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: payment_reconciliation_delta, data_type: "number(38, 18)", data_tests: [not_null]}
+      - {name: repeat_customer_definition_version, data_type: varchar, data_tests: [not_null]}
+      - {name: gmv_semantics, data_type: varchar, data_tests: [not_null]}
+      - {name: metric_policy_version, data_type: varchar, data_tests: [not_null]}
+      - {name: semantic_contract_version, data_type: varchar, data_tests: [not_null]}
+    data_tests:
+      - reviewlens_unique_combination:
+          arguments:
+            combination_of_columns:
+              [data_release_id, period_month, geography_key]
+      - reviewlens_expression_is_true:
+          arguments:
+            expression: >-
+              semantic_contract_version = 'reviewlens-semantic-catalog-v1'
+              and metric_policy_version = 'olist-metric-dictionary-v1'
+              and repeat_customer_definition_version = 'olist-repeat-customer-lifetime-v1'
+              and gmv_semantics = 'DATASET_GMV_PROXY_NOT_ACCOUNTING_REVENUE'
