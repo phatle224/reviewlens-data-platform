@@ -3,13 +3,13 @@
 
 with unknown_customer as (
     select unknown_member_key as customer_key
-    from {{ ref('sil_unknown_member_registry') }}
+    from {{ reviewlens_silver_candidate_relation('SIL_UNKNOWN_MEMBER_REGISTRY') }}
     where entity_type = 'CUSTOMER'
 ), conformed as (
     select
         source_order.*,
         coalesce(customer.customer_key, unknown_customer.customer_key) as customer_key
-    from {{ ref('sil_order') }} as source_order
+    from {{ reviewlens_silver_candidate_relation('SIL_ORDER') }} as source_order
     cross join unknown_customer
     left join {{ ref('dim_customer') }} as customer
         on source_order.customer_id = customer.customer_id

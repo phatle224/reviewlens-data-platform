@@ -266,7 +266,10 @@ def test_gold_sql_is_candidate_bound_and_uses_declared_conformed_inputs() -> Non
         assert "candidate_namespace" in sql
         assert "reviewlens-" in sql
         assert "raw_payload" not in sql.lower()
-    assert "ref('sil_unknown_member_registry')" in models["dim_customer"]
+    assert (
+        "reviewlens_silver_candidate_relation('SIL_UNKNOWN_MEMBER_REGISTRY')"
+        in models["dim_customer"]
+    )
     assert "ref('dim_geography')" in models["dim_customer"]
     assert "ref('dim_geography')" in models["dim_seller"]
     assert "ref('fact_order')" in models["fact_order_item"]

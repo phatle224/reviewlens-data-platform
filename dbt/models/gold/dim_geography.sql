@@ -20,7 +20,7 @@ with source_geography as (
         source_release_id,
         ingestion_batch_id,
         ingested_at as observed_at
-    from {{ ref('sil_geolocation_zip') }}
+    from {{ reviewlens_silver_candidate_relation('SIL_GEOLOCATION_ZIP') }}
 ), unknown_geography as (
     select
         unknown_member_key as geography_key,
@@ -36,7 +36,7 @@ with source_geography as (
         source_release_id,
         ingestion_batch_id,
         cast(null as timestamp_tz(6)) as observed_at
-    from {{ ref('sil_unknown_member_registry') }}
+    from {{ reviewlens_silver_candidate_relation('SIL_UNKNOWN_MEMBER_REGISTRY') }}
     where entity_type = 'GEOGRAPHY'
 ), conformed as (
     select * from source_geography

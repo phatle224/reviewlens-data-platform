@@ -2,14 +2,22 @@
 {{ config(alias=candidate_namespace ~ '__DIM_DATE') }}
 
 with event_dates as (
-    select cast(order_purchase_timestamp as date) as full_date from {{ ref('sil_order') }}
-    union select cast(order_approved_at as date) from {{ ref('sil_order') }}
-    union select cast(order_delivered_carrier_date as date) from {{ ref('sil_order') }}
-    union select cast(order_delivered_customer_date as date) from {{ ref('sil_order') }}
-    union select cast(order_estimated_delivery_date as date) from {{ ref('sil_order') }}
-    union select cast(shipping_limit_date as date) from {{ ref('sil_order_item') }}
-    union select cast(review_creation_date as date) from {{ ref('sil_order_review') }}
-    union select cast(review_answer_timestamp as date) from {{ ref('sil_order_review') }}
+    select cast(order_purchase_timestamp as date) as full_date
+    from {{ reviewlens_silver_candidate_relation('SIL_ORDER') }}
+    union select cast(order_approved_at as date)
+    from {{ reviewlens_silver_candidate_relation('SIL_ORDER') }}
+    union select cast(order_delivered_carrier_date as date)
+    from {{ reviewlens_silver_candidate_relation('SIL_ORDER') }}
+    union select cast(order_delivered_customer_date as date)
+    from {{ reviewlens_silver_candidate_relation('SIL_ORDER') }}
+    union select cast(order_estimated_delivery_date as date)
+    from {{ reviewlens_silver_candidate_relation('SIL_ORDER') }}
+    union select cast(shipping_limit_date as date)
+    from {{ reviewlens_silver_candidate_relation('SIL_ORDER_ITEM') }}
+    union select cast(review_creation_date as date)
+    from {{ reviewlens_silver_candidate_relation('SIL_ORDER_REVIEW') }}
+    union select cast(review_answer_timestamp as date)
+    from {{ reviewlens_silver_candidate_relation('SIL_ORDER_REVIEW') }}
     union select to_date('1900-01-01')
 ), valid_dates as (
     select distinct full_date

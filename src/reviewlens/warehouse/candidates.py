@@ -364,6 +364,19 @@ class InMemoryCandidateRegistry:
             raise WarehouseCandidateError()
         return self._finish(lease, success=result.can_publish, now=now)
 
+    def finish_test_gate(
+        self,
+        lease: CandidateLease,
+        *,
+        passed: bool,
+        now: datetime,
+    ) -> CandidateRecord:
+        """Finish a typed downstream test gate; false always fails the candidate."""
+
+        if type(passed) is not bool:
+            raise WarehouseCandidateError()
+        return self._finish(lease, success=passed, now=now)
+
     def cleanup(
         self,
         candidate_id: str,

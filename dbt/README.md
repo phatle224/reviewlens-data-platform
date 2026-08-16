@@ -93,11 +93,25 @@ any future activation step:
   --selector m3_silver_critical --vars $m3Vars
 ```
 
-The offline-safe selector inventory for the Gold base is `m3_gold_base`. Its
-live build remains deferred until the M3 candidate run is explicitly approved:
+The offline-safe selector inventory for the Gold base is `m3_gold_base`. Use it
+only for structural inspection; the live candidate workflow must use the
+complete `m3_gold_candidate` target below.
+
+`m3_gold_candidate` is the complete Gold target: dimensions, facts, review
+attribution bridge, marts, semantic views and all their reconciliation/runtime
+tests. It always reads a previously tested Silver namespace and writes a
+different Gold namespace. The variables must be planned by the typed M3
+candidate planner; do not reuse a candidate namespace or substitute a serving
+object name.
 
 ```powershell
+$m3GoldVars = '{candidate_namespace: C_<GOLD_64_HEX>, silver_candidate_namespace: C_<SILVER_64_HEX>, source_release_id: olist_<64_hex>, ingestion_batch_id: batch_<64_hex>}'
 .venv\Scripts\dotenv.exe -f .env run -- `
   .venv\Scripts\dbt.exe build --project-dir dbt --profiles-dir dbt `
-  --selector m3_gold_base --vars $m3Vars
+  --selector m3_gold_candidate --vars $m3GoldVars
 ```
+
+The runtime contract rejects placeholder, malformed or identical namespaces
+before a target can be marked tested. A successful candidate is still not a
+serving release: no grant, active-pointer change or dashboard/Text-to-SQL
+publication is part of this command. Those actions remain owned by M3-018/019.

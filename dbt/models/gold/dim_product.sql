@@ -19,7 +19,7 @@ with source_product as (
         ingestion_batch_id,
         source_record_hash,
         ingested_at as observed_at
-    from {{ ref('sil_product') }}
+    from {{ reviewlens_silver_candidate_relation('SIL_PRODUCT') }}
 ), unknown_product as (
     select
         unknown_member_key as product_key,
@@ -38,7 +38,7 @@ with source_product as (
         ingestion_batch_id,
         cast(null as varchar) as source_record_hash,
         cast(null as timestamp_tz(6)) as observed_at
-    from {{ ref('sil_unknown_member_registry') }}
+    from {{ reviewlens_silver_candidate_relation('SIL_UNKNOWN_MEMBER_REGISTRY') }}
     where entity_type = 'PRODUCT'
 ), conformed as (
     select * from source_product

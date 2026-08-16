@@ -3,11 +3,11 @@
 | Attribute | Value |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 16/20 work items |
+| Completed | 17/20 work items |
 | Partial | 0/20 work items |
 | Blocked | 0/20 work items |
-| Not started | 4/20 work items |
-| Last updated | 2026-08-15 |
+| Not started | 3/20 work items |
+| Last updated | 2026-08-16 |
 
 ## Implementation-plan checklist
 
@@ -29,8 +29,8 @@
 | IMP-M3-014 | `DONE` | Versioned multi-item review attribution policy/bridge | ADR-011 freezes transparent equal-item weighting with deterministic 18-decimal residual and unknown-item fallback; candidate-bound bridge exposes policy labels and only allocated additive measures; Python single/two/three/zero-item, reorder and invalid/duplicate fixtures plus dbt grain/relationship/privacy and exact per-review reconciliation gates pass |
 | IMP-M3-015 | `DONE` | Delivery, product-review, seller and customer marts | Four candidate-bound monthly marts pre-aggregate item/payment/seller-order grains before joins; metric dictionary v1, ADR-011 allocation and ADR-012 mart/repeat-customer semantics are labeled; golden delivery/value/review/customer fixtures, zero-denominator/invalid negatives, dbt grain/relationship/privacy contracts and cross-mart reconciliation pass |
 | IMP-M3-016 | `DONE` | Release-bound dashboard/SQL semantic views | Versioned catalog maps four stable logical names to candidate-bound dbt views; exact dashboard/Text-to-SQL columns, roles, metric/nonadditive usage and partial-AI labels are enforced; physical identifiers, natural IDs, review text, unapproved fields and early grants/pointer activation fail closed; ADR-013 and offline catalog/dbt negative tests pass |
-| IMP-M3-017 | `NOT_STARTED` | Candidate Gold build/test target | Semantic contracts are ready; implement the fail-closed candidate target next |
-| IMP-M3-018 | `NOT_STARTED` | Release events, immutable definition and CAS active pointer | Await tested Gold candidate |
+| IMP-M3-017 | `DONE` | Candidate Gold build/test target | Typed planner binds exactly ten Silver candidate inputs to a distinct deterministic Gold candidate namespace; `m3_gold_candidate` selects 18 outputs plus reconciliation/runtime gates; malformed/equal namespaces, incomplete model selection and any failed build/test evidence become `FAILED`, never `TEST_PASSED`; no serving grant/pointer mutation occurs |
+| IMP-M3-018 | `NOT_STARTED` | Release events, immutable definition and CAS active pointer | Tested Gold candidate target is ready; implement immutable release/CAS next |
 | IMP-M3-019 | `NOT_STARTED` | Request resolver pins explicit Silver/Gold physical refs | Await atomic release pointer |
 | IMP-M3-020 | `NOT_STARTED` | Full/incremental equivalence, metrics, lineage and runbook | Await complete M3 graph |
 

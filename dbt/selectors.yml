@@ -42,3 +42,17 @@ selectors:
     definition:
       method: tag
       value: m3_semantic
+  - name: m3_gold_candidate
+    description: Build/test isolated Gold outputs from one tested Silver candidate.
+    definition:
+      union:
+        - method: tag
+          value: m3_gold_base
+        - method: tag
+          value: m3_review_attribution
+        - method: tag
+          value: m3_gold_marts
+        - method: tag
+          value: m3_semantic
+        - method: tag
+          value: m3_gold_candidate

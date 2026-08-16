@@ -20,7 +20,7 @@ with conformed as (
         review.dataset_run_id,
         review.source_record_hash,
         review.ingested_at
-    from {{ ref('sil_order_review') }} as review
+    from {{ reviewlens_silver_candidate_relation('SIL_ORDER_REVIEW') }} as review
     inner join {{ ref('fact_order') }} as parent using (order_id)
     where review.order_parent_exists
       and review.response_interval_valid

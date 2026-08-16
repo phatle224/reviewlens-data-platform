@@ -7,7 +7,7 @@ with unknown_keys as (
         max(iff(entity_type = 'GEOGRAPHY', unknown_member_key, null)) as geography_key,
         min(source_release_id) as source_release_id,
         min(ingestion_batch_id) as ingestion_batch_id
-    from {{ ref('sil_unknown_member_registry') }}
+    from {{ reviewlens_silver_candidate_relation('SIL_UNKNOWN_MEMBER_REGISTRY') }}
 ), source_seller as (
     select
         {{ reviewlens_gold_key(
@@ -25,7 +25,7 @@ with unknown_keys as (
         seller.ingestion_batch_id,
         seller.source_record_hash,
         seller.ingested_at as observed_at
-    from {{ ref('sil_seller') }} as seller
+    from {{ reviewlens_silver_candidate_relation('SIL_SELLER') }} as seller
     cross join unknown_keys
     left join {{ ref('dim_geography') }} as geography
         on seller.seller_zip_prefix = geography.geolocation_zip_prefix

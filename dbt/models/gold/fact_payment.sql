@@ -3,7 +3,7 @@
 
 with conformed as (
     select payment.*, parent.order_key
-    from {{ ref('sil_order_payment') }} as payment
+    from {{ reviewlens_silver_candidate_relation('SIL_ORDER_PAYMENT') }} as payment
     inner join {{ ref('fact_order') }} as parent using (order_id)
     where payment.order_parent_exists
       and payment.amount_quality_status = 'VALID'

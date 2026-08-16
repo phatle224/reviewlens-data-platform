@@ -8,7 +8,7 @@ with unknown_keys as (
     select
         max(iff(entity_type = 'PRODUCT', unknown_member_key, null)) as product_key,
         max(iff(entity_type = 'SELLER', unknown_member_key, null)) as seller_key
-    from {{ ref('sil_unknown_member_registry') }}
+    from {{ reviewlens_silver_candidate_relation('SIL_UNKNOWN_MEMBER_REGISTRY') }}
 ), review_items as (
     select
         review.review_key,

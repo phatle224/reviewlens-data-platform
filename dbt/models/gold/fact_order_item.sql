@@ -5,14 +5,14 @@ with unknown_keys as (
     select
         max(iff(entity_type = 'PRODUCT', unknown_member_key, null)) as product_key,
         max(iff(entity_type = 'SELLER', unknown_member_key, null)) as seller_key
-    from {{ ref('sil_unknown_member_registry') }}
+    from {{ reviewlens_silver_candidate_relation('SIL_UNKNOWN_MEMBER_REGISTRY') }}
 ), conformed as (
     select
         item.*,
         parent.order_key,
         coalesce(product.product_key, unknown_keys.product_key) as product_key,
         coalesce(seller.seller_key, unknown_keys.seller_key) as seller_key
-    from {{ ref('sil_order_item') }} as item
+    from {{ reviewlens_silver_candidate_relation('SIL_ORDER_ITEM') }} as item
     cross join unknown_keys
     inner join {{ ref('fact_order') }} as parent using (order_id)
     left join {{ ref('dim_product') }} as product

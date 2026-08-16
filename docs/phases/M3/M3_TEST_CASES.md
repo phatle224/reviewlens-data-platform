@@ -28,12 +28,12 @@
 | TC-M3-022 | Dimensions/facts | Declared grains and relationships | No unexpected multiplication or loss | `PASS` | Stable/version-scoped key, unknown, shuffled SCD boundary, overlap-negative and exact fact-partition fixtures pass; manifest has 5 dimensions + 4 facts in `GOLD`; relationships/grains plus count and item/payment amount reconciliation tests are selected by `m3_gold_base`; review fact has no restricted text |
 | TC-M3-023 | Attribution | Multi-item order review metrics | Allocation labels present; no silent double count | `PASS` | Policy `olist-review-item-equal-weight-v1` labels every bridge row; deterministic residual makes weight/count sum exactly 1 and allocated score sum to source score for one/two/three items; zero-item fallback preserves review; shuffled inputs are invariant and duplicate/invalid grains fail closed |
 | TC-M3-024 | Marts/semantic | Metric dictionary and serving allowlist fixtures | Golden outputs and approved semantic fields match declared grains | `PASS` | Golden fixtures verify order/delivery/value totals, null zero-denominators, fractional allocated review sample/score and distinct lifetime repeat-customer rate with unknown exclusion; four monthly mart grains reconcile offline; semantic catalog/dbt contracts expose only four logical views with approved dimensions/measures, policy labels and partial-AI state while physical names, restricted IDs/text and unsafe roles fail closed |
-| TC-M3-025 | Candidate failure | Silver/Gold candidate fails a gate | Active serving pointer remains unchanged | `PENDING` | Await IMP-M3-017/018 |
+| TC-M3-025 | Candidate failure | Silver/Gold candidate fails a gate | Active serving pointer remains unchanged | `PENDING` | `IMP-M3-017` proves incomplete/failed Gold evidence becomes `FAILED` and separate namespaces are enforced offline; active-pointer non-mutation remains an M3-018 CAS test |
 | TC-M3-026 | CAS/replay | Concurrent activation, rollback and replay | One CAS winner; rollback uses immutable release | `PENDING` | Await IMP-M3-018 |
 | TC-M3-027 | Request pinning | Concurrent requests during activation | Each request uses one complete release | `PENDING` | Await IMP-M3-019 |
 | TC-M3-028 | Equivalence/cost | Full versus incremental two-run drill | Row/hash equality, bounded X-Small usage and suspend | `PENDING` | Await IMP-M3-020; owner opt-in required |
-| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-49e72eb94ce0de2a`, dependency lock and project-image dry-run pass |
-| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 16/20 done, 26/30 pass, 0 errors and 0 warnings |
+| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-51468cf4c3fcb0d0`, dependency lock and project-image dry-run pass |
+| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 17/20 done, 26/30 pass, 0 errors and 0 warnings |
 
 ## Execution log — 2026-08-14
 
@@ -157,3 +157,21 @@
   Final artifact is `local-sha256-49e72eb94ce0de2a`.
 - No Docker image was built and no Snowflake, R2, OpenRouter or Chroma call was
   performed. The candidate execution target is the next offline work item.
+
+## Execution log — 2026-08-16 (`IMP-M3-017`)
+
+- Added a typed Gold candidate planner that converts exactly ten immutable
+  Silver candidate relations into a deterministic, distinct Gold candidate.
+  Gold output aliases remain in `GOLD`; all direct Silver reads resolve through
+  a quoted, explicit `silver_candidate_namespace` in `SILVER`.
+- `m3_gold_candidate` selects the complete 18-model Gold graph, reconciliation
+  gates and a runtime contract. It rejects placeholder/malformed/equal input and
+  output namespaces. In-memory test evidence advances only a complete successful
+  selector result; a missing model or failed outcome becomes `FAILED`.
+- Focused M3 suite: 90 tests pass. Ruff, strict mypy, dbt 1.12 parse with
+  warnings-as-errors and selector inventory pass offline. The live dbt command
+  is documented but deferred until an owner-approved Snowflake gate.
+- Full offline regression: 436 passed, 8 expected live skips and 86.36% coverage.
+  Final artifact is `local-sha256-51468cf4c3fcb0d0`.
+- No Docker image was built and no Snowflake, R2, OpenRouter or Chroma call was
+  performed. Active-release grants, CAS activation and rollback remain M3-018.
