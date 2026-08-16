@@ -10,7 +10,7 @@
 | Phase hiện tại | `M3` — Conformed Silver, Gold and atomic release |
 | Trạng thái phase hiện tại | `IN_PROGRESS` — 19/20 work items complete, 1 partial; 29/30 phase tests pass |
 | Phase gần nhất hoàn tất | `M2` — nine-file private R2/Bronze ingestion and replay gate |
-| Cập nhật lần cuối | 2026-08-16 |
+| Cập nhật lần cuối | 2026-08-17 |
 | Người thực hiện | Solo Developer |
 | Active source | Olist Brazilian E-Commerce dataset — nine relational CSVs, CC BY-NC-SA 4.0 |
 | Data policy hiện hành | Raw CSV/review/row-level/embedding artifacts outside Git; private R2/Snowflake after manifest/privacy gate; external AI only after DLP/minimization; public evidence synthetic/aggregate/redacted |
@@ -23,7 +23,7 @@
 | M0 | `COMPLETE` | Olist product/data/license/security/architecture baseline | [Checklist](./phases/M0/M0_CHECKLIST.md) · [Tests](./phases/M0/M0_TEST_CASES.md) |
 | M1 | `COMPLETE` | Config, identities, provider/dbt/Airflow boundaries, audit/logging, authenticated app shell and fail-closed CI/live rotation gates | [Overview](./phases/M1/README.md) · [Checklist](./phases/M1/M1_CHECKLIST.md) · [Tests](./phases/M1/M1_TEST_CASES.md) |
 | M2 | `COMPLETE` | 18 implementation items and owner-approved full nine-file private DAG + immutable replay reconcile with empty alerts and warehouse suspended | [Overview](./phases/M2/README.md) · [Checklist](./phases/M2/M2_CHECKLIST.md) · [Tests](./phases/M2/M2_TEST_CASES.md) |
-| M3 | `IN_PROGRESS` | Silver/DQ, conformed facts/dimensions, review allocation, marts, semantic views, Gold candidate target, atomic release and request pinning complete (19/20); equivalence/runbook is partial pending a true incremental path | [Overview](./phases/M3/README.md) · [Checklist](./phases/M3/M3_CHECKLIST.md) · [Tests](./phases/M3/M3_TEST_CASES.md) |
+| M3 | `IN_PROGRESS` | Silver/DQ, conformed facts/dimensions, review allocation, marts, semantic views, Gold candidate target, atomic release and request pinning complete (19/20); full-refresh/deterministic-replay equivalence is partial pending its private same-candidate drill | [Overview](./phases/M3/README.md) · [Checklist](./phases/M3/M3_CHECKLIST.md) · [Tests](./phases/M3/M3_TEST_CASES.md) |
 | M4 | `NOT_STARTED` | DLP-approved review enrichment | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M5 | `NOT_STARTED` | Embeddings, ChromaDB and grounded RAG | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M6 | `NOT_STARTED` | Guarded Text-to-SQL | [Plan](./IMPLEMENTATION_PLAN.md) |
@@ -37,7 +37,8 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 - Owner-approved M3 preflight đã áp dụng additive migrations `004`, `006`, `007`; Snowflake xác nhận processing/release ledgers và hai owner procedures tồn tại. Denied-smoke cho release ID không tồn tại trả `RELEASE_DENIED`, active pointer vẫn uninitialized/version 0, warehouse được suspend.
 - Sửa ba lỗi tương thích phát hiện bằng live gate: splitter giữ nguyên `$$` procedure body, Snowflake Scripting dùng parenthesized `IF` + bind `:P_...`, và procedure invocation dùng `USAGE` grant thay vì `EXECUTE`.
 - Live Bronze contract pass 138/138. Macro grain hiện quote canonical uppercase Snowflake identifiers; freshness được đổi thành immutable-snapshot 30/90 ngày sau khi aggregate-only preflight xác nhận private snapshot cũ hơn SLA streaming.
-- `IMP-M3-020` có aggregate-only 28-relation equivalence engine và runbook, nhưng giữ `PARTIAL`: dbt graph hiện chưa có true incremental materialization nên chưa chạy/claim full-vs-incremental drill. Không có R2/OpenRouter/Chroma call, không build Docker image.
+- DWH-006/`IMP-M3-020` đã được đơn giản hóa có chủ đích cho Olist snapshot: full refresh được so sánh với deterministic replay trên **cùng candidate ID**, immutable source/batch và semantic contract; không gọi replay là incremental. Engine aggregate-only v2 và runbook/test offline đã cập nhật, nhưng giữ `PARTIAL` cho đến khi private same-candidate drill thực sự có evidence. Không có provider call hoặc Docker build trong scope update này.
+- Gate local sau scope update pass: Ruff format/lint cho `src`/`tests`, strict mypy, dbt parse `--warn-error`, 461 offline tests (8 opt-in live skips), policy/artifact/dependency locks và status validator đều pass.
 
 ## Kiểm thử
 
@@ -46,7 +47,7 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 | M0 | 18 `PASS`, 3 `DEFERRED`, 0 `FAIL` | [M0 test cases](./phases/M0/M0_TEST_CASES.md) |
 | M1 | 41 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 193 pass/6 live skip plus owner-approved live rotation 1 pass; Chroma quarantine + clean-path/container/Compose/artifact/metrics + CI policy/dependency/AppTest/logging/audit/Airflow/dbt/provider/R2/stage/RBAC/JWT evidence |
 | M2 | 25 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M2 test cases](./phases/M2/M2_TEST_CASES.md); offline, synthetic live and full private nine-file DAG/replay evidence pass |
-| M3 | 29 `PASS`, 1 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M3 test cases](./phases/M3/M3_TEST_CASES.md); migration/procedure denied-smoke and Bronze gates pass live; two-run drill awaits a real incremental path |
+| M3 | 29 `PASS`, 1 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M3 test cases](./phases/M3/M3_TEST_CASES.md); migration/procedure denied-smoke and Bronze gates pass live; same-candidate full/replay drill is pending |
 | Quality | `PASS` | 461 offline tests pass + 8 expected opt-in live skips, 86.52% coverage; Ruff, strict mypy, dbt parse, policy/artifact/dependency locks pass |
 | Status validator | `PASS` — 0 errors, 0 warnings | M0–M2 complete; M3 synchronized at 19/20 done, 1 partial and 29/30 pass |
 
@@ -57,8 +58,8 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 - Snowflake trial hết hạn `2026-09-03`; ưu tiên M3 vertical slice, giữ X-Small/60s/resource monitor.
 - Product/seller review insights remain allocations, not item-level evidence; semantic views expose the policy label and mark order counts as nonadditive.
 - Gold candidate build must read a tested Silver candidate and write a different candidate namespace. Owner-approved preflight/migrations are complete, but a candidate build must first persist its processing lineage and pass DQ/reconciliation before any release definition or pointer action.
-- Release definition/CAS and request pinning now have live migration plus fail-closed unknown-release procedure evidence. A successful tested-release activation/rollback and the full/incremental two-run drill remain required for M3 exit.
-- `IMP-M3-020` cannot be completed honestly until dbt adds a true incremental contract (watermark, merge/unique key, correction/backfill and reconciliation). The present `table` materializations are full rebuilds, not incremental processing.
+- Release definition/CAS and request pinning now have live migration plus fail-closed unknown-release procedure evidence. A successful tested-release activation/rollback and the same-candidate full/replay drill remain required for M3 exit.
+- `IMP-M3-020` cannot be completed honestly until one private candidate is built, validated and replayed with identical immutable inputs, with 28 aggregate fingerprints and bounded-cost/suspend evidence. The present `table` materializations are intentionally valid for deterministic replay, but they are not incremental processing.
 - Chroma adapter M1 vẫn là lazy/fake-tested boundary. Machine-readable quarantine chặn package/server 1.5.9 và mọi addition chưa được review; `IMP-M5-001` phải thay policy có chủ đích chỉ sau khi một patched release qua dependency/image audit và negative access smoke.
 
 ## Chi phí và tài nguyên
@@ -73,16 +74,16 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 ## Input cần từ chủ project
 
 Không cần thêm credential hoặc secret. Owner approval đã đủ cho M3 live gate và
-migration/Bronze checks đã chạy. Để đóng `IMP-M3-020`, cần quyết định incremental
-strategy cho M3 relation (phạm vi relation, watermark/merge semantics, correction
-và backfill policy); không suy diễn strategy đó chỉ từ full-table dbt graph hiện tại.
+migration/Bronze checks đã chạy. Khi chạy drill, chỉ cần xác nhận lại cost gate
+cho lần full-refresh/deterministic-replay private candidate; không cần chọn
+watermark/merge strategy cho static Olist scope này.
 
 ## Việc tiếp theo
 
-1. Thiết kế và implement true incremental M3 path, sau đó chạy two-run equivalence/aggregate hash evidence để đóng `IMP-M3-020` và TC-M3-028.
+1. Build một private M3 candidate, sau đó deterministic-replay chính candidate/input và lưu two-observation aggregate-hash evidence để đóng `IMP-M3-020` và TC-M3-028.
 2. Keep review text private and `ai_eligible=false`; only M4 may create a DLP-approved external projection.
 3. Avoid Docker builds for dbt/docs-only bundles and keep every model under the candidate namespace.
-4. Giữ candidate/release objects private, suspend warehouse sau live work và không dùng rebuild thứ hai thay cho incremental evidence.
+4. Giữ candidate/release objects private, suspend warehouse sau live work và chỉ gọi rebuild thứ hai là deterministic replay evidence khi candidate/input/contract hoàn toàn khớp.
 5. Re-audit Chroma tại `IMP-M5-001`; không bypass blocked policy để provision sớm.
 
 ## Tài liệu nguồn

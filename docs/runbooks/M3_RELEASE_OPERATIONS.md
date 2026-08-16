@@ -18,17 +18,19 @@ Bronze source contract có 138/138 test pass. Freshness là policy
 cho tuổi của private snapshot được ingest, không phải khẳng định Olist có feed
 streaming hằng ngày.
 
-`IMP-M3-020` vẫn **partial**: engine so sánh aggregate-only đã có, nhưng graph
-dbt hiện materialize toàn bộ bằng `table`. Chưa có incremental materialization
-với watermark/merge/reconciliation, nên không được gọi một lần rebuild thứ hai
-là “incremental” và TC-M3-028 chưa thể PASS.
+`IMP-M3-020` vẫn **partial**: engine so sánh aggregate-only đã có. Với private
+Olist snapshot bất biến, DWH-006 được định nghĩa là full refresh rồi
+deterministic replay từ cùng candidate/source/batch/semantic contract. Graph dbt
+intentionally materialize bằng `table`; không được gọi replay là incremental.
+TC-M3-028 chỉ có thể PASS sau private same-candidate drill thật.
 
 ## 2. Guardrails và chi phí
 
-- Owner phải xác nhận mỗi lần chạy live candidate/full-vs-incremental drill.
+- Owner phải xác nhận mỗi lần chạy live full-refresh/deterministic-replay drill.
 - Chỉ dùng `REVIEWLENS_WH`; không gọi R2, OpenRouter hoặc Chroma trong drill.
-- Dùng hai candidate namespace riêng, cùng source release, ingestion batch và
-  semantic contract. Không đọc/ghi active pointer khi chưa có tested release.
+- Dùng **cùng candidate ID** trên hai observation, cùng immutable source release,
+  ingestion batch và semantic contract. Candidate namespace vẫn private; không
+  đọc/ghi active pointer khi chưa có tested release.
 - Giới hạn phiên dưới 1 Snowflake credit; dừng khi thấy bất thường, và suspend
   warehouse trong `finally`.
 - Lưu dbt logs, query IDs, aggregate row counts/hash report ở thư mục local bị
@@ -54,20 +56,19 @@ local để debug và không commit nó.
 
 ## 4. Điều kiện để thực hiện TC-M3-028
 
-Trước tiên phải bổ sung một contract incremental thật cho từng relation cần
-incremental: bounded watermark, `unique_key`/merge semantics, xử lý update và
-delete/backfill, DQ/reconciliation và late-arriving data. PR hoặc bundle đó phải
-thể hiện rõ relation nào intentionally full-refresh và relation nào incremental.
+Sau preflight pass, planner phải chọn một immutable candidate identity và giữ
+nguyên identity đó trên cả hai observation. Hai run đều đọc đúng source release,
+ingestion batch và semantic contract đã ghi trong processing lineage:
 
-Sau khi contract đó pass offline, planner phải tạo hai namespace khác nhau:
-
-1. `FULL_REFRESH`: chạy toàn bộ M3 Silver và Gold từ cùng immutable Bronze
-   source/batch.
-2. `INCREMENTAL`: chạy true incremental path từ **chính** source/batch đó vào
-   candidate độc lập; không reuse physical relations của full candidate.
+1. `FULL_REFRESH`: chạy toàn bộ M3 Silver và Gold từ immutable Bronze
+   source/batch, ghi snapshot aggregate-only đầu tiên.
+2. `DETERMINISTIC_REPLAY`: chạy lại chính selector/model variables với **cùng
+   candidate ID** và không đổi input/config; ghi snapshot aggregate-only thứ hai.
 
 Mỗi run phải pass Silver critical gate và complete Gold selector. Candidate fail
-phải được đánh dấu failed/cleaned theo lifecycle, không được activate.
+phải được đánh dấu failed/cleaned theo lifecycle, không được activate. Đây là
+idempotency/reproducibility evidence cho static snapshot, không phải bằng chứng
+incremental ingestion hay merge/backfill semantics.
 
 ## 5. Equivalence evidence
 
@@ -75,13 +76,13 @@ Mỗi run phải thu đúng 28 aggregate-only fingerprints: 10 Silver và 18 Gol
 logical relations. Mỗi fingerprint gồm layer, logical name, `row_count` và
 canonical `content_sha256`; không chứa physical relation, key kinh doanh hay
 source row. `CandidateEquivalenceSnapshot` chỉ nhận đúng universe này và
-`compare_full_refresh_to_incremental` fail-closed khi candidate/source/batch/
-semantic contract không khớp.
+`compare_full_refresh_to_deterministic_replay` fail-closed khi candidate ID,
+source/batch/semantic contract hoặc build mode không khớp.
 
 TC-M3-028 chỉ PASS khi report deterministic không có mismatch row count hoặc
-content hash, logs cho thấy hai candidate khác nhau, DQ/reconciliation pass và
-warehouse được suspend. Nếu có mismatch, giữ report local/AUDIT, không activate,
-triage theo logical relation và chạy lại từ immutable source.
+content hash, logs cho thấy cùng candidate ID được replay, DQ/reconciliation pass
+và warehouse được suspend. Nếu có mismatch, giữ report local/AUDIT, không
+activate, triage theo logical relation và chạy lại từ immutable source.
 
 ## 6. Cleanup và handoff
 
@@ -95,4 +96,5 @@ Trước khi kết thúc phiên, chạy static suite, repository policy và stat
 validator. Cập nhật [M3 checklist](../phases/M3/M3_CHECKLIST.md),
 [M3 test cases](../phases/M3/M3_TEST_CASES.md) và
 [project status](../PROJECT_STATUS.md) với kết quả thực tế; không chuyển
-`IMP-M3-020`/`TC-M3-028` sang `DONE`/`PASS` khi chưa có true incremental drill.
+`IMP-M3-020`/`TC-M3-028` sang `DONE`/`PASS` khi chưa có private same-candidate
+full-refresh/deterministic-replay drill.

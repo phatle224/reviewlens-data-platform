@@ -31,8 +31,8 @@
 | TC-M3-025 | Candidate failure | Silver/Gold candidate fails a gate | Active serving pointer remains unchanged | `PASS` | Baseline tested release activates at pointer v1; a second untested Gold candidate is denied release-definition creation and leaves pointer/event count unchanged; no failed candidate can reach activation |
 | TC-M3-026 | CAS/replay | Concurrent activation, rollback and replay | One CAS winner; rollback uses immutable release | `PASS` | Deterministic definition/replay, stale-CAS denial, two-writer race with exactly one winner, activation replay and rollback replay all pass; pointer version advances 0→1→2→3 and rollback references a prior immutable definition |
 | TC-M3-027 | Request pinning | Concurrent requests during activation | Each request uses one complete release | `PASS` | Resolver snapshots one pointer then resolves only catalog logical names from its immutable definition; no-pointer, raw/physical, duplicate and unowned-type inputs fail closed, and 16 concurrent pins racing activation each contain refs from exactly one Gold candidate |
-| TC-M3-028 | Equivalence/cost | Full versus incremental two-run drill | Row/hash equality, bounded X-Small usage and suspend | `PENDING` | Aggregate-only 28-relation comparison engine and private runbook pass offline; 138 live Bronze contract tests and 9-source immutable-snapshot freshness pass, owner migration/procedure denied-smoke passes and warehouse is suspended. A true incremental dbt path is not implemented yet, so no rebuild is mislabeled as incremental. |
-| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-1cee93f22baa9ecc`, dependency lock and project-image dry-run pass |
+| TC-M3-028 | Equivalence/cost | Full refresh versus deterministic replay two-run drill | Row/hash equality for the same immutable candidate, bounded X-Small usage and suspend | `PENDING` | Aggregate-only 28-relation comparison engine and private runbook pass offline; 138 live Bronze contract tests and 9-source immutable-snapshot freshness pass, owner migration/procedure denied-smoke passes and warehouse is suspended. The required private same-candidate full/replay drill has not run, so no live equivalence is claimed. |
+| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; regenerated artifact lock, dependency lock and project-image dry-run pass |
 | TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 19/20 done, 1/20 partial, 29/30 pass, 0 errors and 0 warnings |
 
 ## Execution log — 2026-08-14
@@ -262,12 +262,35 @@
   identifiers. The live source contract returns 138 `PASS`; source freshness
   returns 9 `PASS` after moving the immutable Olist snapshot policy from the
   inappropriate streaming 2/7-day SLA to warn 30/error 90 days.
-- Added the deterministic aggregate-only equivalence engine: it compares exact
-  10 Silver + 18 Gold logical relations, requires distinct full/incremental
-  candidate IDs with matching source/batch/semantic metadata, reports only
-  logical mismatch kinds and rejects physical/raw-like inputs. The new M3
-  operations runbook preserves private evidence and cleanup requirements.
-- TC-M3-028 remains `PENDING`: all current dbt M3 outputs use `table`, with no
-  true incremental watermark/merge path. A second full rebuild is not claimed
-  as incremental evidence. No candidate, pointer activation/rollback, R2,
-  OpenRouter or Chroma operation was performed in this bundle.
+- Added the deterministic aggregate-only equivalence engine and private M3
+  operations runbook. Its contract was revised on 2026-08-17 to compare a full
+  refresh with a deterministic replay of the same immutable candidate instead
+  of treating a rebuild as incremental.
+- TC-M3-028 remains `PENDING`: no private same-candidate full/replay drill or
+  release activation/rollback has run. No candidate, pointer activation/rollback,
+  R2, OpenRouter or Chroma operation was performed in this bundle.
+
+## Execution log — 2026-08-17 (`DWH-006` / `IMP-M3-020`, partial)
+
+- Product scope was deliberately simplified for the static Olist portfolio
+  snapshot: `DWH-006` now measures **full refresh versus deterministic replay**,
+  not a watermark/merge incremental claim. `IMP-M3-020` and `TC-M3-028` now use
+  the same terminology and require the same candidate ID, immutable source
+  release, ingestion batch and semantic contract on both observations.
+- The aggregate-only engine contract advanced to v2. It reports only logical
+  relation plus row-count/content-hash mismatch kinds for exactly 10 Silver and
+  18 Gold relations; a changed candidate ID, metadata or build mode fails closed.
+- Offline engine/runbook tests pass. The live full/replay candidate drill is
+  still pending, so M3 remains 19/20 `DONE`, 1 `PARTIAL` and TC-M3-028 remains
+  `PENDING`. No managed provider was called for this scope update.
+- Executed `uv run pytest tests/test_m3_equivalence.py -q -p no:cacheprovider
+  --basetemp .tmp/pytest-m3-equivalence-replay`: 5 passed. The test set covers
+  same-candidate equality, logical-only mismatch reporting, different-candidate/
+  source/batch/build-mode denial, complete 28-relation shape and private runbook
+  wording.
+- Final local verification: `uv run ruff format --check src tests`, `uv run
+  ruff check src tests`, `uv run mypy src tests --strict`, and dbt parse with
+  `--warn-error` pass. `uv run pytest -q -p no:cacheprovider --basetemp
+  .tmp/pytest-full-replay-contract --cov=reviewlens --cov-report=term-missing`
+  returns 461 passed, 8 expected opt-in live skips and 86.52% coverage. Policy,
+  regenerated artifact, dependency-lock and status checks pass.

@@ -7,7 +7,7 @@
 | Partial | 1/20 work items |
 | Blocked | 0/20 work items |
 | Not started | 0/20 work items |
-| Last updated | 2026-08-16 |
+| Last updated | 2026-08-17 |
 
 ## Implementation-plan checklist
 
@@ -32,7 +32,7 @@
 | IMP-M3-017 | `DONE` | Candidate Gold build/test target | Typed planner binds exactly ten Silver candidate inputs to a distinct deterministic Gold candidate namespace; `m3_gold_candidate` selects 18 outputs plus reconciliation/runtime gates; malformed/equal namespaces, incomplete model selection and any failed build/test evidence become `FAILED`, never `TEST_PASSED`; no serving grant/pointer mutation occurs |
 | IMP-M3-018 | `DONE` | Release events, immutable definition and CAS active pointer | Tested Silver/Gold candidates produce a deterministic SHA-256 release definition with exact 28 physical refs; append-only `CREATED`/activation/rollback/terminal events, one-winner versioned CAS, idempotent replay and rollback are exercised in-memory; migrations `004`/`006`/`007` are now applied live and an unknown-release owner smoke returns `RELEASE_DENIED` with pointer still v0/uninitialized; ADR-014 records the boundary |
 | IMP-M3-019 | `DONE` | Request resolver pins explicit Silver/Gold physical refs | Server-side resolver snapshots one active pointer and retains its full immutable Silver/Gold definition, while resolving only catalog allowlisted semantic names to exact Gold candidate refs; malformed/physical/duplicate inputs and no-pointer requests fail closed, and activation-race fixtures prove every pin remains one complete release |
-| IMP-M3-020 | `PARTIAL` | Full/incremental equivalence, metrics, lineage and runbook | Aggregate-only equivalence engine accepts exactly 10 Silver + 18 Gold logical relation fingerprints, rejects physical/raw-like input and requires distinct full/incremental candidates with identical source/batch/semantic metadata. Live Bronze contract (138 tests) and snapshot freshness (9 sources) pass; runbook records cost/cleanup. Current dbt graph has no true incremental materialization, so the two-run equivalence drill remains pending rather than mislabeling a rebuild as incremental. |
+| IMP-M3-020 | `PARTIAL` | Full-refresh/deterministic-replay equivalence, metrics, lineage and runbook | Aggregate-only equivalence engine accepts exactly 10 Silver + 18 Gold logical relation fingerprints, rejects physical/raw-like input and requires a full refresh plus deterministic replay of the same candidate ID with identical source/batch/semantic metadata. Live Bronze contract (138 tests) and snapshot freshness (9 sources) pass; runbook records cost/cleanup. The required same-candidate private drill has not run, so no replay result is claimed yet. |
 
 ## Exit gate
 

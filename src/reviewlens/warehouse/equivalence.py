@@ -1,4 +1,4 @@
-"""Fail-closed M3 full-refresh versus incremental-equivalence evidence."""
+"""Fail-closed M3 full-refresh versus deterministic-replay evidence."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from reviewlens.warehouse.gold_candidate import GOLD_CANDIDATE_OUTPUT_LOGICAL_NA
 from reviewlens.warehouse.releases import SILVER_RELEASE_LOGICAL_NAMES
 from reviewlens.warehouse.semantic import SEMANTIC_CATALOG_VERSION
 
-EQUIVALENCE_CONTRACT_VERSION = "reviewlens-m3-equivalence-v1"
+EQUIVALENCE_CONTRACT_VERSION = "reviewlens-m3-equivalence-v2"
 
 _HASH = re.compile(r"^[0-9a-f]{64}$")
 _IDENTIFIER = re.compile(r"^[A-Z][A-Z0-9_]{0,254}$")
@@ -34,7 +34,7 @@ class WarehouseEquivalenceError(ValueError):
 
 class CandidateBuildMode(StrEnum):
     FULL_REFRESH = "FULL_REFRESH"
-    INCREMENTAL = "INCREMENTAL"
+    DETERMINISTIC_REPLAY = "DETERMINISTIC_REPLAY"
 
 
 class EquivalenceMismatchKind(StrEnum):
@@ -70,7 +70,7 @@ class RelationFingerprint:
 
 @dataclass(frozen=True, slots=True)
 class CandidateEquivalenceSnapshot:
-    """Aggregate-only evidence from one isolated candidate build."""
+    """Aggregate-only evidence from one full-refresh or replay observation."""
 
     candidate_id: str
     build_mode: CandidateBuildMode
@@ -117,11 +117,10 @@ class EquivalenceMismatch:
 
 @dataclass(frozen=True, slots=True)
 class EquivalenceReport:
-    """Deterministic full-versus-incremental comparison result."""
+    """Deterministic full-refresh versus same-candidate replay result."""
 
     report_id: str
-    full_refresh_candidate_id: str
-    incremental_candidate_id: str
+    candidate_id: str
     source_release_id: str
     ingestion_batch_id: str
     semantic_contract_version: str
@@ -130,8 +129,7 @@ class EquivalenceReport:
 
     def __post_init__(self) -> None:
         expected = _report_digest(
-            full_refresh_candidate_id=self.full_refresh_candidate_id,
-            incremental_candidate_id=self.incremental_candidate_id,
+            candidate_id=self.candidate_id,
             source_release_id=self.source_release_id,
             ingestion_batch_id=self.ingestion_batch_id,
             semantic_contract_version=self.semantic_contract_version,
@@ -140,9 +138,7 @@ class EquivalenceReport:
         if (
             _HASH.fullmatch(self.report_id) is None
             or self.report_id != expected
-            or _HASH.fullmatch(self.full_refresh_candidate_id) is None
-            or _HASH.fullmatch(self.incremental_candidate_id) is None
-            or self.full_refresh_candidate_id == self.incremental_candidate_id
+            or _HASH.fullmatch(self.candidate_id) is None
             or _SOURCE_RELEASE.fullmatch(self.source_release_id) is None
             or _INGESTION_BATCH.fullmatch(self.ingestion_batch_id) is None
             or self.semantic_contract_version != SEMANTIC_CATALOG_VERSION
@@ -166,32 +162,32 @@ _EXPECTED_RELATION_KEYS = frozenset(
 )
 
 
-def compare_full_refresh_to_incremental(
+def compare_full_refresh_to_deterministic_replay(
     *,
     full_refresh: CandidateEquivalenceSnapshot,
-    incremental: CandidateEquivalenceSnapshot,
+    replay: CandidateEquivalenceSnapshot,
 ) -> EquivalenceReport:
-    """Compare the exact M3 release relation set without exposing row content."""
+    """Compare a full refresh with a same-input replay without exposing rows."""
 
     if (
         not isinstance(full_refresh, CandidateEquivalenceSnapshot)
-        or not isinstance(incremental, CandidateEquivalenceSnapshot)
+        or not isinstance(replay, CandidateEquivalenceSnapshot)
         or full_refresh.build_mode is not CandidateBuildMode.FULL_REFRESH
-        or incremental.build_mode is not CandidateBuildMode.INCREMENTAL
-        or full_refresh.candidate_id == incremental.candidate_id
-        or full_refresh.source_release_id != incremental.source_release_id
-        or full_refresh.ingestion_batch_id != incremental.ingestion_batch_id
-        or full_refresh.semantic_contract_version != incremental.semantic_contract_version
+        or replay.build_mode is not CandidateBuildMode.DETERMINISTIC_REPLAY
+        or full_refresh.candidate_id != replay.candidate_id
+        or full_refresh.source_release_id != replay.source_release_id
+        or full_refresh.ingestion_batch_id != replay.ingestion_batch_id
+        or full_refresh.semantic_contract_version != replay.semantic_contract_version
     ):
         raise WarehouseEquivalenceError()
 
     full_by_key = {item.key: item for item in full_refresh.relation_fingerprints}
-    incremental_by_key = {item.key: item for item in incremental.relation_fingerprints}
+    replay_by_key = {item.key: item for item in replay.relation_fingerprints}
     mismatches: list[EquivalenceMismatch] = []
     for layer_name, logical_name in sorted(_EXPECTED_RELATION_KEYS):
         full_relation = full_by_key[(layer_name, logical_name)]
-        incremental_relation = incremental_by_key[(layer_name, logical_name)]
-        if full_relation.row_count != incremental_relation.row_count:
+        replay_relation = replay_by_key[(layer_name, logical_name)]
+        if full_relation.row_count != replay_relation.row_count:
             mismatches.append(
                 EquivalenceMismatch(
                     layer=CandidateLayer(layer_name),
@@ -199,7 +195,7 @@ def compare_full_refresh_to_incremental(
                     kind=EquivalenceMismatchKind.ROW_COUNT,
                 )
             )
-        if full_relation.content_sha256 != incremental_relation.content_sha256:
+        if full_relation.content_sha256 != replay_relation.content_sha256:
             mismatches.append(
                 EquivalenceMismatch(
                     layer=CandidateLayer(layer_name),
@@ -210,15 +206,13 @@ def compare_full_refresh_to_incremental(
     ordered_mismatches = tuple(sorted(mismatches))
     return EquivalenceReport(
         report_id=_report_digest(
-            full_refresh_candidate_id=full_refresh.candidate_id,
-            incremental_candidate_id=incremental.candidate_id,
+            candidate_id=full_refresh.candidate_id,
             source_release_id=full_refresh.source_release_id,
             ingestion_batch_id=full_refresh.ingestion_batch_id,
             semantic_contract_version=full_refresh.semantic_contract_version,
             mismatches=ordered_mismatches,
         ),
-        full_refresh_candidate_id=full_refresh.candidate_id,
-        incremental_candidate_id=incremental.candidate_id,
+        candidate_id=full_refresh.candidate_id,
         source_release_id=full_refresh.source_release_id,
         ingestion_batch_id=full_refresh.ingestion_batch_id,
         semantic_contract_version=full_refresh.semantic_contract_version,
@@ -228,8 +222,7 @@ def compare_full_refresh_to_incremental(
 
 def _report_digest(
     *,
-    full_refresh_candidate_id: str,
-    incremental_candidate_id: str,
+    candidate_id: str,
     source_release_id: str,
     ingestion_batch_id: str,
     semantic_contract_version: str,
@@ -237,8 +230,7 @@ def _report_digest(
 ) -> str:
     payload = {
         "contract_version": EQUIVALENCE_CONTRACT_VERSION,
-        "full_refresh_candidate_id": full_refresh_candidate_id,
-        "incremental_candidate_id": incremental_candidate_id,
+        "candidate_id": candidate_id,
         "ingestion_batch_id": ingestion_batch_id,
         "mismatches": [
             {"kind": item.kind.value, "layer": item.layer.value, "logical_name": item.logical_name}
