@@ -66,7 +66,7 @@ def _sql_literal(value: str) -> str:
 
 
 def split_sql_statements(source: str) -> tuple[str, ...]:
-    """Split foundation SQL while preserving semicolons inside quoted literals."""
+    """Split Snowflake SQL without breaking quoted or ``$$`` procedure bodies."""
 
     uncommented = "\n".join(
         line for line in source.splitlines() if not line.lstrip().startswith("--")
@@ -75,25 +75,38 @@ def split_sql_statements(source: str) -> tuple[str, ...]:
     current: list[str] = []
     in_single_quote = False
     in_double_quote = False
+    in_dollar_quote = False
     index = 0
     while index < len(uncommented):
         character = uncommented[index]
         next_character = uncommented[index + 1] if index + 1 < len(uncommented) else ""
-        if character == "'" and not in_double_quote:
+        if (
+            character == "$"
+            and next_character == "$"
+            and not in_single_quote
+            and not in_double_quote
+        ):
+            current.extend((character, next_character))
+            in_dollar_quote = not in_dollar_quote
+            index += 2
+            continue
+        if character == "'" and not in_double_quote and not in_dollar_quote:
             current.append(character)
             if in_single_quote and next_character == "'":
                 current.append(next_character)
                 index += 2
                 continue
             in_single_quote = not in_single_quote
-        elif character == '"' and not in_single_quote:
+        elif character == '"' and not in_single_quote and not in_dollar_quote:
             current.append(character)
             if in_double_quote and next_character == '"':
                 current.append(next_character)
                 index += 2
                 continue
             in_double_quote = not in_double_quote
-        elif character == ";" and not in_single_quote and not in_double_quote:
+        elif (
+            character == ";" and not in_single_quote and not in_double_quote and not in_dollar_quote
+        ):
             statement = "".join(current).strip()
             if statement:
                 statements.append(statement)

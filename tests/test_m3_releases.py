@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from reviewlens.providers.snowflake import split_sql_statements
 from reviewlens.warehouse.candidates import (
     CandidateLayer,
     CandidateState,
@@ -318,13 +319,36 @@ def test_atomic_release_migration_is_append_only_and_keeps_pointer_mutation_in_p
     assert "CREATE TABLE IF NOT EXISTS REVIEWLENS.AUDIT.RELEASE_DEFINITION" in upper
     assert "CREATE TABLE IF NOT EXISTS REVIEWLENS.AUDIT.RELEASE_OBJECT_REF" in upper
     assert "MERGE INTO REVIEWLENS.AUDIT.ACTIVE_RELEASE_POINTER" in upper
-    assert "CREATE PROCEDURE IF NOT EXISTS REVIEWLENS.AUDIT.ACTIVATE_RELEASE_V1" in upper
-    assert "CREATE PROCEDURE IF NOT EXISTS REVIEWLENS.AUDIT.ROLLBACK_RELEASE_V1" in upper
+    assert "CREATE OR REPLACE PROCEDURE REVIEWLENS.AUDIT.ACTIVATE_RELEASE_V1" in upper
+    assert "CREATE OR REPLACE PROCEDURE REVIEWLENS.AUDIT.ROLLBACK_RELEASE_V1" in upper
     assert upper.count("BEGIN TRANSACTION") == 2
     assert upper.count("SQLROWCOUNT") == 2
+    assert upper.count("\n  IF (") == 8
+    assert "IF V_" not in upper
+    assert "IF SQLROWCOUNT" not in upper
+    assert "AND (V_CURRENT_POINTER_VERSION = P_EXPECTED_POINTER_VERSION + 1)\n  ) THEN" in upper
+    assert "OR V_CURRENT_RELEASE_ID = P_TARGET_RELEASE_ID\n  ) THEN" in upper
     assert "EXPECTED_POINTER_VERSION" in upper
     assert "RESULT_POINTER_VERSION" in upper
-    assert "GRANT EXECUTE ON PROCEDURE" in upper
+    assert "GRANT USAGE ON PROCEDURE" in upper
+    assert "GRANT EXECUTE ON PROCEDURE" not in upper
+    assert upper.count("WHERE DEFINITION.RELEASE_ID = :P_TARGET_RELEASE_ID") == 4
+    assert upper.count("SET RELEASE_ID = :P_TARGET_RELEASE_ID") == 2
+    assert upper.count("ACTIVATION_EVENT_ID = :P_EVENT_ID") == 2
+    assert upper.count("POINTER_VERSION = :P_EXPECTED_POINTER_VERSION + 1") == 2
     assert "GRANT UPDATE ON TABLE REVIEWLENS.AUDIT.ACTIVE_RELEASE_POINTER" not in upper
     for forbidden in ("RAW_PAYLOAD", "REVIEW_TEXT", "API_KEY", "PRIVATE_KEY", "PASSWORD"):
         assert forbidden not in upper
+
+
+def test_atomic_release_migration_splits_each_owner_procedure_as_one_statement() -> None:
+    statements = split_sql_statements(MIGRATION.read_text(encoding="utf-8"))
+    procedures = tuple(
+        statement
+        for statement in statements
+        if statement.lstrip().upper().startswith("CREATE OR REPLACE PROCEDURE")
+    )
+
+    assert len(procedures) == 2
+    assert all("BEGIN TRANSACTION;" in statement for statement in procedures)
+    assert all("END;\n$$" in statement for statement in procedures)

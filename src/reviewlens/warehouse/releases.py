@@ -123,7 +123,7 @@ class ReleaseDefinition:
             or self.definition_version != RELEASE_DEFINITION_VERSION
             or not self.object_refs
             or len(self.object_refs)
-            != len(_SILVER_RELEASE_LOGICAL_NAMES) + len(GOLD_CANDIDATE_OUTPUT_LOGICAL_NAMES)
+            != len(SILVER_RELEASE_LOGICAL_NAMES) + len(GOLD_CANDIDATE_OUTPUT_LOGICAL_NAMES)
             or tuple(sorted(self.object_refs)) != self.object_refs
             or len({item.canonical_key for item in self.object_refs}) != len(self.object_refs)
             or len({(item.layer, item.logical_name) for item in self.object_refs})
@@ -136,7 +136,7 @@ class ReleaseDefinition:
                 )
                 for item in self.object_refs
             )
-            or expected_silver != _SILVER_RELEASE_LOGICAL_NAMES
+            or expected_silver != SILVER_RELEASE_LOGICAL_NAMES
             or expected_gold != set(GOLD_CANDIDATE_OUTPUT_LOGICAL_NAMES)
         ):
             raise ReleaseContractError()
@@ -218,18 +218,20 @@ class ReleaseTransition:
     replayed: bool
 
 
-_SILVER_RELEASE_LOGICAL_NAMES = {
-    "SIL_CATEGORY_TRANSLATION",
-    "SIL_CUSTOMER",
-    "SIL_GEOLOCATION_ZIP",
-    "SIL_ORDER",
-    "SIL_ORDER_ITEM",
-    "SIL_ORDER_PAYMENT",
-    "SIL_ORDER_REVIEW",
-    "SIL_PRODUCT",
-    "SIL_SELLER",
-    "SIL_UNKNOWN_MEMBER_REGISTRY",
-}
+SILVER_RELEASE_LOGICAL_NAMES = frozenset(
+    {
+        "SIL_CATEGORY_TRANSLATION",
+        "SIL_CUSTOMER",
+        "SIL_GEOLOCATION_ZIP",
+        "SIL_ORDER",
+        "SIL_ORDER_ITEM",
+        "SIL_ORDER_PAYMENT",
+        "SIL_ORDER_REVIEW",
+        "SIL_PRODUCT",
+        "SIL_SELLER",
+        "SIL_UNKNOWN_MEMBER_REGISTRY",
+    }
+)
 
 
 def _is_candidate_owned_object_ref(

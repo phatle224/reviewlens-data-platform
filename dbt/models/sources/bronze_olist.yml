@@ -12,14 +12,14 @@ sources:
     config:
       loaded_at_field: ingested_at
       freshness:
-        warn_after: {count: 2, period: day}
-        error_after: {count: 7, period: day}
+        warn_after: {count: 30, period: day}
+        error_after: {count: 90, period: day}
       meta:
         source_system: olist_brazilian_ecommerce
         license: CC-BY-NC-SA-4.0
         data_access: private
         raw_payload_allowed_in_public_artifacts: false
-        freshness_policy: daily_local_snapshot
+        freshness_policy: immutable_snapshot_90d
     tables:
       - name: customers
         identifier: BRZ_OLIST_CUSTOMERS_RAW

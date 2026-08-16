@@ -4,9 +4,9 @@
 |---|---|
 | Phase status | `IN_PROGRESS` |
 | Completed | 19/20 work items |
-| Partial | 0/20 work items |
+| Partial | 1/20 work items |
 | Blocked | 0/20 work items |
-| Not started | 1/20 work items |
+| Not started | 0/20 work items |
 | Last updated | 2026-08-16 |
 
 ## Implementation-plan checklist
@@ -15,7 +15,7 @@
 |---|---|---|---|
 | IMP-M3-001 | `DONE` | Processing-run/input and candidate physical-reference ledger | Deterministic SHA-256 run/input/candidate identities, ordered 1:N lineage and replay-safe in-memory registry; additive `006_processing_candidates.sql` creates three secret-free append-only ledgers with exact grants; migration replay and contract tests pass |
 | IMP-M3-002 | `DONE` | Versioned Silver candidate build/cleanup strategy | Versioned candidate IDs produce isolated physical object namespaces inside least-privilege `SILVER`/`GOLD` schemas; thread-safe lease tests allow one concurrent owner and cleanup only terminal failed/unreferenced candidates |
-| IMP-M3-003 | `DONE` | dbt Bronze sources, freshness, contracts and docs | All nine Bronze relations declare exact typed business/lineage columns, canonical physical-grain tests, bounded freshness, privacy/license metadata and `m3_bronze_contract`; offline dbt parse passes with warnings-as-errors |
+| IMP-M3-003 | `DONE` | dbt Bronze sources, freshness, contracts and docs | All nine Bronze relations declare exact typed business/lineage columns, canonical physical-grain tests, immutable-snapshot freshness (warn 30 days/error 90 days), privacy/license metadata and `m3_bronze_contract`; offline dbt parse passes with warnings-as-errors |
 | IMP-M3-004 | `DONE` | `SIL_CUSTOMER`, minimized repeat-customer key and geography | Candidate-bound table contract deduplicates by deterministic lineage order, excludes raw `customer_unique_id`, emits versioned SHA-256 repeat key and normalized ZIP/city/state; privacy/type/dedup fixture tests pass |
 | IMP-M3-005 | `DONE` | Deterministic `SIL_GEOLOCATION_ZIP` centroid/quality model | One row per normalized ZIP, fixed-scale valid-point centroid, occurrence/reconciliation counts and explicit valid/ambiguous/partial/no-valid quality states; known-count/no-multiplication fixtures pass |
 | IMP-M3-006 | `DONE` | `SIL_ORDER` status/time/scope/delivery flags | One deterministic order with M0 `olist_order_scope_v1`, Brazilian local-civil policy, parent/item guards and nonnegative delivery interval/on-time rules; delivered/canceled/missing/unknown/time-edge fixtures pass |
@@ -30,9 +30,9 @@
 | IMP-M3-015 | `DONE` | Delivery, product-review, seller and customer marts | Four candidate-bound monthly marts pre-aggregate item/payment/seller-order grains before joins; metric dictionary v1, ADR-011 allocation and ADR-012 mart/repeat-customer semantics are labeled; golden delivery/value/review/customer fixtures, zero-denominator/invalid negatives, dbt grain/relationship/privacy contracts and cross-mart reconciliation pass |
 | IMP-M3-016 | `DONE` | Release-bound dashboard/SQL semantic views | Versioned catalog maps four stable logical names to candidate-bound dbt views; exact dashboard/Text-to-SQL columns, roles, metric/nonadditive usage and partial-AI labels are enforced; physical identifiers, natural IDs, review text, unapproved fields and early grants/pointer activation fail closed; ADR-013 and offline catalog/dbt negative tests pass |
 | IMP-M3-017 | `DONE` | Candidate Gold build/test target | Typed planner binds exactly ten Silver candidate inputs to a distinct deterministic Gold candidate namespace; `m3_gold_candidate` selects 18 outputs plus reconciliation/runtime gates; malformed/equal namespaces, incomplete model selection and any failed build/test evidence become `FAILED`, never `TEST_PASSED`; no serving grant/pointer mutation occurs |
-| IMP-M3-018 | `DONE` | Release events, immutable definition and CAS active pointer | Tested Silver/Gold candidates produce a deterministic SHA-256 release definition with exact 28 physical refs; append-only `CREATED`/activation/rollback/terminal events, one-winner versioned CAS, idempotent replay and rollback are exercised in-memory; migration `007` seeds one pointer row and restricts mutation to owner-executed procedures with no direct runtime update grant; ADR-014 records the boundary |
+| IMP-M3-018 | `DONE` | Release events, immutable definition and CAS active pointer | Tested Silver/Gold candidates produce a deterministic SHA-256 release definition with exact 28 physical refs; append-only `CREATED`/activation/rollback/terminal events, one-winner versioned CAS, idempotent replay and rollback are exercised in-memory; migrations `004`/`006`/`007` are now applied live and an unknown-release owner smoke returns `RELEASE_DENIED` with pointer still v0/uninitialized; ADR-014 records the boundary |
 | IMP-M3-019 | `DONE` | Request resolver pins explicit Silver/Gold physical refs | Server-side resolver snapshots one active pointer and retains its full immutable Silver/Gold definition, while resolving only catalog allowlisted semantic names to exact Gold candidate refs; malformed/physical/duplicate inputs and no-pointer requests fail closed, and activation-race fixtures prove every pin remains one complete release |
-| IMP-M3-020 | `NOT_STARTED` | Full/incremental equivalence, metrics, lineage and runbook | Await complete M3 graph |
+| IMP-M3-020 | `PARTIAL` | Full/incremental equivalence, metrics, lineage and runbook | Aggregate-only equivalence engine accepts exactly 10 Silver + 18 Gold logical relation fingerprints, rejects physical/raw-like input and requires distinct full/incremental candidates with identical source/batch/semantic metadata. Live Bronze contract (138 tests) and snapshot freshness (9 sources) pass; runbook records cost/cleanup. Current dbt graph has no true incremental materialization, so the two-run equivalence drill remains pending rather than mislabeling a rebuild as incremental. |
 
 ## Exit gate
 

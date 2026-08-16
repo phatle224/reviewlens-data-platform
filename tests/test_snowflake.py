@@ -88,6 +88,35 @@ def test_sql_splitter_preserves_quotes_and_escaped_quotes() -> None:
     )
 
 
+def test_sql_splitter_preserves_semicolons_inside_snowflake_procedure_body() -> None:
+    source = """CREATE PROCEDURE EXAMPLE()
+RETURNS VARCHAR
+LANGUAGE SQL
+AS
+$$
+BEGIN
+  RETURN 'value; remains inside the procedure';
+END;
+$$;
+SELECT 'outside';
+"""
+
+    statements = split_sql_statements(source)
+
+    assert statements == (
+        """CREATE PROCEDURE EXAMPLE()
+RETURNS VARCHAR
+LANGUAGE SQL
+AS
+$$
+BEGIN
+  RETURN 'value; remains inside the procedure';
+END;
+$$""",
+        "SELECT 'outside'",
+    )
+
+
 def test_r2_stage_sql_uses_s3_compat_and_manual_refresh() -> None:
     statement = render_r2_stage_sql(
         database="REVIEWLENS",

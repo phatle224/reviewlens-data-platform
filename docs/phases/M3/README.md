@@ -14,7 +14,8 @@ change the active release pointer.
 | [ADR-013](../../ADR/ADR-013-semantic-serving-boundary.md) | Logical semantic names, approved fields and delayed activation |
 | [ADR-014](../../ADR/ADR-014-atomic-release-cas.md) | Immutable release definition and CAS activation/rollback |
 
-Phase status: `IN_PROGRESS` with 19/20 work items complete. Bundles
+Phase status: `IN_PROGRESS` with 19/20 work items complete and `IMP-M3-020`
+partial. Bundles
 `IMP-M3-001…019` deliver processing lineage, isolated candidates, Silver/DQ
 contracts, five conformed dimensions, four reconciled base facts and a versioned
 review-to-item allocation bridge. Four monthly Gold marts apply metric dictionary
@@ -31,5 +32,7 @@ names to explicit refs from the same immutable definition, rejecting physical
 inputs and mixed-release reads during activation races. Dimension lookups are
 version-aware/as-of and multi-item review weights reconcile exactly to one
 without claiming item-level evidence. Their offline gates pass without resuming
-Snowflake or bypassing review DLP. The next dependency-ready work item is
-`IMP-M3-020`.
+Snowflake or bypassing review DLP. `IMP-M3-020` now has the fail-closed
+aggregate-only comparison engine and operations runbook, but the final drill
+remains pending until a true incremental dbt materialization is implemented;
+the current graph contains only full table materializations.

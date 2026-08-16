@@ -6,7 +6,7 @@ DuckDB adapter, password fallback, staging target or production target.
 
 M1 introduced the source interface and M2 created/loaded immutable Bronze. M3
 now declares every Bronze business/lineage column and type, a canonical physical
-grain test, `INGESTED_AT` freshness (warn after 2 days, error after 7 days), and
+grain test, `INGESTED_AT` immutable-snapshot freshness (warn after 30 days, error after 90 days), and
 privacy metadata that prevents `RAW_PAYLOAD` or restricted review text from being
 treated as a public/downstream interface. Conformed Silver/Gold models remain M3
 work and build under versioned candidate physical namespaces. The first Silver

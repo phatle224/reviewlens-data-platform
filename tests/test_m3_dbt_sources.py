@@ -9,6 +9,7 @@ import yaml  # type: ignore[import-untyped]
 SOURCE_YAML = Path("dbt/models/sources/bronze_olist.yml")
 BRONZE_DDL = Path("infra/snowflake/005_bronze.sql")
 SELECTORS_YAML = Path("dbt/selectors.yml")
+UNIQUE_COMBINATION_MACRO = Path("dbt/macros/test_reviewlens_unique_combination.sql")
 
 
 def _source_definition() -> dict[str, Any]:
@@ -63,9 +64,10 @@ def test_sources_have_bounded_freshness_and_canonical_physical_grain_tests() -> 
 
     assert config["loaded_at_field"] == "ingested_at"
     assert config["freshness"] == {
-        "warn_after": {"count": 2, "period": "day"},
-        "error_after": {"count": 7, "period": "day"},
+        "warn_after": {"count": 30, "period": "day"},
+        "error_after": {"count": 90, "period": "day"},
     }
+    assert config["meta"]["freshness_policy"] == "immutable_snapshot_90d"
     for table in source["tables"]:
         tests = table["data_tests"]
         assert tests == [
@@ -96,6 +98,13 @@ def test_sources_have_bounded_freshness_and_canonical_physical_grain_tests() -> 
             "raw_payload",
         ):
             assert "not_null" in columns[name]["data_tests"]
+
+
+def test_source_grain_macro_quotes_canonical_uppercase_snowflake_identifiers() -> None:
+    source = UNIQUE_COMBINATION_MACRO.read_text(encoding="utf-8")
+
+    assert source.count("adapter.quote(column_name | upper)") == 2
+    assert "adapter.quote(column_name)" not in source
 
 
 def test_source_privacy_and_attribution_metadata_fail_closed() -> None:

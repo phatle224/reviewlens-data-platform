@@ -11,10 +11,10 @@
 | TC-M3-005 | Candidate isolation | Two processing runs build Silver concurrently | Distinct physical namespaces and no cross-write | `PASS` | Contract-version runs produce different candidate-prefixed physical objects |
 | TC-M3-006 | Concurrency | Two owners claim the same candidate | Exactly one active lease owner | `PASS` | Eight-thread test records one owner and seven denied claims |
 | TC-M3-007 | Cleanup safety | Cleanup targets active/tested or foreign candidate | Denied; only terminal unreferenced candidate is eligible | `PASS` | Building/test-passed/active refs denied; failed unreferenced candidate cleans once |
-| TC-M3-008 | Migration contract | Processing/input/candidate reference DDL and grants | Additive, append-only, exact-role and secret-free | `PASS` | Three-table DDL, compatibility marker, exact 8 grants and replay tests pass offline |
+| TC-M3-008 | Migration contract | Processing/input/candidate reference DDL and grants | Additive, append-only, exact-role and secret-free | `PASS` | Three-table DDL, compatibility marker, exact 8 grants and replay tests pass offline; owner preflight now verifies `PROCESSING_RUN` exists after applying `006` |
 | TC-M3-009 | dbt source set | Parse Bronze source definitions | Exactly nine canonical Olist relations | `PASS` | YAML identifiers exactly equal the nine Bronze DDL tables |
 | TC-M3-010 | dbt source columns | Compare YAML columns with Bronze DDL | Typed business and canonical lineage columns match | `PASS` | Exact name/type comparison passes for every declared column |
-| TC-M3-011 | Freshness | Inspect all source freshness contracts | `INGESTED_AT` loaded-at field and bounded warn/error rules present | `PASS` | Warn 2 days/error 7 days on `ingested_at` verified |
+| TC-M3-011 | Freshness | Inspect all source freshness contracts | `INGESTED_AT` loaded-at field and bounded immutable-snapshot warn/error rules present | `PASS` | Warn 30 days/error 90 days on `ingested_at` verified; this avoids applying a streaming SLA to the private immutable Olist snapshot |
 | TC-M3-012 | dbt source tests | Inspect key, not-null and relationship-ready tests | Grain/lineage tests exist without exposing raw payload | `PASS` | Nine canonical four-column grain tests, lineage not-null and fail-closed raw metadata verified |
 | TC-M3-013 | dbt parse/docs | Offline parse with synthetic environment | Zero warnings/errors; docs/meta retain privacy and license | `PASS` | dbt 1.12 parse `--warn-error` passes offline; CC BY-NC-SA/private/DLP metadata and selector verified |
 | TC-M3-014 | Silver customer | Duplicate/customer geography/privacy fixtures | One customer row and minimized repeat key | `PASS` | Deterministic key/normalization oracle and static dbt grain/privacy contract pass; raw repeat ID is not an output column |
@@ -31,9 +31,9 @@
 | TC-M3-025 | Candidate failure | Silver/Gold candidate fails a gate | Active serving pointer remains unchanged | `PASS` | Baseline tested release activates at pointer v1; a second untested Gold candidate is denied release-definition creation and leaves pointer/event count unchanged; no failed candidate can reach activation |
 | TC-M3-026 | CAS/replay | Concurrent activation, rollback and replay | One CAS winner; rollback uses immutable release | `PASS` | Deterministic definition/replay, stale-CAS denial, two-writer race with exactly one winner, activation replay and rollback replay all pass; pointer version advances 0→1→2→3 and rollback references a prior immutable definition |
 | TC-M3-027 | Request pinning | Concurrent requests during activation | Each request uses one complete release | `PASS` | Resolver snapshots one pointer then resolves only catalog logical names from its immutable definition; no-pointer, raw/physical, duplicate and unowned-type inputs fail closed, and 16 concurrent pins racing activation each contain refs from exactly one Gold candidate |
-| TC-M3-028 | Equivalence/cost | Full versus incremental two-run drill | Row/hash equality, bounded X-Small usage and suspend | `PENDING` | Await IMP-M3-020; owner opt-in required |
+| TC-M3-028 | Equivalence/cost | Full versus incremental two-run drill | Row/hash equality, bounded X-Small usage and suspend | `PENDING` | Aggregate-only 28-relation comparison engine and private runbook pass offline; 138 live Bronze contract tests and 9-source immutable-snapshot freshness pass, owner migration/procedure denied-smoke passes and warehouse is suspended. A true incremental dbt path is not implemented yet, so no rebuild is mislabeled as incremental. |
 | TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-1cee93f22baa9ecc`, dependency lock and project-image dry-run pass |
-| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 19/20 done, 29/30 pass, 0 errors and 0 warnings |
+| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 19/20 done, 1/20 partial, 29/30 pass, 0 errors and 0 warnings |
 
 ## Execution log — 2026-08-14
 
@@ -246,3 +246,28 @@
   `453 passed, 8 skipped`.
 - No Docker image was built and no Snowflake, R2, OpenRouter or Chroma call was
   performed. `IMP-M3-020` is the remaining M3 work item.
+
+## Execution log — 2026-08-16 (`IMP-M3-020`, partial)
+
+- Owner-approved Snowflake preflight found migrations `006`/`007` absent and a
+  missing `004` audit-ledger prerequisite. The idempotent `004`, `006` and `007`
+  migrations were then applied. The SQL splitter now preserves `$$` procedure
+  bodies; release procedures use valid parenthesized Snowflake Scripting
+  conditions, bound SQL variables and procedure `USAGE` grants.
+- An isolated owner procedure smoke called activation with an unknown release.
+  It returned `RELEASE_DENIED`; the active pointer remained uninitialized at
+  version 0. Snowflake object preflight confirms both release procedures and
+  required ledgers exist; warehouse state is `SUSPENDED`.
+- Fixed the canonical source-grain dbt test to quote uppercase Snowflake
+  identifiers. The live source contract returns 138 `PASS`; source freshness
+  returns 9 `PASS` after moving the immutable Olist snapshot policy from the
+  inappropriate streaming 2/7-day SLA to warn 30/error 90 days.
+- Added the deterministic aggregate-only equivalence engine: it compares exact
+  10 Silver + 18 Gold logical relations, requires distinct full/incremental
+  candidate IDs with matching source/batch/semantic metadata, reports only
+  logical mismatch kinds and rejects physical/raw-like inputs. The new M3
+  operations runbook preserves private evidence and cleanup requirements.
+- TC-M3-028 remains `PENDING`: all current dbt M3 outputs use `table`, with no
+  true incremental watermark/merge path. A second full rebuild is not claimed
+  as incremental evidence. No candidate, pointer activation/rollback, R2,
+  OpenRouter or Chroma operation was performed in this bundle.
