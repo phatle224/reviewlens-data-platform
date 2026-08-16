@@ -28,12 +28,12 @@
 | TC-M3-022 | Dimensions/facts | Declared grains and relationships | No unexpected multiplication or loss | `PASS` | Stable/version-scoped key, unknown, shuffled SCD boundary, overlap-negative and exact fact-partition fixtures pass; manifest has 5 dimensions + 4 facts in `GOLD`; relationships/grains plus count and item/payment amount reconciliation tests are selected by `m3_gold_base`; review fact has no restricted text |
 | TC-M3-023 | Attribution | Multi-item order review metrics | Allocation labels present; no silent double count | `PASS` | Policy `olist-review-item-equal-weight-v1` labels every bridge row; deterministic residual makes weight/count sum exactly 1 and allocated score sum to source score for one/two/three items; zero-item fallback preserves review; shuffled inputs are invariant and duplicate/invalid grains fail closed |
 | TC-M3-024 | Marts/semantic | Metric dictionary and serving allowlist fixtures | Golden outputs and approved semantic fields match declared grains | `PASS` | Golden fixtures verify order/delivery/value totals, null zero-denominators, fractional allocated review sample/score and distinct lifetime repeat-customer rate with unknown exclusion; four monthly mart grains reconcile offline; semantic catalog/dbt contracts expose only four logical views with approved dimensions/measures, policy labels and partial-AI state while physical names, restricted IDs/text and unsafe roles fail closed |
-| TC-M3-025 | Candidate failure | Silver/Gold candidate fails a gate | Active serving pointer remains unchanged | `PENDING` | `IMP-M3-017` proves incomplete/failed Gold evidence becomes `FAILED` and separate namespaces are enforced offline; active-pointer non-mutation remains an M3-018 CAS test |
-| TC-M3-026 | CAS/replay | Concurrent activation, rollback and replay | One CAS winner; rollback uses immutable release | `PENDING` | Await IMP-M3-018 |
-| TC-M3-027 | Request pinning | Concurrent requests during activation | Each request uses one complete release | `PENDING` | Await IMP-M3-019 |
+| TC-M3-025 | Candidate failure | Silver/Gold candidate fails a gate | Active serving pointer remains unchanged | `PASS` | Baseline tested release activates at pointer v1; a second untested Gold candidate is denied release-definition creation and leaves pointer/event count unchanged; no failed candidate can reach activation |
+| TC-M3-026 | CAS/replay | Concurrent activation, rollback and replay | One CAS winner; rollback uses immutable release | `PASS` | Deterministic definition/replay, stale-CAS denial, two-writer race with exactly one winner, activation replay and rollback replay all pass; pointer version advances 0→1→2→3 and rollback references a prior immutable definition |
+| TC-M3-027 | Request pinning | Concurrent requests during activation | Each request uses one complete release | `PASS` | Resolver snapshots one pointer then resolves only catalog logical names from its immutable definition; no-pointer, raw/physical, duplicate and unowned-type inputs fail closed, and 16 concurrent pins racing activation each contain refs from exactly one Gold candidate |
 | TC-M3-028 | Equivalence/cost | Full versus incremental two-run drill | Row/hash equality, bounded X-Small usage and suspend | `PENDING` | Await IMP-M3-020; owner opt-in required |
-| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-51468cf4c3fcb0d0`, dependency lock and project-image dry-run pass |
-| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 17/20 done, 26/30 pass, 0 errors and 0 warnings |
+| TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; artifact `local-sha256-1cee93f22baa9ecc`, dependency lock and project-image dry-run pass |
+| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 19/20 done, 29/30 pass, 0 errors and 0 warnings |
 
 ## Execution log — 2026-08-14
 
@@ -175,3 +175,74 @@
   Final artifact is `local-sha256-51468cf4c3fcb0d0`.
 - No Docker image was built and no Snowflake, R2, OpenRouter or Chroma call was
   performed. Active-release grants, CAS activation and rollback remain M3-018.
+
+## Execution log — 2026-08-16 (`IMP-M3-018`)
+
+- Added a deterministic immutable release definition that binds one tested
+  Silver candidate, one tested Gold candidate, source/batch/process identities,
+  semantic catalog version and all 28 candidate physical refs. A definition is
+  hash-addressed and cannot carry mutable serving state.
+- Added append-only release events, terminal invalidation/revocation guard and a
+  one-row versioned CAS pointer fake. Candidate failure cannot create a
+  definition; stale or concurrent CAS is denied; activation and rollback retry
+  idempotently without emitting an additional transition.
+- Migration `007_atomic_release.sql` seeds the v0 pointer and defines owner-
+  executed `ACTIVATE_RELEASE_V1`/`ROLLBACK_RELEASE_V1` procedures. Runtime roles
+  receive no direct pointer update privilege. ADR-014 records this contract.
+- Focused release/candidate/audit suite: 30 tests pass; full M3 focused suite:
+  97 tests pass. Ruff, strict mypy and dbt parse with warnings-as-errors pass
+  offline. Live migration/procedure smoke remains an explicit owner-approved
+  Snowflake gate.
+- Final offline regression on 2026-08-16: 443 tests pass, 8 expected opt-in
+  live tests skip and coverage is 86.28%. Repository policy, dependency lock,
+  artifact validation, project-image retention dry-run and the workflow status
+  validator pass; final artifact is `local-sha256-9e3e57dc893d4279`.
+- Executed focused command: `uv run pytest tests/test_m3_processing_migration.py
+  tests/test_m3_dbt_sources.py tests/test_m3_silver_models.py
+  tests/test_m3_silver_relational_models.py tests/test_m3_quality_revisions.py
+  tests/test_m3_gold_models.py tests/test_m3_gold_marts.py
+  tests/test_m3_semantic_views.py tests/test_m3_gold_candidate.py
+  tests/test_m3_releases.py tests/test_dbt.py -q -p no:cacheprovider --basetemp
+  .tmp/pytest-m3-phase-018` returned `97 passed`.
+- Executed full command: `uv run pytest -q -p no:cacheprovider --basetemp
+  .tmp/pytest-full-m3-018 --cov=reviewlens --cov-report=term-missing` returned
+  `443 passed, 8 skipped`.
+- No Docker image was built and no Snowflake, R2, OpenRouter or Chroma call was
+  performed. M3-019 must pin request reads to this release before any serving
+  object is exposed.
+
+## Execution log — 2026-08-16 (`IMP-M3-019`)
+
+- Added `ActiveReleaseResolver`: it snapshots `ACTIVE_DATA_RELEASE` once and
+  resolves only allowlisted catalog logical names to the exact Gold refs of that
+  immutable definition. Callers cannot provide a schema, candidate namespace,
+  physical relation or release ID.
+- Each `ReleaseRequestPin` retains the full private immutable release definition
+  (all Silver and Gold refs), release/definition identity, pointer version,
+  activation event and semantic contract version; only Gold semantic refs are
+  resolved for consumers. The release definition now also enforces exactly 28
+  unique logical refs in the namespace of its own Silver or Gold candidate.
+- Offline request-pinning tests cover valid dashboard resolution, no active
+  pointer, raw/physical/lowercase/duplicate inputs, non-enum caller arguments,
+  cross-candidate refs and a 16-request activation race with no mixed release.
+- Focused resolver/release/semantic suite: 28 tests pass; full M3 focused suite:
+  107 tests pass. Ruff, strict mypy and dbt parse with warnings-as-errors pass
+  offline. Live migration/procedure smoke remains an explicit owner-approved
+  Snowflake gate.
+- Final offline regression on 2026-08-16: 453 tests pass, 8 expected opt-in
+  live tests skip and coverage is 86.34%. Repository policy, dependency lock,
+  artifact validation, project-image retention dry-run and the workflow status
+  validator pass; final artifact is `local-sha256-1cee93f22baa9ecc`.
+- Executed focused command: `uv run pytest tests/test_m3_processing_migration.py
+  tests/test_m3_dbt_sources.py tests/test_m3_silver_models.py
+  tests/test_m3_silver_relational_models.py tests/test_m3_quality_revisions.py
+  tests/test_m3_gold_models.py tests/test_m3_gold_marts.py
+  tests/test_m3_semantic_views.py tests/test_m3_gold_candidate.py
+  tests/test_m3_releases.py tests/test_m3_release_resolver.py tests/test_dbt.py
+  -q -p no:cacheprovider --basetemp .tmp/pytest-m3-phase-019` returned
+  `107 passed`.
+- Executed full command: `uv run pytest -q -p no:cacheprovider --basetemp
+  .tmp/pytest-full-m3-019 --cov=reviewlens --cov-report=term-missing` returned
+  `453 passed, 8 skipped`.
+- No Docker image was built and no Snowflake, R2, OpenRouter or Chroma call was
+  performed. `IMP-M3-020` is the remaining M3 work item.
