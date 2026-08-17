@@ -4,10 +4,10 @@ reviewlens:
     local:
       type: snowflake
       account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
-      user: REVIEWLENS_TRANSFORM_SVC
-      private_key_path: "{{ env_var('SNOWFLAKE_TRANSFORM_PRIVATE_KEY_PATH') }}"
-      private_key_passphrase: "{{ env_var('SNOWFLAKE_TRANSFORM_PRIVATE_KEY_PASSPHRASE', '') }}"
-      role: TRANSFORMER_ROLE
+      user: "{{ env_var('DBT_SNOWFLAKE_USER', 'REVIEWLENS_TRANSFORM_SVC') }}"
+      private_key_path: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PATH', env_var('SNOWFLAKE_TRANSFORM_PRIVATE_KEY_PATH')) }}"
+      private_key_passphrase: "{{ env_var('DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', env_var('SNOWFLAKE_TRANSFORM_PRIVATE_KEY_PASSPHRASE', '')) }}"
+      role: "{{ env_var('DBT_SNOWFLAKE_ROLE', 'TRANSFORMER_ROLE') }}"
       database: REVIEWLENS
       warehouse: REVIEWLENS_WH
       schema: SILVER
@@ -16,4 +16,4 @@ reviewlens:
       reuse_connections: true
       connect_retries: 1
       connect_timeout: 10
-      query_tag: reviewlens:transform:dbt
+      query_tag: "{{ env_var('DBT_SNOWFLAKE_QUERY_TAG', 'reviewlens:transform:dbt') }}"

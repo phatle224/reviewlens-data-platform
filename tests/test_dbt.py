@@ -30,15 +30,21 @@ def test_dbt_scaffold_is_single_local_snowflake_and_secret_safe() -> None:
     project = (DBT_DIR / "dbt_project.yml").read_text(encoding="utf-8")
     profile = (DBT_DIR / "profiles.yml").read_text(encoding="utf-8")
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+    m3_runbook = Path("docs/runbooks/M3_RELEASE_OPERATIONS.md").read_text(encoding="utf-8")
     combined = f"{project}\n{profile}\n{pyproject}".lower()
 
     assert "type: snowflake" in profile
     assert "dbt-snowflake>=1.10,<2" in pyproject
     assert "reviewlens_transform_svc" in combined
     assert "transformer_role" in combined
+    assert "reviewlens_gold_builder_svc" in m3_runbook.lower()
+    assert "gold_builder_role" in m3_runbook.lower()
     assert "reviewlens_wh" in combined
     assert "private_key_path" in profile
     assert "snowflake_transform_private_key_path" in combined
+    assert "dbt_snowflake_user" in combined
+    assert "dbt_snowflake_role" in combined
+    assert "dbt_snowflake_private_key_path" in combined
     assert "password:" not in combined
     assert "duckdb" not in combined
     assert "staging:" not in profile

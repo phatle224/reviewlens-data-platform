@@ -13,7 +13,7 @@ from reviewlens.warehouse.gold_candidate import GOLD_CANDIDATE_OUTPUT_LOGICAL_NA
 from reviewlens.warehouse.releases import SILVER_RELEASE_LOGICAL_NAMES
 from reviewlens.warehouse.semantic import SEMANTIC_CATALOG_VERSION
 
-EQUIVALENCE_CONTRACT_VERSION = "reviewlens-m3-equivalence-v2"
+EQUIVALENCE_CONTRACT_VERSION = "reviewlens-m3-equivalence-v3"
 
 _HASH = re.compile(r"^[0-9a-f]{64}$")
 _IDENTIFIER = re.compile(r"^[A-Z][A-Z0-9_]{0,254}$")
@@ -40,6 +40,22 @@ class CandidateBuildMode(StrEnum):
 class EquivalenceMismatchKind(StrEnum):
     ROW_COUNT = "ROW_COUNT"
     CONTENT_HASH = "CONTENT_HASH"
+
+
+@dataclass(frozen=True, slots=True)
+class CandidatePair:
+    """The distinct Silver/Gold candidates bound into one immutable drill target."""
+
+    silver_candidate_id: str
+    gold_candidate_id: str
+
+    def __post_init__(self) -> None:
+        if (
+            _HASH.fullmatch(self.silver_candidate_id) is None
+            or _HASH.fullmatch(self.gold_candidate_id) is None
+            or self.silver_candidate_id == self.gold_candidate_id
+        ):
+            raise WarehouseEquivalenceError()
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -72,7 +88,7 @@ class RelationFingerprint:
 class CandidateEquivalenceSnapshot:
     """Aggregate-only evidence from one full-refresh or replay observation."""
 
-    candidate_id: str
+    candidate_pair: CandidatePair
     build_mode: CandidateBuildMode
     source_release_id: str
     ingestion_batch_id: str
@@ -82,7 +98,7 @@ class CandidateEquivalenceSnapshot:
 
     def __post_init__(self) -> None:
         if (
-            _HASH.fullmatch(self.candidate_id) is None
+            not isinstance(self.candidate_pair, CandidatePair)
             or not isinstance(self.build_mode, CandidateBuildMode)
             or _SOURCE_RELEASE.fullmatch(self.source_release_id) is None
             or _INGESTION_BATCH.fullmatch(self.ingestion_batch_id) is None
@@ -120,7 +136,7 @@ class EquivalenceReport:
     """Deterministic full-refresh versus same-candidate replay result."""
 
     report_id: str
-    candidate_id: str
+    candidate_pair: CandidatePair
     source_release_id: str
     ingestion_batch_id: str
     semantic_contract_version: str
@@ -129,7 +145,7 @@ class EquivalenceReport:
 
     def __post_init__(self) -> None:
         expected = _report_digest(
-            candidate_id=self.candidate_id,
+            candidate_pair=self.candidate_pair,
             source_release_id=self.source_release_id,
             ingestion_batch_id=self.ingestion_batch_id,
             semantic_contract_version=self.semantic_contract_version,
@@ -138,7 +154,7 @@ class EquivalenceReport:
         if (
             _HASH.fullmatch(self.report_id) is None
             or self.report_id != expected
-            or _HASH.fullmatch(self.candidate_id) is None
+            or not isinstance(self.candidate_pair, CandidatePair)
             or _SOURCE_RELEASE.fullmatch(self.source_release_id) is None
             or _INGESTION_BATCH.fullmatch(self.ingestion_batch_id) is None
             or self.semantic_contract_version != SEMANTIC_CATALOG_VERSION
@@ -174,7 +190,7 @@ def compare_full_refresh_to_deterministic_replay(
         or not isinstance(replay, CandidateEquivalenceSnapshot)
         or full_refresh.build_mode is not CandidateBuildMode.FULL_REFRESH
         or replay.build_mode is not CandidateBuildMode.DETERMINISTIC_REPLAY
-        or full_refresh.candidate_id != replay.candidate_id
+        or full_refresh.candidate_pair != replay.candidate_pair
         or full_refresh.source_release_id != replay.source_release_id
         or full_refresh.ingestion_batch_id != replay.ingestion_batch_id
         or full_refresh.semantic_contract_version != replay.semantic_contract_version
@@ -206,13 +222,13 @@ def compare_full_refresh_to_deterministic_replay(
     ordered_mismatches = tuple(sorted(mismatches))
     return EquivalenceReport(
         report_id=_report_digest(
-            candidate_id=full_refresh.candidate_id,
+            candidate_pair=full_refresh.candidate_pair,
             source_release_id=full_refresh.source_release_id,
             ingestion_batch_id=full_refresh.ingestion_batch_id,
             semantic_contract_version=full_refresh.semantic_contract_version,
             mismatches=ordered_mismatches,
         ),
-        candidate_id=full_refresh.candidate_id,
+        candidate_pair=full_refresh.candidate_pair,
         source_release_id=full_refresh.source_release_id,
         ingestion_batch_id=full_refresh.ingestion_batch_id,
         semantic_contract_version=full_refresh.semantic_contract_version,
@@ -222,7 +238,7 @@ def compare_full_refresh_to_deterministic_replay(
 
 def _report_digest(
     *,
-    candidate_id: str,
+    candidate_pair: CandidatePair,
     source_release_id: str,
     ingestion_batch_id: str,
     semantic_contract_version: str,
@@ -230,13 +246,14 @@ def _report_digest(
 ) -> str:
     payload = {
         "contract_version": EQUIVALENCE_CONTRACT_VERSION,
-        "candidate_id": candidate_id,
+        "gold_candidate_id": candidate_pair.gold_candidate_id,
         "ingestion_batch_id": ingestion_batch_id,
         "mismatches": [
             {"kind": item.kind.value, "layer": item.layer.value, "logical_name": item.logical_name}
             for item in mismatches
         ],
         "semantic_contract_version": semantic_contract_version,
+        "silver_candidate_id": candidate_pair.silver_candidate_id,
         "source_release_id": source_release_id,
     }
     return hashlib.sha256(

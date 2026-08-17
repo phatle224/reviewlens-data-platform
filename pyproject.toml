@@ -33,6 +33,7 @@ reviewlens-artifacts = "reviewlens.deploy.artifacts:main"
 reviewlens-images = "reviewlens.deploy.images:main"
 reviewlens-health = "reviewlens.observability.health:main"
 reviewlens-policy = "reviewlens.ci.policy:main"
+reviewlens-m3-drill = "reviewlens.warehouse.replay_drill:main"
 
 [dependency-groups]
 dev = [

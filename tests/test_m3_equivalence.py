@@ -10,6 +10,7 @@ from reviewlens.warehouse.candidates import CandidateLayer
 from reviewlens.warehouse.equivalence import (
     CandidateBuildMode,
     CandidateEquivalenceSnapshot,
+    CandidatePair,
     EquivalenceMismatchKind,
     RelationFingerprint,
     WarehouseEquivalenceError,
@@ -22,8 +23,9 @@ from reviewlens.warehouse.semantic import SEMANTIC_CATALOG_VERSION
 SOURCE_RELEASE_ID = f"olist_{'a' * 64}"
 BATCH_ID = f"batch_{'b' * 64}"
 OTHER_BATCH_ID = f"batch_{'f' * 64}"
-FULL_CANDIDATE_ID = "c" * 64
-OTHER_CANDIDATE_ID = "d" * 64
+SILVER_CANDIDATE_ID = "c" * 64
+GOLD_CANDIDATE_ID = "d" * 64
+OTHER_SILVER_CANDIDATE_ID = "e" * 64
 RUNBOOK = Path("docs/runbooks/M3_RELEASE_OPERATIONS.md")
 
 
@@ -39,7 +41,20 @@ def _fingerprint(
     )
 
 
-def _snapshot(mode: CandidateBuildMode, candidate_id: str) -> CandidateEquivalenceSnapshot:
+def _candidate_pair(
+    silver_candidate_id: str = SILVER_CANDIDATE_ID,
+    gold_candidate_id: str = GOLD_CANDIDATE_ID,
+) -> CandidatePair:
+    return CandidatePair(
+        silver_candidate_id=silver_candidate_id,
+        gold_candidate_id=gold_candidate_id,
+    )
+
+
+def _snapshot(
+    mode: CandidateBuildMode,
+    candidate_pair: CandidatePair | None = None,
+) -> CandidateEquivalenceSnapshot:
     relations = tuple(
         sorted(
             [
@@ -55,7 +70,7 @@ def _snapshot(mode: CandidateBuildMode, candidate_id: str) -> CandidateEquivalen
         )
     )
     return CandidateEquivalenceSnapshot(
-        candidate_id=candidate_id,
+        candidate_pair=candidate_pair or _candidate_pair(),
         build_mode=mode,
         source_release_id=SOURCE_RELEASE_ID,
         ingestion_batch_id=BATCH_ID,
@@ -64,9 +79,10 @@ def _snapshot(mode: CandidateBuildMode, candidate_id: str) -> CandidateEquivalen
     )
 
 
-def test_equivalence_is_deterministic_for_same_candidate_replay_relation_sets() -> None:
-    full = _snapshot(CandidateBuildMode.FULL_REFRESH, FULL_CANDIDATE_ID)
-    replay = _snapshot(CandidateBuildMode.DETERMINISTIC_REPLAY, FULL_CANDIDATE_ID)
+def test_equivalence_is_deterministic_for_same_candidate_pair_replay_relation_sets() -> None:
+    pair = _candidate_pair()
+    full = _snapshot(CandidateBuildMode.FULL_REFRESH, pair)
+    replay = _snapshot(CandidateBuildMode.DETERMINISTIC_REPLAY, pair)
 
     first = compare_full_refresh_to_deterministic_replay(full_refresh=full, replay=replay)
     second = compare_full_refresh_to_deterministic_replay(full_refresh=full, replay=replay)
@@ -74,12 +90,13 @@ def test_equivalence_is_deterministic_for_same_candidate_replay_relation_sets() 
     assert first == second
     assert first.equivalent is True
     assert first.mismatches == ()
-    assert first.candidate_id == FULL_CANDIDATE_ID
+    assert first.candidate_pair == pair
 
 
 def test_equivalence_reports_only_logical_relation_and_mismatch_kind() -> None:
-    full = _snapshot(CandidateBuildMode.FULL_REFRESH, FULL_CANDIDATE_ID)
-    replay = _snapshot(CandidateBuildMode.DETERMINISTIC_REPLAY, FULL_CANDIDATE_ID)
+    pair = _candidate_pair()
+    full = _snapshot(CandidateBuildMode.FULL_REFRESH, pair)
+    replay = _snapshot(CandidateBuildMode.DETERMINISTIC_REPLAY, pair)
     target = next(
         item
         for item in replay.relation_fingerprints
@@ -102,11 +119,18 @@ def test_equivalence_reports_only_logical_relation_and_mismatch_kind() -> None:
     ]
 
 
-def test_equivalence_denies_different_candidate_metadata_drift_or_wrong_build_modes() -> None:
-    full = _snapshot(CandidateBuildMode.FULL_REFRESH, FULL_CANDIDATE_ID)
-    replay = _snapshot(CandidateBuildMode.DETERMINISTIC_REPLAY, FULL_CANDIDATE_ID)
+def test_equivalence_denies_different_candidate_pair_metadata_drift_or_wrong_build_modes() -> None:
+    pair = _candidate_pair()
+    full = _snapshot(CandidateBuildMode.FULL_REFRESH, pair)
+    replay = _snapshot(CandidateBuildMode.DETERMINISTIC_REPLAY, pair)
     invalid_pairs = (
-        (full, replace(replay, candidate_id=OTHER_CANDIDATE_ID)),
+        (
+            full,
+            replace(
+                replay,
+                candidate_pair=_candidate_pair(silver_candidate_id=OTHER_SILVER_CANDIDATE_ID),
+            ),
+        ),
         (full, replace(replay, source_release_id=f"olist_{'e' * 64}")),
         (full, replace(replay, ingestion_batch_id=OTHER_BATCH_ID)),
         (full, replace(replay, build_mode=CandidateBuildMode.FULL_REFRESH)),
@@ -123,7 +147,7 @@ def test_equivalence_denies_different_candidate_metadata_drift_or_wrong_build_mo
 
 
 def test_snapshot_requires_all_release_relations_and_rejects_physical_like_input() -> None:
-    full = _snapshot(CandidateBuildMode.FULL_REFRESH, FULL_CANDIDATE_ID)
+    full = _snapshot(CandidateBuildMode.FULL_REFRESH)
 
     with pytest.raises(WarehouseEquivalenceError):
         replace(full, relation_fingerprints=full.relation_fingerprints[:-1])
@@ -142,7 +166,14 @@ def test_equivalence_runbook_requires_same_candidate_replay_and_private_evidence
 
     assert "`IMP-M3-020` vẫn **partial**" in source
     assert "không được gọi replay là incremental" in normalized
-    assert "cùng candidate ID" in normalized
+    assert "cùng cặp candidate Silver/Gold" in normalized
     assert "10 Silver và 18 Gold" in normalized
     assert "không chứa physical relation, key kinh doanh hay source row" in normalized
     assert "warehouse được suspend" in normalized
+
+
+def test_equivalence_runbook_requires_olist_mode_before_live_private_drill() -> None:
+    source = RUNBOOK.read_text(encoding="utf-8")
+
+    assert "data_mode=olist" in source
+    assert "shows `synthetic`, stop here" in source

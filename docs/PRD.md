@@ -352,7 +352,7 @@ versioned allocation policy and is never presented as a naturally additive fact.
 | DWH-003 | Prevent geolocation and multi-item join multiplication. | Known-count fixtures reconcile exactly. |
 | DWH-004 | Apply versioned order-analysis scope consistently. | Delivered/cancelled/unknown fixtures pass. |
 | DWH-005 | Build Gold at declared grains with metric dictionary v1. | Metric fixture outputs match expected values. |
-| DWH-006 | Full refresh and deterministic replay of the same immutable candidate are equivalent. | Row/hash comparison report has no unexplained delta. |
+| DWH-006 | Full refresh and deterministic replay of the same immutable Silver/Gold candidate pair are equivalent. | Row/hash comparison report has no unexplained delta. |
 | DWH-007 | Candidate builds are isolated and publish atomically. | Failed/concurrent candidate cannot change active pointer. |
 | DWH-008 | Every serving request pins one data release. | No cross-release read in concurrency tests. |
 

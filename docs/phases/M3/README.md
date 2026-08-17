@@ -34,7 +34,7 @@ version-aware/as-of and multi-item review weights reconcile exactly to one
 without claiming item-level evidence. Their offline gates pass without resuming
 Snowflake or bypassing review DLP. `IMP-M3-020` now has the fail-closed
 aggregate-only comparison engine and operations runbook, but the final drill
-remains pending until one immutable candidate is built and then replayed from
-the same source/batch/semantic contract. The current graph intentionally uses
-full table materializations; that second build is evidence of deterministic
-replay, never incremental processing.
+remains pending until one immutable Silver/Gold candidate pair is built and then
+replayed from the same source/batch/semantic contract. The current graph
+intentionally uses full table materializations; that second build is evidence of
+deterministic replay, never incremental processing.

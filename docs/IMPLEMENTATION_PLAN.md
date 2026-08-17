@@ -207,7 +207,7 @@ candidates, then atomically activate one tested data release.
 | IMP-M3-017 | Candidate Gold build/test target | M3-015/016 | Candidate never mutates serving |
 | IMP-M3-018 | Release events, immutable definition and CAS active pointer | M1-013/M3-017 | Failure/rollback/race tests |
 | IMP-M3-019 | Request resolver pins explicit Silver/Gold physical refs | M3-018 | No mixed-release concurrency |
-| IMP-M3-020 | Full-refresh vs deterministic-replay equivalence, metrics/lineage and runbook | M3-004…019 | Hash comparison + same-candidate replay drill |
+| IMP-M3-020 | Full-refresh vs deterministic-replay equivalence, metrics/lineage and runbook | M3-004…019 | Hash comparison + same-candidate-pair replay drill |
 
 Exit: all grains/metrics reconcile, critical dbt tests pass, failed candidates do
 not affect serving and a tested release can activate/rollback atomically.

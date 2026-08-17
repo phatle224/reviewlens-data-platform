@@ -32,11 +32,19 @@ row counts plus item/payment amounts. `FACT_REVIEW_BASE` contains score and
 policy metadata only; it never selects review title/comment or depends on AI
 coverage.
 
-Credentials stay in the ignored root `.env`. The profile reads only:
+Credentials stay in the ignored root `.env`. The normal local profile defaults
+to the Silver transform identity and reads:
 
 - `SNOWFLAKE_ACCOUNT`
 - `SNOWFLAKE_TRANSFORM_PRIVATE_KEY_PATH`
 - optional `SNOWFLAKE_TRANSFORM_PRIVATE_KEY_PASSPHRASE`
+
+For an explicit Gold build, the same **local** target accepts these temporary
+process-environment overrides only: `DBT_SNOWFLAKE_USER`,
+`DBT_SNOWFLAKE_ROLE`, `DBT_SNOWFLAKE_PRIVATE_KEY_PATH`, optional
+`DBT_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE`, and `DBT_SNOWFLAKE_QUERY_TAG`. The
+M3 runbook sets them from the already ignored Gold-builder key-path variables;
+they do not create a second deployment environment or belong in `.env`.
 
 From the repository root, install and verify with:
 
