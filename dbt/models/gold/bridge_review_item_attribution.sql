@@ -63,8 +63,8 @@ select
     cast(order_id as varchar) as order_id,
     cast(attribution_ordinal as number(38, 0)) as attribution_ordinal,
     cast(order_item_key as varchar) as order_item_key,
-    cast(coalesce(product_key, unknown_keys.product_key) as varchar) as product_key,
-    cast(coalesce(seller_key, unknown_keys.seller_key) as varchar) as seller_key,
+    cast(coalesce(weighted.product_key, unknown_keys.product_key) as varchar) as product_key,
+    cast(coalesce(weighted.seller_key, unknown_keys.seller_key) as varchar) as seller_key,
     cast(item_count_for_review as number(38, 0)) as item_count_for_review,
     cast(
         iff(item_count_for_review = 0, 'UNKNOWN_ITEM_FALLBACK', 'EQUAL_ITEM_WEIGHT')

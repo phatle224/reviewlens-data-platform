@@ -1,6 +1,6 @@
 runtime = "local"
 deployment_mode = "local_demo"
-data_mode = "synthetic"
+data_mode = "olist"
 
 [license]
 dataset = "brazilian-ecommerce"

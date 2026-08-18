@@ -14,7 +14,7 @@ change the active release pointer.
 | [ADR-013](../../ADR/ADR-013-semantic-serving-boundary.md) | Logical semantic names, approved fields and delayed activation |
 | [ADR-014](../../ADR/ADR-014-atomic-release-cas.md) | Immutable release definition and CAS activation/rollback |
 
-Phase status: `IN_PROGRESS` with 19/20 work items complete and `IMP-M3-020`
+Phase status: `IN_PROGRESS` with 19/20 work items complete and `IMP-M3-018`
 partial. Bundles
 `IMP-M3-001…019` deliver processing lineage, isolated candidates, Silver/DQ
 contracts, five conformed dimensions, four reconciled base facts and a versioned
@@ -32,9 +32,11 @@ names to explicit refs from the same immutable definition, rejecting physical
 inputs and mixed-release reads during activation races. Dimension lookups are
 version-aware/as-of and multi-item review weights reconcile exactly to one
 without claiming item-level evidence. Their offline gates pass without resuming
-Snowflake or bypassing review DLP. `IMP-M3-020` now has the fail-closed
-aggregate-only comparison engine and operations runbook, but the final drill
-remains pending until one immutable Silver/Gold candidate pair is built and then
-replayed from the same source/batch/semantic contract. The current graph
+Snowflake or bypassing review DLP. `IMP-M3-020` is complete: the private
+executor recorded lineage, built and deterministically replayed one immutable
+Silver/Gold candidate pair with aggregate-only equivalence evidence, then
+suspended the warehouse without touching the active pointer. The current graph
 intentionally uses full table materializations; that second build is evidence of
-deterministic replay, never incremental processing.
+deterministic replay, never incremental processing. M3 remains in progress only
+because `IMP-M3-018` still requires one real immutable release definition and a
+successful live activation/rollback drill for that tested pair.

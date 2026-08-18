@@ -317,6 +317,23 @@ def test_gold_properties_declare_exact_grains_history_and_relationships() -> Non
     assert attribution_model["config"]["meta"]["contains_review_text"] is False
 
 
+def test_review_attribution_qualifies_keys_after_cross_joining_unknown_members() -> None:
+    source = (GOLD_DIR / "bridge_review_item_attribution.sql").read_text(encoding="utf-8")
+
+    assert "coalesce(weighted.product_key, unknown_keys.product_key)" in source
+    assert "coalesce(weighted.seller_key, unknown_keys.seller_key)" in source
+    assert "coalesce(product_key, unknown_keys.product_key)" not in source
+
+
+def test_scd_overlap_macro_quotes_canonical_uppercase_snowflake_identifiers() -> None:
+    source = Path("dbt/macros/test_reviewlens_scd_no_overlap.sql").read_text(encoding="utf-8")
+
+    assert source.count("adapter.quote(natural_key_column | upper)") == 3
+    assert source.count("adapter.quote(effective_from_column | upper)") == 5
+    assert source.count("adapter.quote(effective_to_column | upper)") == 1
+    assert "adapter.quote(natural_key_column)" not in source
+
+
 def test_review_base_fact_is_minimized_and_independent_of_ai_coverage() -> None:
     sql = (GOLD_DIR / "fact_review_base.sql").read_text(encoding="utf-8").lower()
     properties: dict[str, Any] = yaml.safe_load(
