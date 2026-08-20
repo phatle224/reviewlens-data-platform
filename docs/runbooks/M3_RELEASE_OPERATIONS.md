@@ -24,12 +24,14 @@ deterministic replay của cùng candidate pair dùng đúng chín Bronze inputs
 được suspend, active pointer không bị thay đổi. Graph dbt materialize bằng
 `table`; không được gọi replay là incremental.
 
-`IMP-M3-018` vẫn partial, nhưng registration prerequisite đã hoàn tất ngày
-2026-08-20. `008_release_activation_integrity.sql` đã apply, bắt procedure buộc
-đủ 28 expected object refs, evidence `TEST_PASSED` mới nhất và `CREATED` event
-khớp definition trước activation/rollback. `reviewlens-m3-register-release` đã
-đăng ký đúng một definition private với 28 refs; integrity aggregate xác nhận
-definition ready, còn active pointer vẫn v0/uninitialized.
+`IMP-M3-018` vẫn partial chỉ vì rollback live cần release thứ hai. Registration
+prerequisite và initial activation đã hoàn tất ngày 2026-08-20. `008_release_activation_integrity.sql`
+đã được re-apply idempotent, bắt procedure buộc đủ 28 expected object refs,
+evidence `TEST_PASSED` mới nhất và `CREATED` event khớp definition trước
+activation/rollback, đồng thời restore exact procedure `USAGE` grant sau
+`CREATE OR REPLACE`. `reviewlens-m3-register-release` đã đăng ký đúng một
+definition private với 28 refs; guarded `CALL` đã chuyển active pointer từ v0
+sang v1 với đúng một `ACTIVATED` event. Warehouse được suspend.
 
 ## 2. Guardrails và chi phí
 
@@ -128,7 +130,7 @@ content hash, logs cho thấy cùng candidate pair được replay, DQ/reconcili
 pass và warehouse được suspend. Nếu có mismatch, giữ report local/AUDIT, không
 activate, triage theo logical relation và chạy lại từ immutable source.
 
-## 6. Đăng ký immutable release definition (TC-M3-031, chưa chạy)
+## 6. Immutable release registration and transition (TC-M3-031: initial activation pass; rollback pending)
 
 Đây là một write có kiểm soát vào Snowflake `AUDIT`, nhưng **không** gọi
 `ACTIVATE_RELEASE_V1`, `ROLLBACK_RELEASE_V1` hay thay active pointer. Gate này
@@ -136,7 +138,9 @@ activate, triage theo logical relation và chạy lại từ immutable source.
 phục vụ replay/handover, không chạy lại trừ khi có mục đích idempotency rõ ràng.
 
 Trước hết apply integrity migration từ owner/bootstrap session. Nó chỉ tạo
-view aggregate-only và thay hai guarded procedures; không thay pointer:
+view aggregate-only và thay hai guarded procedures; không thay pointer. Vì
+`CREATE OR REPLACE PROCEDURE` bỏ grant cũ, migration này phải luôn re-grant exact
+`USAGE` cho `GOLD_BUILDER_ROLE` sau khi thay procedure:
 
 ```powershell
 uv run dotenv -f .env run -- uv run python -c "from pathlib import Path; from reviewlens.config import load_settings; from reviewlens.providers.snowflake import SnowflakeClient; settings=load_settings(); client=SnowflakeClient.connect_bootstrap(settings.snowflake); client.apply_sql_file(Path('infra/snowflake/008_release_activation_integrity.sql'), operation='M3 release activation integrity migration'); client.suspend_warehouse(settings.snowflake.warehouse); client.close()"
@@ -157,7 +161,8 @@ Nếu candidate evidence thiếu, không phải `TEST_PASSED`, header/ref đọc
 hoặc config không phải `data_mode=olist`, command fail closed trước/hoặc sau
 write và `finally` luôn suspend warehouse. Không tự sửa audit row thủ công.
 
-Sau khi registration pass, transition client chỉ gọi một owner procedure với
+Sau khi registration pass, transition client chỉ gọi một owner procedure bằng
+`CALL` với
 **expected pointer version được truyền tường minh**, sau đó đọc lại pointer. Nó
 không có SQL `UPDATE` trực tiếp và không tự retry với version mới nếu CAS bị từ
 chối. Chỉ chạy sau một xác nhận mutation riêng:

@@ -366,6 +366,15 @@ def test_release_integrity_migration_requires_all_expected_tested_refs_before_ac
     assert upper.count("MATCHED_EXPECTED_REF_COUNT = 28") == 2
     assert upper.count("OBJECT_REF_COUNT = 28") == 2
     assert "CREATED'" in upper
+    assert upper.count("GRANT USAGE ON PROCEDURE REVIEWLENS.AUDIT.") == 2
+    assert (
+        "ACTIVATE_RELEASE_V1(NUMBER, VARCHAR, VARCHAR, VARCHAR)\n  TO ROLE GOLD_BUILDER_ROLE"
+        in upper
+    )
+    assert (
+        "ROLLBACK_RELEASE_V1(NUMBER, VARCHAR, VARCHAR, VARCHAR)\n  TO ROLE GOLD_BUILDER_ROLE"
+        in upper
+    )
     assert "GRANT UPDATE ON TABLE REVIEWLENS.AUDIT.ACTIVE_RELEASE_POINTER" not in upper
     assert "RAW_PAYLOAD" not in upper
 

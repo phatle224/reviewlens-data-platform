@@ -34,7 +34,7 @@
 | TC-M3-028 | Equivalence/cost | Full refresh versus deterministic replay two-run drill | Row/hash equality for the same immutable Silver/Gold candidate pair, bounded X-Small usage and suspend | `PASS` | 2026-08-19 private execution built/replayed the exact approved nine-input pair. Each observation produced 28 aggregate-only fingerprints (10 Silver, 18 Gold); comparison returned `equivalent=true`, with no active-pointer mutation. Lifecycle aggregate confirms successful two-observation Silver/Gold evidence; warehouse was suspended after execution. |
 | TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; regenerated artifact lock, dependency lock and project-image dry-run pass |
 | TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 19/20 done, 1/20 partial, 30/31 pass, 0 errors and 0 warnings |
-| TC-M3-031 | Live release | Create immutable definition then activate and roll back the tested pair | Pointer advances only through guarded procedures and returns to the prior immutable release | `PENDING` | `008` and private registration passed live on 2026-08-20: one definition, exact 28 refs, one matching `CREATED` event and one integrity-ready definition; pointer remains uninitialized/v0 with zero transition events. Local transition fake calls only owner procedure with explicit CAS version, verifies pointer and rejects denial/stale response without retry/direct update. Initial activation is deliberately pending. The v0 sentinel cannot be rollback target; a real rollback needs a separately created/activated prior release and an owner decision before a distinct second release is built. |
+| TC-M3-031 | Live release | Create immutable definition then activate and roll back the tested pair | Pointer advances only through guarded procedures and returns to the prior immutable release | `PENDING` | Registration and initial activation passed live on 2026-08-20: one definition, exact 28 refs, one matching `CREATED` event, pointer v1 and exactly one `ACTIVATED` event. The executor was corrected to invoke the procedure with `CALL`; re-applying `008` restored its exact `USAGE` grant after replacement. It verifies the pointer, makes no direct update/retry and leaves the warehouse suspended. The v0 sentinel cannot be rollback target; a real rollback needs a separately created/activated prior release and an owner decision before a distinct second release is built. |
 
 ## Execution log — 2026-08-14
 
@@ -389,3 +389,23 @@
   uninitialized at v0 with zero `ACTIVATED`/`ROLLED_BACK` events; warehouse was
   suspended. No raw Olist/review data, physical refs, credentials, R2, Chroma or
   OpenRouter payload was logged or published.
+
+## Execution log — 2026-08-20 (`IMP-M3-018`, initial activation live gate)
+
+- Owner-confirmed transition first failed closed with no pointer/event mutation.
+  Query-history diagnosis found two runtime contracts missed by static fakes:
+  Snowflake procedures require `CALL` rather than `SELECT`, and replacing a
+  procedure removes its prior runtime grant.
+- `reviewlens-m3-transition-release` now calls only the owner procedure with
+  `CALL`. Migration `008` now restores exact `USAGE` on both procedures to
+  `GOLD_BUILDER_ROLE`; the migration was re-applied idempotently and the grant
+  was verified before retrying the same explicit v0 compare-and-set.
+- The guarded activation then passed live: one ready release advanced the active
+  pointer from v0 to v1, with exactly one `CREATED` and one `ACTIVATED` event,
+  no `ROLLED_BACK` event and `REVIEWLENS_WH` `SUSPENDED`. No direct pointer SQL,
+  R2, OpenRouter, Chroma, raw/row-level Olist data or private identifiers were
+  output or committed.
+- Final local regression after the runtime fixes: Ruff format/lint, strict mypy
+  and dbt parse with `--warn-error` pass. Full offline suite returns **490
+  passed, 8 expected opt-in live skips**, 85.98% coverage; regenerated artifact
+  lock, repository policy and workflow status validator pass.

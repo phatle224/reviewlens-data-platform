@@ -189,6 +189,9 @@ real release registration or activation. It replaces those procedures with an
 aggregate-only eligibility gate that requires exactly the expected 10 Silver and
 18 Gold refs, latest `TEST_PASSED` lifecycle evidence for every ref and a
 matching `CREATED` event. A header by itself is never eligible for activation.
+Because this migration replaces the owner procedures, it also re-grants their
+exact `USAGE` privilege to `GOLD_BUILDER_ROLE`; re-applying it is idempotent and
+restores that invocation boundary without granting direct pointer updates.
 
 The registration client is `reviewlens-m3-register-release`. It is deliberately
 separate from pointer mutation, uses only `GOLD_BUILDER_ROLE`, writes deterministic

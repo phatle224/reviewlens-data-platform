@@ -154,7 +154,7 @@ def _procedure_call_sql(
 ) -> str:
     event_id = _transition_event_id(action, target_release_id, expected_pointer_version)
     return (
-        f"SELECT REVIEWLENS.AUDIT.{action.procedure_name}("
+        f"CALL REVIEWLENS.AUDIT.{action.procedure_name}("
         f"{expected_pointer_version}, '{target_release_id}', '{event_id}', 'release-owner')"
     )
 

@@ -80,7 +80,8 @@ def test_activation_calls_only_guarded_procedure_and_verifies_pointer(tmp_path: 
     assert result.action is ReleaseTransitionAction.ACTIVATE
     assert result.pointer_version == 1
     assert result.replayed is False
-    assert "SELECT REVIEWLENS.AUDIT.ACTIVATE_RELEASE_V1(0" in sql
+    assert "CALL REVIEWLENS.AUDIT.ACTIVATE_RELEASE_V1(0" in sql
+    assert "SELECT REVIEWLENS.AUDIT.ACTIVATE_RELEASE_V1" not in sql
     assert "ACTIVE_RELEASE_POINTER" in sql
     assert "UPDATE ACTIVE_RELEASE_POINTER" not in sql
     assert "ROLLBACK_RELEASE_V1" not in sql
