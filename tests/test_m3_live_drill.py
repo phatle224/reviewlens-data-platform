@@ -17,7 +17,10 @@ from reviewlens.warehouse.live_drill import (
     validate_live_drill_settings,
 )
 from reviewlens.warehouse.releases import SILVER_RELEASE_LOGICAL_NAMES
-from reviewlens.warehouse.replay_drill import build_approved_m3_replay_drill_plan
+from reviewlens.warehouse.replay_drill import (
+    build_approved_m3_replay_drill_plan,
+    build_approved_m3_rollback_proof_plan,
+)
 
 
 class FakeSnowflakeClient:
@@ -79,6 +82,7 @@ def test_live_settings_fail_closed_when_data_mode_is_not_olist(tmp_path: Path) -
 
 def test_live_drill_replays_same_pair_records_lineage_and_always_suspends(tmp_path: Path) -> None:
     settings = _settings(tmp_path)
+    plan = build_approved_m3_rollback_proof_plan()
     rows = _fingerprint_rows()
     transform = FakeSnowflakeClient()
     gold = FakeSnowflakeClient(rows)
@@ -112,10 +116,13 @@ def test_live_drill_replays_same_pair_records_lineage_and_always_suspends(tmp_pa
         command_runner=runner,
         connect_service=service_connector,
         connect_bootstrap=bootstrap_connector,
+        plan=plan,
     )
 
     assert result.equivalent is True
     assert result.fingerprint_query_count == 2
+    assert result.silver_candidate_id == plan.silver_candidate.candidate_id
+    assert result.gold_candidate_id == plan.gold_target.gold_candidate.candidate_id
     assert len(commands) == 8
     assert commands[0][1:3] == ("test", "--project-dir")
     assert commands[1][1:4] == ("source", "freshness", "--project-dir")

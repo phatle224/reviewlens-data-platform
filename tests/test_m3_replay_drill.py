@@ -21,6 +21,7 @@ from reviewlens.warehouse.replay_drill import (
     M3_SILVER_CANDIDATE_SELECTOR,
     M3ReplayDrillError,
     build_approved_m3_replay_drill_plan,
+    build_approved_m3_rollback_proof_plan,
     main,
     parse_fingerprint_rows,
     snapshot_from_fingerprint_rows,
@@ -63,6 +64,20 @@ def test_approved_drill_plan_is_deterministic_and_binds_all_nine_bronze_inputs()
         item.sha256 for item in load_approved_olist_snapshot().files
     }
     assert all(item.input.version_id.startswith("dsrun_") for item in first.silver_run.inputs)
+
+
+def test_rollback_proof_plan_is_distinct_without_changing_source_or_semantics() -> None:
+    primary = build_approved_m3_replay_drill_plan()
+    rollback_proof = build_approved_m3_rollback_proof_plan()
+
+    assert rollback_proof.release_variant == "rollback-proof"
+    assert primary.release_variant == "primary"
+    assert rollback_proof.candidate_pair != primary.candidate_pair
+    assert rollback_proof.source_release_id == primary.source_release_id
+    assert rollback_proof.ingestion_batch_id == primary.ingestion_batch_id
+    assert rollback_proof.silver_build.selector == primary.silver_build.selector
+    assert rollback_proof.gold_build.selector == primary.gold_build.selector
+    assert rollback_proof.safe_summary["fingerprint_relation_count"] == 28
 
 
 def test_dbt_commands_are_exact_and_fingerprint_query_is_aggregate_only() -> None:

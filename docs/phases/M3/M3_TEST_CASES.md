@@ -33,8 +33,8 @@
 | TC-M3-027 | Request pinning | Concurrent requests during activation | Each request uses one complete release | `PASS` | Resolver snapshots one pointer then resolves only catalog logical names from its immutable definition; no-pointer, raw/physical, duplicate and unowned-type inputs fail closed, and 16 concurrent pins racing activation each contain refs from exactly one Gold candidate |
 | TC-M3-028 | Equivalence/cost | Full refresh versus deterministic replay two-run drill | Row/hash equality for the same immutable Silver/Gold candidate pair, bounded X-Small usage and suspend | `PASS` | 2026-08-19 private execution built/replayed the exact approved nine-input pair. Each observation produced 28 aggregate-only fingerprints (10 Silver, 18 Gold); comparison returned `equivalent=true`, with no active-pointer mutation. Lifecycle aggregate confirms successful two-observation Silver/Gold evidence; warehouse was suspended after execution. |
 | TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; regenerated artifact lock, dependency lock and project-image dry-run pass |
-| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 19/20 done, 1/20 partial, 30/31 pass, 0 errors and 0 warnings |
-| TC-M3-031 | Live release | Create immutable definition then activate and roll back the tested pair | Pointer advances only through guarded procedures and returns to the prior immutable release | `PENDING` | Registration and initial activation passed live on 2026-08-20: one definition, exact 28 refs, one matching `CREATED` event, pointer v1 and exactly one `ACTIVATED` event. The executor was corrected to invoke the procedure with `CALL`; re-applying `008` restored its exact `USAGE` grant after replacement. It verifies the pointer, makes no direct update/retry and leaves the warehouse suspended. The v0 sentinel cannot be rollback target; a real rollback needs a separately created/activated prior release and an owner decision before a distinct second release is built. |
+| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator after rollback proof: M3 20/20 done, 0 partial, 31/31 pass, 0 errors and 0 warnings |
+| TC-M3-031 | Live release | Create immutable definitions then activate and roll back a tested pair | Pointer advances only through guarded procedures and returns to the prior immutable release | `PASS` | On 2026-08-20, two eligible private definitions with 28 refs each were proven live. Release 1 activated v0→v1; rollback-proof release 2 activated v1→v2; guarded rollback returned release 1 v2→v3. Aggregate check reports 2 definitions, 56 refs, 2 `CREATED`, 2 `ACTIVATED`, 1 `ROLLED_BACK`, 2 ready releases and `REVIEWLENS_WH` suspended. The executor uses `CALL`, no direct update/retry, and `008` restores exact procedure `USAGE` grants after replacement. |
 
 ## Execution log — 2026-08-14
 
@@ -409,3 +409,20 @@
   and dbt parse with `--warn-error` pass. Full offline suite returns **490
   passed, 8 expected opt-in live skips**, 85.98% coverage; regenerated artifact
   lock, repository policy and workflow status validator pass.
+
+## Execution log — 2026-08-20 (`IMP-M3-018`, two-release rollback proof)
+
+- Owner approved one private rollback-proof candidate pair under ADR-015. Its
+  revision changes only processing/candidate identity; approved Olist inputs,
+  ingestion batch, dbt selectors and semantic contract remain unchanged.
+- The private full-refresh/deterministic-replay drill passed with two aggregate
+  fingerprint snapshots and `equivalent=true`; the second definition registered
+  with 28 refs and no pointer mutation.
+- Guarded owner procedures then activated release 2 with CAS v1 and rolled back
+  to release 1 with CAS v2. Aggregate-only evidence: 2 definitions, 56 refs, 2
+  `CREATED`, 2 `ACTIVATED`, 1 `ROLLED_BACK`, active pointer v3, 2 ready releases
+  and `REVIEWLENS_WH` `SUSPENDED`. No direct pointer SQL, raw/row-level Olist
+  data, physical identifiers, R2, OpenRouter or Chroma payload was published.
+- Final repository regression: **492 passed, 8 expected opt-in live skips** and
+  85.94% coverage. Ruff format/lint, strict mypy, dbt parse with `--warn-error`,
+  artifact, policy and status validators pass.

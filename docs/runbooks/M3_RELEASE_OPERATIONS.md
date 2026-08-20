@@ -186,6 +186,34 @@ khác đã được activate. Do snapshot Olist/static contract tạo candidate 
 về cost/semantic change. Giữ TC-M3-031 `PENDING` cho đến khi owner chọn gate
 này hoặc chính thức điều chỉnh acceptance criteria.
 
+### Rollback-proof release thứ hai
+
+Sau khi owner chấp thuận, dùng duy nhất revision private `rollback-proof-v1`
+theo [ADR-015](../ADR/ADR-015-m3-rollback-proof-release.md). Gate này đã pass
+ngày 2026-08-20: release 2 activate từ v1→v2 và rollback về release 1 từ v2→v3;
+warehouse được suspend. Revision giữ nguyên
+chín source inputs, ingestion batch, semantic catalog và dbt selectors; nó chỉ
+tạo processing/candidate IDs mới để chứng minh CAS rollback. Không thay raw data,
+metric, semantic view, R2 object, OpenRouter hay Chroma.
+
+Chạy private full-refresh/replay cho candidate pair mới, sau đó registration:
+
+```powershell
+$env:REVIEWLENS_RUN_M3_DRILL = 'CONFIRMED'
+uv run dotenv -f .env run -- uv run reviewlens-m3-live-drill --execute --rollback-proof
+Remove-Item Env:REVIEWLENS_RUN_M3_DRILL
+
+$env:REVIEWLENS_REGISTER_M3_RELEASE = 'CONFIRMED'
+uv run dotenv -f .env run -- uv run reviewlens-m3-register-release --execute --rollback-proof
+Remove-Item Env:REVIEWLENS_REGISTER_M3_RELEASE
+```
+
+Sau successful registration, activate release 2 với expected pointer version 1,
+rồi rollback về release 1 với expected pointer version 2. Hai target hash phải
+lấy từ aggregate-only registration/pointer evidence trong cùng operator session;
+không ghi hash hoặc physical identifiers vào Git. Stop ngay khi một gate fail và
+suspend warehouse.
+
 ## 7. Cleanup và handoff
 
 Sau mọi live command, suspend warehouse:

@@ -25,7 +25,11 @@ from reviewlens.warehouse.releases import (
     ReleaseObjectRef,
     build_release_definition_for_tested_target,
 )
-from reviewlens.warehouse.replay_drill import build_approved_m3_replay_drill_plan
+from reviewlens.warehouse.replay_drill import (
+    M3ReplayDrillPlan,
+    build_approved_m3_replay_drill_plan,
+    build_approved_m3_rollback_proof_plan,
+)
 
 _EXPECTED_REF_COUNT = 28
 _GOLD_SERVICE = ServiceName.GOLD_BUILD
@@ -71,6 +75,7 @@ def run_m3_release_registration(
         [AppSettings, SnowflakeServiceIdentityConfig, Mapping[str, str]], SnowflakeClient
     ],
     connect_bootstrap: Callable[[AppSettings], SnowflakeClient],
+    plan: M3ReplayDrillPlan | None = None,
 ) -> M3ReleaseRegistrationResult:
     """Register a verified definition and ``CREATED`` event without moving the pointer.
 
@@ -84,8 +89,8 @@ def run_m3_release_registration(
     client: SnowflakeClient | None = None
     bootstrap: SnowflakeClient | None = None
     try:
-        plan = build_approved_m3_replay_drill_plan()
-        definition = build_release_definition_for_tested_target(plan.gold_target)
+        resolved_plan = plan or build_approved_m3_replay_drill_plan()
+        definition = build_release_definition_for_tested_target(resolved_plan.gold_target)
         client = connect_service(settings, _gold_identity(settings), credential_values)
         _assert_tested_candidate_pair(client, definition)
         _register_definition(client, definition)
@@ -436,6 +441,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         action="store_true",
         help="register the private release definition",
     )
+    parser.add_argument(
+        "--rollback-proof",
+        action="store_true",
+        help="register only the approved distinct rollback-proof candidate pair",
+    )
     arguments = parser.parse_args(argv)
     if not arguments.execute or os.environ.get("REVIEWLENS_REGISTER_M3_RELEASE") != "CONFIRMED":
         parser.error("--execute plus REVIEWLENS_REGISTER_M3_RELEASE=CONFIRMED are required")
@@ -444,5 +454,6 @@ def main(argv: Sequence[str] | None = None) -> None:
         credential_values=load_environment_values(),
         connect_service=_service_connector,
         connect_bootstrap=_bootstrap_connector,
+        plan=(build_approved_m3_rollback_proof_plan() if arguments.rollback_proof else None),
     )
     print(json.dumps(asdict(result), sort_keys=True))

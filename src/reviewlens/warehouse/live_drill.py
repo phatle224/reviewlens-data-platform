@@ -36,6 +36,7 @@ from reviewlens.warehouse.replay_drill import (
     DbtBuildPlan,
     M3ReplayDrillPlan,
     build_approved_m3_replay_drill_plan,
+    build_approved_m3_rollback_proof_plan,
     snapshot_from_fingerprint_rows,
 )
 
@@ -108,6 +109,7 @@ def run_live_m3_drill(
         [AppSettings, SnowflakeServiceIdentityConfig, Mapping[str, str]], SnowflakeClient
     ],
     connect_bootstrap: Callable[[AppSettings], SnowflakeClient],
+    plan: M3ReplayDrillPlan | None = None,
 ) -> M3LiveDrillResult:
     """Build/replay one immutable pair, record aggregate evidence and always suspend.
 
@@ -117,7 +119,9 @@ def run_live_m3_drill(
     """
 
     validate_live_drill_settings(settings)
-    plan = build_approved_m3_replay_drill_plan()
+    if plan is not None and not isinstance(plan, M3ReplayDrillPlan):
+        raise M3LiveDrillError()
+    resolved_plan = plan or build_approved_m3_replay_drill_plan()
     transform: SnowflakeClient | None = None
     gold: SnowflakeClient | None = None
     bootstrap: SnowflakeClient | None = None
@@ -135,27 +139,30 @@ def run_live_m3_drill(
             credential_values=credential_values,
         )
         for observation in DrillObservation:
-            _record_processing_lineage(transform, plan.silver_run, observation)
+            _record_processing_lineage(transform, resolved_plan.silver_run, observation)
             _record_candidate_state(
                 transform,
-                plan.silver_run,
-                plan.silver_candidate.candidate_id,
+                resolved_plan.silver_run,
+                resolved_plan.silver_candidate.candidate_id,
                 CandidateLayer.SILVER,
-                tuple(plan.silver_candidate.relation(name) for name in _silver_names(plan)),
+                tuple(
+                    resolved_plan.silver_candidate.relation(name)
+                    for name in _silver_names(resolved_plan)
+                ),
                 "BUILDING",
                 observation,
             )
             try:
                 _run_dbt(
                     command_runner,
-                    plan.silver_build,
+                    resolved_plan.silver_build,
                     _dbt_environment(
                         settings, credential_values, ServiceName.TRANSFORM, observation, "silver"
                     ),
                 )
                 _run_argv(
                     command_runner,
-                    _critical_gate_argv(plan),
+                    _critical_gate_argv(resolved_plan),
                     _dbt_environment(
                         settings,
                         credential_values,
@@ -167,39 +174,47 @@ def run_live_m3_drill(
             except M3LiveDrillError:
                 _record_candidate_state(
                     transform,
-                    plan.silver_run,
-                    plan.silver_candidate.candidate_id,
+                    resolved_plan.silver_run,
+                    resolved_plan.silver_candidate.candidate_id,
                     CandidateLayer.SILVER,
-                    tuple(plan.silver_candidate.relation(name) for name in _silver_names(plan)),
+                    tuple(
+                        resolved_plan.silver_candidate.relation(name)
+                        for name in _silver_names(resolved_plan)
+                    ),
                     "FAILED",
                     observation,
                 )
                 raise
             _record_candidate_state(
                 transform,
-                plan.silver_run,
-                plan.silver_candidate.candidate_id,
+                resolved_plan.silver_run,
+                resolved_plan.silver_candidate.candidate_id,
                 CandidateLayer.SILVER,
-                tuple(plan.silver_candidate.relation(name) for name in _silver_names(plan)),
+                tuple(
+                    resolved_plan.silver_candidate.relation(name)
+                    for name in _silver_names(resolved_plan)
+                ),
                 "TEST_PASSED",
                 observation,
             )
-            transform.execute_all(plan.gold_read_grants, operation="M3 exact Silver-to-Gold grant")
+            transform.execute_all(
+                resolved_plan.gold_read_grants, operation="M3 exact Silver-to-Gold grant"
+            )
 
-            _record_processing_lineage(gold, plan.gold_target.gold_run, observation)
+            _record_processing_lineage(gold, resolved_plan.gold_target.gold_run, observation)
             _record_candidate_state(
                 gold,
-                plan.gold_target.gold_run,
-                plan.gold_target.gold_candidate.candidate_id,
+                resolved_plan.gold_target.gold_run,
+                resolved_plan.gold_target.gold_candidate.candidate_id,
                 CandidateLayer.GOLD,
-                plan.gold_target.output_relations,
+                resolved_plan.gold_target.output_relations,
                 "BUILDING",
                 observation,
             )
             try:
                 _run_dbt(
                     command_runner,
-                    plan.gold_build,
+                    resolved_plan.gold_build,
                     _dbt_environment(
                         settings, credential_values, ServiceName.GOLD_BUILD, observation, "gold"
                     ),
@@ -207,30 +222,30 @@ def run_live_m3_drill(
             except M3LiveDrillError:
                 _record_candidate_state(
                     gold,
-                    plan.gold_target.gold_run,
-                    plan.gold_target.gold_candidate.candidate_id,
+                    resolved_plan.gold_target.gold_run,
+                    resolved_plan.gold_target.gold_candidate.candidate_id,
                     CandidateLayer.GOLD,
-                    plan.gold_target.output_relations,
+                    resolved_plan.gold_target.output_relations,
                     "FAILED",
                     observation,
                 )
                 raise
             _record_candidate_state(
                 gold,
-                plan.gold_target.gold_run,
-                plan.gold_target.gold_candidate.candidate_id,
+                resolved_plan.gold_target.gold_run,
+                resolved_plan.gold_target.gold_candidate.candidate_id,
                 CandidateLayer.GOLD,
-                plan.gold_target.output_relations,
+                resolved_plan.gold_target.output_relations,
                 "TEST_PASSED",
                 observation,
             )
             fingerprint = gold.execute_with_results(
-                plan.fingerprint_sql,
+                resolved_plan.fingerprint_sql,
                 operation="M3 aggregate-only candidate-pair fingerprint",
             )
             snapshots.append(
                 snapshot_from_fingerprint_rows(
-                    plan=plan,
+                    plan=resolved_plan,
                     mode=observation.build_mode,
                     rows=fingerprint.rows,
                 )
@@ -241,24 +256,27 @@ def run_live_m3_drill(
         if not report.equivalent:
             _record_candidate_state(
                 transform,
-                plan.silver_run,
-                plan.silver_candidate.candidate_id,
+                resolved_plan.silver_run,
+                resolved_plan.silver_candidate.candidate_id,
                 CandidateLayer.SILVER,
-                tuple(plan.silver_candidate.relation(name) for name in _silver_names(plan)),
+                tuple(
+                    resolved_plan.silver_candidate.relation(name)
+                    for name in _silver_names(resolved_plan)
+                ),
                 "FAILED",
                 DrillObservation.DETERMINISTIC_REPLAY,
             )
             _record_candidate_state(
                 gold,
-                plan.gold_target.gold_run,
-                plan.gold_target.gold_candidate.candidate_id,
+                resolved_plan.gold_target.gold_run,
+                resolved_plan.gold_target.gold_candidate.candidate_id,
                 CandidateLayer.GOLD,
-                plan.gold_target.output_relations,
+                resolved_plan.gold_target.output_relations,
                 "FAILED",
                 DrillObservation.DETERMINISTIC_REPLAY,
             )
             raise M3LiveDrillError()
-        return _safe_result(plan, report)
+        return _safe_result(resolved_plan, report)
     except (M3LiveDrillError, ValueError, RuntimeError, subprocess.SubprocessError):
         raise M3LiveDrillError() from None
     finally:
@@ -548,6 +566,11 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--execute", action="store_true", help="run the private bounded drill")
+    parser.add_argument(
+        "--rollback-proof",
+        action="store_true",
+        help="run only the approved distinct candidate pair for a rollback proof",
+    )
     arguments = parser.parse_args(argv)
     if not arguments.execute or os.environ.get("REVIEWLENS_RUN_M3_DRILL") != "CONFIRMED":
         parser.error("--execute plus REVIEWLENS_RUN_M3_DRILL=CONFIRMED are required")
@@ -558,5 +581,6 @@ def main(argv: Sequence[str] | None = None) -> None:
         command_runner=_subprocess_runner,
         connect_service=_service_connector,
         connect_bootstrap=_bootstrap_connector,
+        plan=(build_approved_m3_rollback_proof_plan() if arguments.rollback_proof else None),
     )
     print(json.dumps(asdict(result), sort_keys=True))

@@ -45,8 +45,17 @@ from reviewlens.warehouse.releases import SILVER_RELEASE_LOGICAL_NAMES
 from reviewlens.warehouse.semantic import SEMANTIC_CATALOG_VERSION
 
 M3_REPLAY_DRILL_VERSION = "reviewlens-m3-replay-drill-v1"
+M3_PRIMARY_SILVER_PROCESSING_CONTRACT_VERSION = CANDIDATE_STRATEGY_VERSION
+M3_ROLLBACK_PROOF_SILVER_PROCESSING_CONTRACT_VERSION = (
+    "reviewlens-silver-candidate-v1.rollback-proof-v1"
+)
 M3_SILVER_CANDIDATE_SELECTOR = "m3_silver_candidate"
 M3_FINGERPRINT_METHOD = "snowflake-hash-agg-sha2-v1"
+
+_RELEASE_VARIANT_BY_SILVER_CONTRACT_VERSION = {
+    M3_PRIMARY_SILVER_PROCESSING_CONTRACT_VERSION: "primary",
+    M3_ROLLBACK_PROOF_SILVER_PROCESSING_CONTRACT_VERSION: "rollback-proof",
+}
 
 _EXPECTED_FINGERPRINT_KEYS = frozenset(
     {(CandidateLayer.SILVER.value, logical_name) for logical_name in SILVER_RELEASE_LOGICAL_NAMES}
@@ -121,6 +130,7 @@ class M3ReplayDrillPlan:
         if (
             self.contract_version != M3_REPLAY_DRILL_VERSION
             or self.silver_run.phase is not CandidateLayer.SILVER
+            or self.silver_run.contract_version not in _RELEASE_VARIANT_BY_SILVER_CONTRACT_VERSION
             or self.silver_candidate.layer is not CandidateLayer.SILVER
             or self.silver_candidate.processing_run_id != self.silver_run.processing_run_id
             or self.silver_run.source_release_id != self.source_release_id
@@ -134,6 +144,10 @@ class M3ReplayDrillPlan:
             != {dataset_name.upper() for dataset_name in BRONZE_TABLE_BY_DATASET}
         ):
             raise M3ReplayDrillError()
+
+    @property
+    def release_variant(self) -> str:
+        return _RELEASE_VARIANT_BY_SILVER_CONTRACT_VERSION[self.silver_run.contract_version]
 
     @property
     def candidate_pair(self) -> CandidatePair:
@@ -223,6 +237,7 @@ class M3ReplayDrillPlan:
             "gold_read_grant_count": len(self.gold_read_grants),
             "gold_selector": self.gold_build.selector,
             "ingestion_batch_id": self.ingestion_batch_id,
+            "release_variant": self.release_variant,
             "silver_candidate_id": self.candidate_pair.silver_candidate_id,
             "silver_selector": self.silver_build.selector,
             "source_release_id": self.source_release_id,
@@ -231,6 +246,29 @@ class M3ReplayDrillPlan:
 
 def build_approved_m3_replay_drill_plan() -> M3ReplayDrillPlan:
     """Plan a replay drill only for the committed approved nine-file Olist snapshot."""
+
+    return _build_approved_m3_replay_drill_plan(
+        silver_processing_contract_version=M3_PRIMARY_SILVER_PROCESSING_CONTRACT_VERSION
+    )
+
+
+def build_approved_m3_rollback_proof_plan() -> M3ReplayDrillPlan:
+    """Plan the one-off, distinct candidate pair used only to prove M3 rollback.
+
+    The revision changes lineage/candidate identity, not Olist inputs, dbt selectors,
+    semantic catalog version or the data-release contract.
+    """
+
+    return _build_approved_m3_replay_drill_plan(
+        silver_processing_contract_version=M3_ROLLBACK_PROOF_SILVER_PROCESSING_CONTRACT_VERSION
+    )
+
+
+def _build_approved_m3_replay_drill_plan(
+    *, silver_processing_contract_version: str
+) -> M3ReplayDrillPlan:
+    if silver_processing_contract_version not in _RELEASE_VARIANT_BY_SILVER_CONTRACT_VERSION:
+        raise M3ReplayDrillError()
 
     approved_snapshot = load_approved_olist_snapshot()
     source_release_id = approved_source_release_id(approved_snapshot)
@@ -266,7 +304,7 @@ def build_approved_m3_replay_drill_plan() -> M3ReplayDrillPlan:
             raise M3ReplayDrillError() from error
     try:
         silver_run = build_processing_run(
-            contract_version=CANDIDATE_STRATEGY_VERSION,
+            contract_version=silver_processing_contract_version,
             phase=CandidateLayer.SILVER,
             source_release_id=source_release_id,
             ingestion_batch_id=batch_id,

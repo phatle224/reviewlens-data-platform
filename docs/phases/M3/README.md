@@ -14,8 +14,7 @@ change the active release pointer.
 | [ADR-013](../../ADR/ADR-013-semantic-serving-boundary.md) | Logical semantic names, approved fields and delayed activation |
 | [ADR-014](../../ADR/ADR-014-atomic-release-cas.md) | Immutable release definition and CAS activation/rollback |
 
-Phase status: `IN_PROGRESS` with 19/20 work items complete and `IMP-M3-018`
-partial. Bundles
+Phase status: `COMPLETE` with 20/20 work items complete. Bundles
 `IMP-M3-001…019` deliver processing lineage, isolated candidates, Silver/DQ
 contracts, five conformed dimensions, four reconciled base facts and a versioned
 review-to-item allocation bridge. Four monthly Gold marts apply metric dictionary
@@ -42,11 +41,12 @@ executor verifies every candidate lifecycle ref before it can append a
 definition; a separate transition executor passes an explicit CAS version to one
 owner procedure and re-reads the pointer without direct mutation/retry; migration
 `008` adds the same eligibility guard inside the owner procedures. On 2026-08-20,
-one private immutable definition was registered with exact 28 refs and a matching
-`CREATED` event, then owner-confirmed initial activation advanced the active
-pointer from v0 to v1 through the guarded procedure. The live remediation also
-corrected procedure invocation from `SELECT` to `CALL` and restored exact
-`USAGE` grants after `CREATE OR REPLACE PROCEDURE`; no direct pointer update was
-used. M3 remains in progress only because a true rollback cannot target v0's
-uninitialized sentinel: it needs an already active prior release and a distinct
-second release, which requires a separate owner acceptance/cost decision.
+the initial private immutable definition was registered with exact 28 refs and a
+matching `CREATED` event, then guarded activation advanced the pointer v0→v1.
+The owner-approved rollback proof created a distinct private candidate pair with
+the same Olist inputs and semantic contract, registered its second definition,
+activated it v1→v2 and rolled back to the first release v2→v3. Aggregate
+post-check reports 2 definitions/56 refs, 2 `CREATED`, 2 `ACTIVATED`, 1
+`ROLLED_BACK` and a suspended warehouse. The live remediation also corrected
+procedure invocation from `SELECT` to `CALL` and restored exact `USAGE` grants
+after `CREATE OR REPLACE PROCEDURE`; no direct pointer update was used.

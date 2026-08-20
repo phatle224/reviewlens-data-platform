@@ -14,7 +14,11 @@ from reviewlens.warehouse.release_registration import (
     validate_release_registration_settings,
 )
 from reviewlens.warehouse.releases import build_release_definition_for_tested_target
-from reviewlens.warehouse.replay_drill import build_approved_m3_replay_drill_plan
+from reviewlens.warehouse.replay_drill import (
+    M3ReplayDrillPlan,
+    build_approved_m3_replay_drill_plan,
+    build_approved_m3_rollback_proof_plan,
+)
 
 
 class FakeSnowflakeClient:
@@ -42,8 +46,10 @@ def _settings(tmp_path: Path) -> AppSettings:
     return load_settings(env_file=tmp_path / "missing.env")
 
 
-def _expected_results() -> tuple[tuple[tuple[object, ...], ...], ...]:
-    plan = build_approved_m3_replay_drill_plan()
+def _expected_results(
+    plan: M3ReplayDrillPlan | None = None,
+) -> tuple[tuple[tuple[object, ...], ...], ...]:
+    plan = plan or build_approved_m3_replay_drill_plan()
     definition = build_release_definition_for_tested_target(plan.gold_target)
     candidate_rows = tuple(
         (
@@ -160,3 +166,29 @@ def test_registration_uses_only_gold_builder_identity(tmp_path: Path) -> None:
     )
 
     assert identities == [ServiceName.GOLD_BUILD]
+
+
+def test_registration_can_bind_only_the_approved_rollback_proof_plan(tmp_path: Path) -> None:
+    plan = build_approved_m3_rollback_proof_plan()
+    service = FakeSnowflakeClient(_expected_results(plan))
+    bootstrap = FakeSnowflakeClient(())
+
+    result = run_m3_release_registration(
+        settings=_settings(tmp_path),
+        credential_values={"SNOWFLAKE_GOLD_BUILDER_PRIVATE_KEY_PATH": "C:/safe/gold.p8"},
+        connect_service=lambda settings, identity, credentials: cast(SnowflakeClient, service),
+        connect_bootstrap=lambda settings: cast(SnowflakeClient, bootstrap),
+        plan=plan,
+    )
+
+    assert (
+        result.release_id == build_release_definition_for_tested_target(plan.gold_target).release_id
+    )
+    assert (
+        result.release_id
+        != build_release_definition_for_tested_target(
+            build_approved_m3_replay_drill_plan().gold_target
+        ).release_id
+    )
+    assert result.object_ref_count == 28
+    assert bootstrap.suspended == ["REVIEWLENS_WH"]

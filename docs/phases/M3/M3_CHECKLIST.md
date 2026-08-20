@@ -2,9 +2,9 @@
 
 | Attribute | Value |
 |---|---|
-| Phase status | `IN_PROGRESS` |
-| Completed | 19/20 work items |
-| Partial | 1/20 work items |
+| Phase status | `COMPLETE` |
+| Completed | 20/20 work items |
+| Partial | 0/20 work items |
 | Blocked | 0/20 work items |
 | Not started | 0/20 work items |
 | Last updated | 2026-08-20 |
@@ -30,14 +30,13 @@
 | IMP-M3-015 | `DONE` | Delivery, product-review, seller and customer marts | Four candidate-bound monthly marts pre-aggregate item/payment/seller-order grains before joins; metric dictionary v1, ADR-011 allocation and ADR-012 mart/repeat-customer semantics are labeled; golden delivery/value/review/customer fixtures, zero-denominator/invalid negatives, dbt grain/relationship/privacy contracts and cross-mart reconciliation pass |
 | IMP-M3-016 | `DONE` | Release-bound dashboard/SQL semantic views | Versioned catalog maps four stable logical names to candidate-bound dbt views; exact dashboard/Text-to-SQL columns, roles, metric/nonadditive usage and partial-AI labels are enforced; physical identifiers, natural IDs, review text, unapproved fields and early grants/pointer activation fail closed; ADR-013 and offline catalog/dbt negative tests pass |
 | IMP-M3-017 | `DONE` | Candidate Gold build/test target | Typed planner binds exactly ten Silver candidate inputs to a distinct deterministic Gold candidate namespace; `m3_gold_candidate` selects 18 outputs plus reconciliation/runtime gates; malformed/equal namespaces, incomplete model selection and any failed build/test evidence become `FAILED`, never `TEST_PASSED`; no serving grant/pointer mutation occurs |
-| IMP-M3-018 | `PARTIAL` | Release events, immutable definition and CAS active pointer | Tested Silver/Gold candidates produce a deterministic SHA-256 release definition with exact 28 physical refs; append-only `CREATED`/activation/rollback/terminal events, one-winner versioned CAS, idempotent replay and rollback are exercised in-memory. On 2026-08-20, `008` was applied/re-applied idempotently, the private executor verified/registered one immutable definition with exact 28 refs and one `CREATED` event, and owner-confirmed guarded activation advanced the pointer from v0 to v1 with exactly one `ACTIVATED` event. The client uses `CALL`, verifies the resulting pointer, never direct-updates/retries it and suspends the warehouse. A real two-release rollback remains the only exit gap. |
+| IMP-M3-018 | `DONE` | Release events, immutable definition and CAS active pointer | Tested Silver/Gold candidates produce deterministic SHA-256 release definitions with exact 28 physical refs; append-only events and versioned CAS are covered in-memory and live. On 2026-08-20, `008` was applied/re-applied idempotently, two private definitions were registered, release 1 activated v0→v1, rollback-proof release 2 activated v1→v2, then guarded rollback returned release 1 v2→v3. Aggregate post-check: 2 definitions, 56 refs, 2 `CREATED`, 2 `ACTIVATED`, 1 `ROLLED_BACK`, pointer v3 and suspended warehouse. The client uses `CALL`, verifies the pointer, never direct-updates/retries it and grants remain exact. |
 | IMP-M3-019 | `DONE` | Request resolver pins explicit Silver/Gold physical refs | Server-side resolver snapshots one active pointer and retains its full immutable Silver/Gold definition, while resolving only catalog allowlisted semantic names to exact Gold candidate refs; malformed/physical/duplicate inputs and no-pointer requests fail closed, and activation-race fixtures prove every pin remains one complete release |
 | IMP-M3-020 | `DONE` | Full-refresh/deterministic-replay equivalence, metrics/lineage and runbook | Aggregate-only equivalence engine accepts exactly 10 Silver + 18 Gold logical relation fingerprints and rejects physical/raw-like input. The private executor records append-only lineage/lifecycle evidence, uses separate least-privilege dbt identities and exactly 10 Silver→Gold object grants, then always suspends the warehouse. On 2026-08-19, the approved nine-input Olist pair completed full refresh plus deterministic replay with 28 fingerprints per observation and `equivalent=true`; active pointer remained v0/uninitialized. |
 
 ## Exit gate
 
-M3 remains `IN_PROGRESS` until all declared grains and metrics reconcile, critical
-dbt tests pass, failed/concurrent candidates cannot affect serving, and a tested
-release can be rolled back atomically. Initial live activation passed; a real
-rollback requires the owner to approve a distinct second immutable release.
-Offline scaffolds and parse tests do not count as the final Snowflake release drill.
+M3 exit gate `PASS`: declared grains/metrics reconcile, critical dbt tests pass,
+failed/concurrent candidates cannot affect serving, and two private tested
+releases activate/roll back atomically through guarded owner procedures. Offline
+scaffolds and parse tests were supplemented by the final Snowflake release drill.
