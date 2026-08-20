@@ -18,12 +18,17 @@ Bronze source contract có 138/138 test pass. Freshness là policy
 cho tuổi của private snapshot được ingest, không phải khẳng định Olist có feed
 streaming hằng ngày.
 
-`IMP-M3-020` vẫn **partial**: engine so sánh aggregate-only đã có. Với private
-Olist snapshot bất biến, DWH-006 được định nghĩa là full refresh rồi
-deterministic replay từ cùng **cặp candidate Silver/Gold**/source/batch/semantic
-contract. Graph dbt intentionally materialize bằng `table`; không được gọi
-replay là incremental. TC-M3-028 chỉ có thể PASS sau private candidate-pair
-drill thật.
+`IMP-M3-020` và `TC-M3-028` đã **PASS** ngày 2026-08-19: full refresh và
+deterministic replay của cùng candidate pair dùng đúng chín Bronze inputs, tạo
+28 aggregate fingerprints mỗi observation và trả `equivalent=true`. Warehouse
+được suspend, active pointer không bị thay đổi. Graph dbt materialize bằng
+`table`; không được gọi replay là incremental.
+
+`IMP-M3-018` vẫn partial. `008_release_activation_integrity.sql` đã có trong
+repository nhưng **chưa apply**: nó thay procedure để bắt buộc đủ 28 expected
+object refs, evidence `TEST_PASSED` mới nhất và `CREATED` event khớp definition
+trước activation/rollback. Executor `reviewlens-m3-register-release` cũng đã
+được fake-tested nhưng chưa ghi release definition vào Snowflake.
 
 ## 2. Guardrails và chi phí
 
@@ -122,7 +127,44 @@ content hash, logs cho thấy cùng candidate pair được replay, DQ/reconcili
 pass và warehouse được suspend. Nếu có mismatch, giữ report local/AUDIT, không
 activate, triage theo logical relation và chạy lại từ immutable source.
 
-## 6. Cleanup và handoff
+## 6. Đăng ký immutable release definition (TC-M3-031, chưa chạy)
+
+Đây là một write có kiểm soát vào Snowflake `AUDIT`, nhưng **không** gọi
+`ACTIVATE_RELEASE_V1`, `ROLLBACK_RELEASE_V1` hay thay active pointer. Cần một
+xác nhận owner/cost riêng trước khi chạy vì migration và registration đều là
+managed-service mutation.
+
+Trước hết apply integrity migration từ owner/bootstrap session. Nó chỉ tạo
+view aggregate-only và thay hai guarded procedures; không thay pointer:
+
+```powershell
+uv run dotenv -f .env run -- uv run python -c "from pathlib import Path; from reviewlens.config import load_settings; from reviewlens.providers.snowflake import SnowflakeClient; settings=load_settings(); client=SnowflakeClient.connect_bootstrap(settings.snowflake); client.apply_sql_file(Path('infra/snowflake/008_release_activation_integrity.sql'), operation='M3 release activation integrity migration'); client.suspend_warehouse(settings.snowflake.warehouse); client.close()"
+```
+
+Sau đó, trong PowerShell mới, registration kiểm tra latest lifecycle state của
+toàn bộ 10 Silver + 18 Gold refs, idempotently ghi header, 28 refs và `CREATED`
+event, rồi đọc lại chính xác nội dung đã ghi. Output chỉ có release hash/count;
+không in physical names hay row-level data:
+
+```powershell
+$env:REVIEWLENS_REGISTER_M3_RELEASE = 'CONFIRMED'
+uv run dotenv -f .env run -- uv run reviewlens-m3-register-release --execute
+Remove-Item Env:REVIEWLENS_REGISTER_M3_RELEASE
+```
+
+Nếu candidate evidence thiếu, không phải `TEST_PASSED`, header/ref đọc lại lệch
+hoặc config không phải `data_mode=olist`, command fail closed trước/hoặc sau
+write và `finally` luôn suspend warehouse. Không tự sửa audit row thủ công.
+
+Initial activation từ pointer v0 có thể được kiểm tra với release đầu tiên,
+nhưng rollback server-side không thể quay về sentinel `__UNINITIALIZED__`.
+Một rollback live thực cần một release immutable trước đó và một release thứ hai
+khác đã được activate. Do snapshot Olist/static contract tạo candidate ID quyết
+định, không tạo candidate thứ hai chỉ để diễn demo khi chưa có quyết định owner
+về cost/semantic change. Giữ TC-M3-031 `PENDING` cho đến khi owner chọn gate
+này hoặc chính thức điều chỉnh acceptance criteria.
+
+## 7. Cleanup và handoff
 
 Sau mọi live command, suspend warehouse:
 
@@ -134,5 +176,5 @@ Trước khi kết thúc phiên, chạy static suite, repository policy và stat
 validator. Cập nhật [M3 checklist](../phases/M3/M3_CHECKLIST.md),
 [M3 test cases](../phases/M3/M3_TEST_CASES.md) và
 [project status](../PROJECT_STATUS.md) với kết quả thực tế; không chuyển
-`IMP-M3-020`/`TC-M3-028` sang `DONE`/`PASS` khi chưa có private same-candidate-
-pair full-refresh/deterministic-replay drill.
+`IMP-M3-018`/`TC-M3-031` sang `DONE`/`PASS` khi chưa có evidence live tương
+ứng. Không public candidate/release physical names hoặc report row-level.

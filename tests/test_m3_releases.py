@@ -39,6 +39,7 @@ SOURCE_RELEASE_ID = f"olist_{'a' * 64}"
 BATCH_ID = f"batch_{'b' * 64}"
 NOW = datetime(2026, 8, 16, 4, 0, tzinfo=UTC)
 MIGRATION = Path("infra/snowflake/007_atomic_release.sql")
+INTEGRITY_MIGRATION = Path("infra/snowflake/008_release_activation_integrity.sql")
 
 
 def _silver_run(contract_version: str) -> ProcessingRunDefinition:
@@ -352,3 +353,31 @@ def test_atomic_release_migration_splits_each_owner_procedure_as_one_statement()
     assert len(procedures) == 2
     assert all("BEGIN TRANSACTION;" in statement for statement in procedures)
     assert all("END;\n$$" in statement for statement in procedures)
+
+
+def test_release_integrity_migration_requires_all_expected_tested_refs_before_activation() -> None:
+    source = INTEGRITY_MIGRATION.read_text(encoding="utf-8")
+    upper = source.upper()
+
+    assert "CREATE OR REPLACE VIEW REVIEWLENS.AUDIT.M3_RELEASE_ACTIVATION_ELIGIBILITY" in upper
+    assert upper.count("'SILVER', '") == 10
+    assert upper.count("'GOLD', '") == 18
+    assert upper.count("TEST_PASSED_EXPECTED_REF_COUNT = 28") == 2
+    assert upper.count("MATCHED_EXPECTED_REF_COUNT = 28") == 2
+    assert upper.count("OBJECT_REF_COUNT = 28") == 2
+    assert "CREATED'" in upper
+    assert "GRANT UPDATE ON TABLE REVIEWLENS.AUDIT.ACTIVE_RELEASE_POINTER" not in upper
+    assert "RAW_PAYLOAD" not in upper
+
+
+def test_release_integrity_migration_splits_each_replaced_procedure_as_one_statement() -> None:
+    statements = split_sql_statements(INTEGRITY_MIGRATION.read_text(encoding="utf-8"))
+    procedures = tuple(
+        statement
+        for statement in statements
+        if statement.lstrip().upper().startswith("CREATE OR REPLACE PROCEDURE")
+    )
+
+    assert len(procedures) == 2
+    assert all("BEGIN TRANSACTION;" in statement for statement in procedures)
+    assert all("M3_RELEASE_ACTIVATION_ELIGIBILITY" in statement for statement in procedures)

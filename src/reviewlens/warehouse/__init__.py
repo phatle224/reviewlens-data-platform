@@ -61,6 +61,12 @@ from reviewlens.warehouse.quality import (
     WarehouseQualityError,
     evaluate_quality_gate,
 )
+from reviewlens.warehouse.release_registration import (
+    M3ReleaseRegistrationError,
+    M3ReleaseRegistrationResult,
+    run_m3_release_registration,
+    validate_release_registration_settings,
+)
 from reviewlens.warehouse.release_resolver import (
     ActiveReleaseResolver,
     PinnedSemanticRelation,
@@ -80,6 +86,7 @@ from reviewlens.warehouse.releases import (
     ReleaseObjectRef,
     ReleaseTransition,
     build_release_definition,
+    build_release_definition_for_tested_target,
 )
 from reviewlens.warehouse.replay_drill import (
     M3_FINGERPRINT_METHOD,
@@ -160,6 +167,8 @@ __all__ = [
     "GoldContractError",
     "InMemoryCandidateRegistry",
     "InMemoryReleaseRegistry",
+    "M3ReleaseRegistrationError",
+    "M3ReleaseRegistrationResult",
     "M3ReplayDrillError",
     "M3ReplayDrillPlan",
     "MetricContractError",
@@ -194,6 +203,7 @@ __all__ = [
     "build_candidate_definition",
     "build_processing_run",
     "build_release_definition",
+    "build_release_definition_for_tested_target",
     "evaluate_quality_gate",
     "finish_gold_candidate_target",
     "gold_dimension_key",
@@ -205,9 +215,11 @@ __all__ = [
     "resolve_dimension_as_of",
     "resolve_dimension_revisions",
     "resolve_semantic_view",
+    "run_m3_release_registration",
     "snapshot_from_fingerprint_rows",
     "summarize_customer_cohort",
     "summarize_order_metrics",
     "summarize_review_metrics",
     "unknown_member",
+    "validate_release_registration_settings",
 ]

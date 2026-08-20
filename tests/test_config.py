@@ -87,7 +87,7 @@ def test_olist_mode_supports_private_managed_data_platform(tmp_path: Path) -> No
 
 def test_olist_license_contract_is_non_commercial_and_attributed() -> None:
     settings = load_settings(environ={})
-    assert settings.data_mode is DataMode.SYNTHETIC
+    assert settings.data_mode is DataMode.OLIST
     assert settings.license.dataset == "brazilian-ecommerce"
     assert settings.license.provider == "Olist"
     assert settings.license.accessed_at.isoformat() == "2026-08-05"

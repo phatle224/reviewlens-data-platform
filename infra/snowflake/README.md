@@ -179,3 +179,21 @@ Run the offline migration and candidate contracts:
 Applying `006_processing_candidates.sql` to Snowflake is a later explicit opt-in
 gate. The initial `IMP-M3-001…003` bundle validates it offline and does not resume
 the warehouse.
+
+## M3 immutable release integrity
+
+`007_atomic_release.sql` provides the immutable release header/object-reference
+tables, append-only release event fields and two owner-executed CAS procedures.
+`008_release_activation_integrity.sql` must be applied after it before the first
+real release registration or activation. It replaces those procedures with an
+aggregate-only eligibility gate that requires exactly the expected 10 Silver and
+18 Gold refs, latest `TEST_PASSED` lifecycle evidence for every ref and a
+matching `CREATED` event. A header by itself is never eligible for activation.
+
+The registration client is `reviewlens-m3-register-release`. It is deliberately
+separate from pointer mutation, uses only `GOLD_BUILDER_ROLE`, writes deterministic
+replay-safe release artifacts, verifies them again and always suspends the
+warehouse. It requires an explicit process-local confirmation; see the
+[M3 release operations runbook](../../docs/runbooks/M3_RELEASE_OPERATIONS.md).
+Do not apply `008` or run registration from CI, with synthetic mode, or without
+a separate owner/cost decision.

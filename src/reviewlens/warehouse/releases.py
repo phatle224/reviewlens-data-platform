@@ -269,6 +269,23 @@ def build_release_definition(
     ):
         raise ReleaseContractError()
 
+    return build_release_definition_for_tested_target(target)
+
+
+def build_release_definition_for_tested_target(
+    target: GoldCandidateBuildTarget,
+) -> ReleaseDefinition:
+    """Derive the frozen identity after an adapter has proved both candidates passed.
+
+    The in-memory helper above proves candidate state from its registry.  A managed
+    adapter must independently verify the latest append-only candidate evidence
+    before calling this deterministic constructor; this function deliberately has
+    no provider dependency and never changes an active pointer.
+    """
+
+    if not isinstance(target, GoldCandidateBuildTarget):
+        raise ReleaseContractError()
+
     silver_refs = tuple(
         ReleaseObjectRef(
             layer=CandidateLayer.SILVER,

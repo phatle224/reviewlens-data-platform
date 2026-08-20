@@ -33,8 +33,8 @@
 | TC-M3-027 | Request pinning | Concurrent requests during activation | Each request uses one complete release | `PASS` | Resolver snapshots one pointer then resolves only catalog logical names from its immutable definition; no-pointer, raw/physical, duplicate and unowned-type inputs fail closed, and 16 concurrent pins racing activation each contain refs from exactly one Gold candidate |
 | TC-M3-028 | Equivalence/cost | Full refresh versus deterministic replay two-run drill | Row/hash equality for the same immutable Silver/Gold candidate pair, bounded X-Small usage and suspend | `PASS` | 2026-08-19 private execution built/replayed the exact approved nine-input pair. Each observation produced 28 aggregate-only fingerprints (10 Silver, 18 Gold); comparison returned `equivalent=true`, with no active-pointer mutation. Lifecycle aggregate confirms successful two-observation Silver/Gold evidence; warehouse was suspended after execution. |
 | TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; regenerated artifact lock, dependency lock and project-image dry-run pass |
-| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 19/20 done, 1/20 partial, 29/30 pass, 0 errors and 0 warnings |
-| TC-M3-031 | Live release | Create immutable definition then activate and roll back the tested pair | Pointer advances only through guarded procedures and returns to the prior immutable release | `PENDING` | Required M3 exit evidence. The 2026-08-19 candidate-pair drill deliberately left active pointer `__UNINITIALIZED__` at version 0; no release definition, activation or rollback was attempted. |
+| TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 19/20 done, 1/20 partial, 30/31 pass, 0 errors and 0 warnings |
+| TC-M3-031 | Live release | Create immutable definition then activate and roll back the tested pair | Pointer advances only through guarded procedures and returns to the prior immutable release | `PENDING` | Local registration fake passes exact 28 tested-ref/header/ref verification and never calls pointer mutation. Live `008` migration/registration have not run. The v0 sentinel cannot be rollback target; a real rollback needs a separately created/activated prior release and an owner decision before a distinct second release is built. |
 
 ## Execution log — 2026-08-14
 
@@ -328,3 +328,30 @@
   pytest -q -p no:cacheprovider --basetemp .tmp/pytest-full-m3-replay-final-manifest
   --cov=reviewlens --cov-report=term-missing` returned 473 passed, 8 expected
   opt-in live skips and 86.56% coverage. No managed provider was called.
+
+## Execution log — 2026-08-20 (`IMP-M3-018`, registration hardening)
+
+- Added `reviewlens-m3-register-release`, a separate opt-in registration client.
+  Before every write it requires `data_mode=olist`, the fixed X-Small/60-second
+  warehouse contract and the latest `TEST_PASSED` audit evidence for the exact
+  10 Silver plus 18 Gold candidate refs. It then deterministically writes and
+  re-verifies the definition header, all refs and one `CREATED` event. It never
+  invokes a pointer procedure and always suspends the warehouse in `finally`.
+- Added `008_release_activation_integrity.sql`. It replaces the owner procedures
+  with a 28-ref aggregate-only eligibility gate: a standalone/incomplete header,
+  a missing expected ref, stale/non-passed lifecycle evidence or a missing
+  matching `CREATED` event returns `RELEASE_DENIED`. The migration was not
+  applied and the registration command was not executed against Snowflake.
+- Focused fake/static suite `tests/test_m3_release_registration.py` and
+  `tests/test_m3_releases.py` passed: valid registration, incomplete-pair denial,
+  synthetic-mode denial, Gold-role-only identity, no pointer SQL, procedure
+  splitting and complete-ref migration checks. No Snowflake, R2, OpenRouter or
+  Chroma call was made in this bundle.
+- Final local verification on 2026-08-20: Ruff format/lint, strict mypy and dbt
+  parse with `--warn-error` pass. `uv run pytest -q -p no:cacheprovider
+  --basetemp .tmp/pytest-full-m3-release-registration-verified --cov=reviewlens
+  --cov-report=term-missing` returned **485 passed, 8 expected opt-in live
+  skips**, 86.25% coverage. Artifact lock, repository policy and workflow status
+  validator pass with 0 findings/errors/warnings. `pip-audit` reports 12 known
+  CVEs in Airflow 3.3.0/sqlparse 0.5.5; recorded as a pre-M8 remediation risk,
+  not hidden as a passing dependency gate.

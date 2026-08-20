@@ -164,7 +164,7 @@ def test_equivalence_runbook_requires_same_candidate_replay_and_private_evidence
     source = RUNBOOK.read_text(encoding="utf-8")
     normalized = " ".join(source.split())
 
-    assert "`IMP-M3-020` vẫn **partial**" in source
+    assert "`IMP-M3-020` và `TC-M3-028` đã **PASS**" in source
     assert "không được gọi replay là incremental" in normalized
     assert "cùng cặp candidate Silver/Gold" in normalized
     assert "10 Silver và 18 Gold" in normalized

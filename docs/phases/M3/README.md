@@ -37,6 +37,11 @@ executor recorded lineage, built and deterministically replayed one immutable
 Silver/Gold candidate pair with aggregate-only equivalence evidence, then
 suspended the warehouse without touching the active pointer. The current graph
 intentionally uses full table materializations; that second build is evidence of
-deterministic replay, never incremental processing. M3 remains in progress only
-because `IMP-M3-018` still requires one real immutable release definition and a
-successful live activation/rollback drill for that tested pair.
+deterministic replay, never incremental processing. A local registration
+executor now verifies every candidate lifecycle ref before it can append a
+definition, and migration `008` adds the same eligibility guard inside the owner
+procedures; neither is live yet. M3 remains in progress because `IMP-M3-018`
+still requires a real immutable release definition and activation. A true
+rollback cannot target v0's uninitialized sentinel: it needs an already active
+prior release and a distinct second release, which requires a separate
+owner acceptance/cost decision.
