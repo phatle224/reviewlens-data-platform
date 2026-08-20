@@ -34,7 +34,7 @@
 | TC-M3-028 | Equivalence/cost | Full refresh versus deterministic replay two-run drill | Row/hash equality for the same immutable Silver/Gold candidate pair, bounded X-Small usage and suspend | `PASS` | 2026-08-19 private execution built/replayed the exact approved nine-input pair. Each observation produced 28 aggregate-only fingerprints (10 Silver, 18 Gold); comparison returned `equivalent=true`, with no active-pointer mutation. Lifecycle aggregate confirms successful two-observation Silver/Gold evidence; warehouse was suspended after execution. |
 | TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; regenerated artifact lock, dependency lock and project-image dry-run pass |
 | TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 19/20 done, 1/20 partial, 30/31 pass, 0 errors and 0 warnings |
-| TC-M3-031 | Live release | Create immutable definition then activate and roll back the tested pair | Pointer advances only through guarded procedures and returns to the prior immutable release | `PENDING` | Local registration fake passes exact 28 tested-ref/header/ref verification; local transition fake calls only owner procedure with explicit CAS version, verifies pointer and rejects denial/stale response without retry/direct update. Live `008` migration/registration have not run. The v0 sentinel cannot be rollback target; a real rollback needs a separately created/activated prior release and an owner decision before a distinct second release is built. |
+| TC-M3-031 | Live release | Create immutable definition then activate and roll back the tested pair | Pointer advances only through guarded procedures and returns to the prior immutable release | `PENDING` | `008` and private registration passed live on 2026-08-20: one definition, exact 28 refs, one matching `CREATED` event and one integrity-ready definition; pointer remains uninitialized/v0 with zero transition events. Local transition fake calls only owner procedure with explicit CAS version, verifies pointer and rejects denial/stale response without retry/direct update. Initial activation is deliberately pending. The v0 sentinel cannot be rollback target; a real rollback needs a separately created/activated prior release and an owner decision before a distinct second release is built. |
 
 ## Execution log — 2026-08-14
 
@@ -374,3 +374,18 @@
   Artifact lock, repository policy and workflow status validator pass with 0
   findings/errors/warnings. The known Airflow/sqlparse dependency-audit risk is
   unchanged and remains pre-M8 follow-up.
+
+## Execution log — 2026-08-20 (`IMP-M3-018`, private registration live gate)
+
+- Owner-confirmed live scope applied `008_release_activation_integrity.sql` from
+  the bootstrap session. The command completed successfully and suspended
+  `REVIEWLENS_WH` in `finally`.
+- `reviewlens-m3-register-release --execute` then verified the latest
+  `TEST_PASSED` audit state for the exact 10 Silver + 18 Gold refs and registered
+  one immutable definition with 28 refs and one `CREATED` event. Its safe result
+  reported `object_ref_count=28` and `pointer_mutated=false`.
+- Aggregate-only post-check verified one immutable definition, 28 object refs,
+  one created event and one integrity-ready definition. Active pointer remained
+  uninitialized at v0 with zero `ACTIVATED`/`ROLLED_BACK` events; warehouse was
+  suspended. No raw Olist/review data, physical refs, credentials, R2, Chroma or
+  OpenRouter payload was logged or published.

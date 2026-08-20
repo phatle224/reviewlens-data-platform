@@ -23,7 +23,7 @@
 | M0 | `COMPLETE` | Olist product/data/license/security/architecture baseline | [Checklist](./phases/M0/M0_CHECKLIST.md) · [Tests](./phases/M0/M0_TEST_CASES.md) |
 | M1 | `COMPLETE` | Config, identities, provider/dbt/Airflow boundaries, audit/logging, authenticated app shell and fail-closed CI/live rotation gates | [Overview](./phases/M1/README.md) · [Checklist](./phases/M1/M1_CHECKLIST.md) · [Tests](./phases/M1/M1_TEST_CASES.md) |
 | M2 | `COMPLETE` | 18 implementation items and owner-approved full nine-file private DAG + immutable replay reconcile with empty alerts and warehouse suspended | [Overview](./phases/M2/README.md) · [Checklist](./phases/M2/M2_CHECKLIST.md) · [Tests](./phases/M2/M2_TEST_CASES.md) |
-| M3 | `IN_PROGRESS` | Silver/DQ, conformed facts/dimensions, review allocation, marts, semantic views, Gold candidate target and private full-refresh/deterministic-replay equivalence are complete; immutable live release definition plus activation/rollback remains partial | [Overview](./phases/M3/README.md) · [Checklist](./phases/M3/M3_CHECKLIST.md) · [Tests](./phases/M3/M3_TEST_CASES.md) |
+| M3 | `IN_PROGRESS` | Silver/DQ, conformed facts/dimensions, review allocation, marts, semantic views, Gold candidate target, private full-refresh/deterministic-replay equivalence and one immutable live release definition are complete; initial activation/rollback remains partial | [Overview](./phases/M3/README.md) · [Checklist](./phases/M3/M3_CHECKLIST.md) · [Tests](./phases/M3/M3_TEST_CASES.md) |
 | M4 | `NOT_STARTED` | DLP-approved review enrichment | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M5 | `NOT_STARTED` | Embeddings, ChromaDB and grounded RAG | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M6 | `NOT_STARTED` | Guarded Text-to-SQL | [Plan](./IMPLEMENTATION_PLAN.md) |
@@ -38,10 +38,10 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 - Sửa ba lỗi tương thích phát hiện bằng live gate: splitter giữ nguyên `$$` procedure body, Snowflake Scripting dùng parenthesized `IF` + bind `:P_...`, và procedure invocation dùng `USAGE` grant thay vì `EXECUTE`.
 - Live Bronze contract pass 138/138. Macro grain hiện quote canonical uppercase Snowflake identifiers; freshness được đổi thành immutable-snapshot 30/90 ngày sau khi aggregate-only preflight xác nhận private snapshot cũ hơn SLA streaming.
 - DWH-006/`IMP-M3-020` đã pass live ngày 2026-08-19: executor private dùng đúng 9 Bronze inputs, hai dbt identity/target, 10 object-level Silver→Gold grants và 28 aggregate fingerprints trên mỗi observation. Full refresh và deterministic replay của cùng candidate pair trả `equivalent=true`; pointer vẫn `__UNINITIALIZED__`/v0 và warehouse được suspend. Hai lỗi SQL live (SCD quoted-case, bridge `PRODUCT_KEY` ambiguous) đã được sửa cùng regression tests; một Gold failure lifecycle lịch sử vẫn được audit, không ảnh hưởng candidate pair cuối cùng.
-- `IMP-M3-018` được harden offline ngày 2026-08-20: registration executor xác minh exact 10 Silver + 18 Gold latest `TEST_PASSED` refs trước khi idempotently ghi/re-read immutable definition, refs và `CREATED` event; nó không gọi activation/rollback. Migration `008` bổ sung cùng guard bên trong owner procedures, chặn incomplete header được active. Chưa apply migration hoặc thực hiện registration live.
+- `IMP-M3-018` registration gate pass live ngày 2026-08-20: migration `008` đã apply; executor xác minh exact 10 Silver + 18 Gold latest `TEST_PASSED` refs và idempotently ghi/re-read một immutable definition, 28 refs và `CREATED` event. Aggregate-only post-check trả một ready definition; active pointer vẫn uninitialized/v0 và transition event count bằng 0. Warehouse được suspend; không activation/rollback.
 - Transition executor local nay chỉ gọi đúng một owner procedure với expected pointer version do operator truyền vào, parse status fail-closed và đọc lại pointer; nó không có direct `UPDATE`, không retry version mới khi CAS bị từ chối và luôn suspend warehouse. Chỉ fake-tested, chưa gọi Snowflake.
 - dbt profile vẫn là một local target nhưng Gold command nay phải override tạm thời sang `GOLD_BUILDER_ROLE`; planner chỉ tạo đúng 10 object-level Silver `SELECT` grants cho Gold, không thêm schema/future privilege. Safe credential-presence check cho transform/Gold key path pass; không đọc hay in secret, không gọi provider.
-- Gate local sau scope update pass: Ruff format/lint cho `src`/`tests`, strict mypy, dbt parse `--warn-error`, 473 offline tests (8 opt-in live skips), policy/artifact/dependency locks và status validator đều pass.
+- Gate local sau scope update pass: Ruff format/lint cho `src`/`tests`, strict mypy, dbt parse `--warn-error`, 490 offline tests (8 opt-in live skips), policy/artifact và status validator đều pass.
 
 ## Kiểm thử
 
@@ -62,7 +62,7 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 - Local dependency audit ngày 2026-08-20 báo 12 known CVEs: Airflow 3.3.0 có fix 3.3.1 và sqlparse 0.5.5 có fix 0.6.0. Chưa update trong M3 để tránh một Docker/runtime migration ngoài scope; phải re-audit/upgrade có kiểm soát trước M8 portfolio release.
 - Product/seller review insights remain allocations, not item-level evidence; semantic views expose the policy label and mark order counts as nonadditive.
 - Gold candidate build must read a tested Silver candidate and write a different candidate namespace. Owner-approved preflight/migrations are complete, but a candidate build must first persist its processing lineage and pass DQ/reconciliation before any release definition or pointer action.
-- Release definition/CAS and request pinning have live migration plus fail-closed unknown-release procedure evidence. The local registration executor and un-applied integrity migration now prevent incomplete headers from reaching activation. Same-candidate-pair full/replay passes live; registration/initial activation and the two-release rollback decision are the remaining M3 exit gate.
+- Release definition/CAS and request pinning have live migration plus fail-closed unknown-release procedure evidence. `008` is applied and one private ready release definition has been registered without pointer mutation. Same-candidate-pair full/replay passes live; initial activation and the two-release rollback decision are the remaining M3 exit gate.
 - Chroma adapter M1 vẫn là lazy/fake-tested boundary. Machine-readable quarantine chặn package/server 1.5.9 và mọi addition chưa được review; `IMP-M5-001` phải thay policy có chủ đích chỉ sau khi một patched release qua dependency/image audit và negative access smoke.
 
 ## Chi phí và tài nguyên
@@ -70,26 +70,25 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 | Dịch vụ | Budget/gate hiện tại | Usage đã xác minh |
 |---|---|---|
 | OpenRouter | 5 USD/project; warning 0.50 USD/day | Không gọi trong phiên CI; 0 USD phát sinh từ code path project |
-| Snowflake | ≤10 credits/month; X-Small, auto-suspend 60s | Nine Bronze tables contain 1,289,091 reconciled accepted rows; M3 full/replay equivalence passed with pointer unchanged and warehouse suspended |
+| Snowflake | ≤10 credits/month; X-Small, auto-suspend 60s | Nine Bronze tables contain 1,289,091 reconciled accepted rows; M3 full/replay and one private ready release registration passed with pointer unchanged and warehouse suspended |
 | Cloudflare R2 | Standard; target ≤15 GB; private/lifecycle | 9 approved CSV (~126.19 MB), source manifest and immutable raw/quarantine artifacts retained privately; replay verified create-only objects |
 | ChromaDB | ≤5 GB local | Typed/in-memory adapter tests only; chưa provision/index và 0 byte project data được ghi |
 
 ## Input cần từ chủ project
 
-Không cần thêm credential hoặc secret. `data_mode=olist` và private replay drill
-đã pass. Trước live `008` migration và immutable registration, owner cần xác
-nhận riêng cost/mutation gate. Sau initial activation, owner cần quyết định có
-xây một release thứ hai thực để chứng minh server-side rollback hay chấp nhận
-rollback live ở release kế tiếp; không cần chọn watermark/merge strategy cho
-static Olist scope này.
+Không cần thêm credential hoặc secret. `data_mode=olist`, private replay drill,
+`008` migration và immutable registration đã pass. Trước initial activation,
+owner cần xác nhận riêng cost/mutation gate cho explicit CAS v0. Sau activation,
+owner cần quyết định có xây một release thứ hai thực để chứng minh server-side
+rollback hay chấp nhận rollback live ở release kế tiếp; không cần chọn
+watermark/merge strategy cho static Olist scope này.
 
 ## Việc tiếp theo
 
-1. Owner xác nhận riêng để apply `008_release_activation_integrity.sql`, rồi chạy private immutable release registration; pointer vẫn giữ nguyên.
-2. Sau registration, owner xác nhận riêng initial activation với explicit CAS v0 qua transition executor; không chạy direct SQL/manual pointer update.
-3. Chọn acceptance cho rollback: để rollback live sang release kế tiếp, hoặc cấp cost/mutation gate cho hai distinct releases để chứng minh rollback ngay trong M3.
-4. Keep review text private and `ai_eligible=false`; only M4 may create a DLP-approved external projection.
-5. Re-audit Chroma tại `IMP-M5-001`; không bypass blocked policy để provision sớm; trước M8, xử lý dependency audit Airflow/sqlparse rồi rebuild một image mới có kiểm soát.
+1. Owner xác nhận riêng initial activation với explicit CAS v0 qua transition executor; không chạy direct SQL/manual pointer update.
+2. Sau activation, chọn acceptance cho rollback: để rollback live sang release kế tiếp, hoặc cấp cost/mutation gate cho hai distinct releases để chứng minh rollback ngay trong M3.
+3. Keep review text private and `ai_eligible=false`; only M4 may create a DLP-approved external projection.
+4. Re-audit Chroma tại `IMP-M5-001`; không bypass blocked policy để provision sớm; trước M8, xử lý dependency audit Airflow/sqlparse rồi rebuild một image mới có kiểm soát.
 
 ## Dự báo hoàn thành (solo portfolio)
 

@@ -24,11 +24,12 @@ deterministic replay của cùng candidate pair dùng đúng chín Bronze inputs
 được suspend, active pointer không bị thay đổi. Graph dbt materialize bằng
 `table`; không được gọi replay là incremental.
 
-`IMP-M3-018` vẫn partial. `008_release_activation_integrity.sql` đã có trong
-repository nhưng **chưa apply**: nó thay procedure để bắt buộc đủ 28 expected
-object refs, evidence `TEST_PASSED` mới nhất và `CREATED` event khớp definition
-trước activation/rollback. Executor `reviewlens-m3-register-release` cũng đã
-được fake-tested nhưng chưa ghi release definition vào Snowflake.
+`IMP-M3-018` vẫn partial, nhưng registration prerequisite đã hoàn tất ngày
+2026-08-20. `008_release_activation_integrity.sql` đã apply, bắt procedure buộc
+đủ 28 expected object refs, evidence `TEST_PASSED` mới nhất và `CREATED` event
+khớp definition trước activation/rollback. `reviewlens-m3-register-release` đã
+đăng ký đúng một definition private với 28 refs; integrity aggregate xác nhận
+definition ready, còn active pointer vẫn v0/uninitialized.
 
 ## 2. Guardrails và chi phí
 
@@ -130,9 +131,9 @@ activate, triage theo logical relation và chạy lại từ immutable source.
 ## 6. Đăng ký immutable release definition (TC-M3-031, chưa chạy)
 
 Đây là một write có kiểm soát vào Snowflake `AUDIT`, nhưng **không** gọi
-`ACTIVATE_RELEASE_V1`, `ROLLBACK_RELEASE_V1` hay thay active pointer. Cần một
-xác nhận owner/cost riêng trước khi chạy vì migration và registration đều là
-managed-service mutation.
+`ACTIVATE_RELEASE_V1`, `ROLLBACK_RELEASE_V1` hay thay active pointer. Gate này
+đã được owner xác nhận và pass ngày 2026-08-20; các command bên dưới được giữ để
+phục vụ replay/handover, không chạy lại trừ khi có mục đích idempotency rõ ràng.
 
 Trước hết apply integrity migration từ owner/bootstrap session. Nó chỉ tạo
 view aggregate-only và thay hai guarded procedures; không thay pointer:
