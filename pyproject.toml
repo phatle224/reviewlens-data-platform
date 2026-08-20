@@ -36,6 +36,7 @@ reviewlens-policy = "reviewlens.ci.policy:main"
 reviewlens-m3-drill = "reviewlens.warehouse.replay_drill:main"
 reviewlens-m3-live-drill = "reviewlens.warehouse.live_drill:main"
 reviewlens-m3-register-release = "reviewlens.warehouse.release_registration:main"
+reviewlens-m3-transition-release = "reviewlens.warehouse.release_transition:main"
 
 [dependency-groups]
 dev = [

@@ -39,6 +39,7 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 - Live Bronze contract pass 138/138. Macro grain hiện quote canonical uppercase Snowflake identifiers; freshness được đổi thành immutable-snapshot 30/90 ngày sau khi aggregate-only preflight xác nhận private snapshot cũ hơn SLA streaming.
 - DWH-006/`IMP-M3-020` đã pass live ngày 2026-08-19: executor private dùng đúng 9 Bronze inputs, hai dbt identity/target, 10 object-level Silver→Gold grants và 28 aggregate fingerprints trên mỗi observation. Full refresh và deterministic replay của cùng candidate pair trả `equivalent=true`; pointer vẫn `__UNINITIALIZED__`/v0 và warehouse được suspend. Hai lỗi SQL live (SCD quoted-case, bridge `PRODUCT_KEY` ambiguous) đã được sửa cùng regression tests; một Gold failure lifecycle lịch sử vẫn được audit, không ảnh hưởng candidate pair cuối cùng.
 - `IMP-M3-018` được harden offline ngày 2026-08-20: registration executor xác minh exact 10 Silver + 18 Gold latest `TEST_PASSED` refs trước khi idempotently ghi/re-read immutable definition, refs và `CREATED` event; nó không gọi activation/rollback. Migration `008` bổ sung cùng guard bên trong owner procedures, chặn incomplete header được active. Chưa apply migration hoặc thực hiện registration live.
+- Transition executor local nay chỉ gọi đúng một owner procedure với expected pointer version do operator truyền vào, parse status fail-closed và đọc lại pointer; nó không có direct `UPDATE`, không retry version mới khi CAS bị từ chối và luôn suspend warehouse. Chỉ fake-tested, chưa gọi Snowflake.
 - dbt profile vẫn là một local target nhưng Gold command nay phải override tạm thời sang `GOLD_BUILDER_ROLE`; planner chỉ tạo đúng 10 object-level Silver `SELECT` grants cho Gold, không thêm schema/future privilege. Safe credential-presence check cho transform/Gold key path pass; không đọc hay in secret, không gọi provider.
 - Gate local sau scope update pass: Ruff format/lint cho `src`/`tests`, strict mypy, dbt parse `--warn-error`, 473 offline tests (8 opt-in live skips), policy/artifact/dependency locks và status validator đều pass.
 
@@ -50,7 +51,7 @@ Milestone completion: **3/9**. Đây là số gate đã đóng, không phải ph
 | M1 | 41 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 193 pass/6 live skip plus owner-approved live rotation 1 pass; Chroma quarantine + clean-path/container/Compose/artifact/metrics + CI policy/dependency/AppTest/logging/audit/Airflow/dbt/provider/R2/stage/RBAC/JWT evidence |
 | M2 | 25 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M2 test cases](./phases/M2/M2_TEST_CASES.md); offline, synthetic live and full private nine-file DAG/replay evidence pass |
 | M3 | 30 `PASS`, 1 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M3 test cases](./phases/M3/M3_TEST_CASES.md); private same-candidate-pair full/replay drill passes live; release activation/rollback remains pending |
-| Quality | `PARTIAL` | Ruff, strict mypy, dbt parse, 485 offline tests (8 opt-in live skips, 86.25% coverage), artifact lock and repository policy pass. Dependency audit flags 12 known CVEs in Airflow 3.3.0/sqlparse 0.5.5; remediation is tracked before M8/container release. |
+| Quality | `PARTIAL` | Ruff, strict mypy, dbt parse, 490 offline tests (8 opt-in live skips, 85.98% coverage), artifact lock and repository policy pass. Dependency audit flags 12 known CVEs in Airflow 3.3.0/sqlparse 0.5.5; remediation is tracked before M8/container release. |
 | Status validator | `PASS` — 0 errors, 0 warnings | M0–M2 complete; M3 synchronized at 19/20 done, 1 partial and 30/31 pass |
 
 ## Blocker và rủi ro
@@ -84,10 +85,10 @@ static Olist scope này.
 
 ## Việc tiếp theo
 
-1. Owner xác nhận riêng để apply `008_release_activation_integrity.sql` rồi chạy private immutable release registration; pointer vẫn giữ nguyên.
-2. Chọn acceptance cho initial release: activate một release từ v0 và để rollback live sang release kế tiếp, hoặc cấp cost/mutation gate cho hai distinct releases để chứng minh rollback ngay trong M3.
-3. Keep review text private and `ai_eligible=false`; only M4 may create a DLP-approved external projection.
-4. Avoid Docker builds for dbt/docs-only bundles and keep every model under the candidate namespace.
+1. Owner xác nhận riêng để apply `008_release_activation_integrity.sql`, rồi chạy private immutable release registration; pointer vẫn giữ nguyên.
+2. Sau registration, owner xác nhận riêng initial activation với explicit CAS v0 qua transition executor; không chạy direct SQL/manual pointer update.
+3. Chọn acceptance cho rollback: để rollback live sang release kế tiếp, hoặc cấp cost/mutation gate cho hai distinct releases để chứng minh rollback ngay trong M3.
+4. Keep review text private and `ai_eligible=false`; only M4 may create a DLP-approved external projection.
 5. Re-audit Chroma tại `IMP-M5-001`; không bypass blocked policy để provision sớm; trước M8, xử lý dependency audit Airflow/sqlparse rồi rebuild một image mới có kiểm soát.
 
 ## Dự báo hoàn thành (solo portfolio)

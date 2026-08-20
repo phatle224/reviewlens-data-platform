@@ -34,7 +34,7 @@
 | TC-M3-028 | Equivalence/cost | Full refresh versus deterministic replay two-run drill | Row/hash equality for the same immutable Silver/Gold candidate pair, bounded X-Small usage and suspend | `PASS` | 2026-08-19 private execution built/replayed the exact approved nine-input pair. Each observation produced 28 aggregate-only fingerprints (10 Silver, 18 Gold); comparison returned `equivalent=true`, with no active-pointer mutation. Lifecycle aggregate confirms successful two-observation Silver/Gold evidence; warehouse was suspended after execution. |
 | TC-M3-029 | Repository policy | Scan Git-visible files | No raw Olist, review text, secret or generated dbt target | `PASS` | `reviewlens-policy --root .`: 0 findings; regenerated artifact lock, dependency lock and project-image dry-run pass |
 | TC-M3-030 | Status | Validate phase artifacts and plan synchronization | Zero errors/warnings | `PASS` | Workflow validator: M3 19/20 done, 1/20 partial, 30/31 pass, 0 errors and 0 warnings |
-| TC-M3-031 | Live release | Create immutable definition then activate and roll back the tested pair | Pointer advances only through guarded procedures and returns to the prior immutable release | `PENDING` | Local registration fake passes exact 28 tested-ref/header/ref verification and never calls pointer mutation. Live `008` migration/registration have not run. The v0 sentinel cannot be rollback target; a real rollback needs a separately created/activated prior release and an owner decision before a distinct second release is built. |
+| TC-M3-031 | Live release | Create immutable definition then activate and roll back the tested pair | Pointer advances only through guarded procedures and returns to the prior immutable release | `PENDING` | Local registration fake passes exact 28 tested-ref/header/ref verification; local transition fake calls only owner procedure with explicit CAS version, verifies pointer and rejects denial/stale response without retry/direct update. Live `008` migration/registration have not run. The v0 sentinel cannot be rollback target; a real rollback needs a separately created/activated prior release and an owner decision before a distinct second release is built. |
 
 ## Execution log — 2026-08-14
 
@@ -355,3 +355,22 @@
   validator pass with 0 findings/errors/warnings. `pip-audit` reports 12 known
   CVEs in Airflow 3.3.0/sqlparse 0.5.5; recorded as a pre-M8 remediation risk,
   not hidden as a passing dependency gate.
+
+## Execution log — 2026-08-20 (`IMP-M3-018`, guarded transition client)
+
+- Added `reviewlens-m3-transition-release`. The client requires an explicit
+  target hash and expected pointer version, calls only
+  `ACTIVATE_RELEASE_V1` or `ROLLBACK_RELEASE_V1`, accepts only its documented
+  success/replay status, and re-reads the resulting pointer. It never has direct
+  pointer-update SQL and never retries a denied/stale CAS with a newer version.
+- Offline fakes cover initial activation, rollback replay, denied response,
+  synthetic-mode denial and Gold-builder-only identity. All branches suspend the
+  X-Small warehouse through the bootstrap cleanup boundary. No provider call or
+  pointer mutation was made in this session.
+- Final local verification: Ruff format/lint, strict mypy and dbt parse with
+  `--warn-error` pass. `uv run pytest -q -p no:cacheprovider --basetemp
+  .tmp/pytest-full-m3-release-transition --cov=reviewlens --cov-report=term-missing`
+  returned **490 passed, 8 expected opt-in live skips**, 85.98% coverage.
+  Artifact lock, repository policy and workflow status validator pass with 0
+  findings/errors/warnings. The known Airflow/sqlparse dependency-audit risk is
+  unchanged and remains pre-M8 follow-up.

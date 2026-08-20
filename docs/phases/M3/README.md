@@ -38,10 +38,12 @@ Silver/Gold candidate pair with aggregate-only equivalence evidence, then
 suspended the warehouse without touching the active pointer. The current graph
 intentionally uses full table materializations; that second build is evidence of
 deterministic replay, never incremental processing. A local registration
-executor now verifies every candidate lifecycle ref before it can append a
-definition, and migration `008` adds the same eligibility guard inside the owner
-procedures; neither is live yet. M3 remains in progress because `IMP-M3-018`
-still requires a real immutable release definition and activation. A true
+executor verifies every candidate lifecycle ref before it can append a
+definition; a separate transition executor passes an explicit CAS version to one
+owner procedure and re-reads the pointer without direct mutation/retry; migration
+`008` adds the same eligibility guard inside the owner procedures. Neither path
+is live yet. M3 remains in progress because `IMP-M3-018` still requires a real
+immutable release definition and activation. A true
 rollback cannot target v0's uninitialized sentinel: it needs an already active
 prior release and a distinct second release, which requires a separate
 owner acceptance/cost decision.

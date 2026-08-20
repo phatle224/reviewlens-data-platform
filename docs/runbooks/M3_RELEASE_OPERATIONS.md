@@ -156,6 +156,22 @@ Nếu candidate evidence thiếu, không phải `TEST_PASSED`, header/ref đọc
 hoặc config không phải `data_mode=olist`, command fail closed trước/hoặc sau
 write và `finally` luôn suspend warehouse. Không tự sửa audit row thủ công.
 
+Sau khi registration pass, transition client chỉ gọi một owner procedure với
+**expected pointer version được truyền tường minh**, sau đó đọc lại pointer. Nó
+không có SQL `UPDATE` trực tiếp và không tự retry với version mới nếu CAS bị từ
+chối. Chỉ chạy sau một xác nhận mutation riêng:
+
+```powershell
+$env:REVIEWLENS_TRANSITION_M3_RELEASE = 'CONFIRMED'
+uv run dotenv -f .env run -- uv run reviewlens-m3-transition-release --execute --action activate --target-release-id '<release-id-from-registration>' --expected-pointer-version 0
+Remove-Item Env:REVIEWLENS_TRANSITION_M3_RELEASE
+```
+
+Thay `<release-id-from-registration>` bằng hash output của registration; không
+ghi hash này vào Git. Với rollback, dùng `--action rollback`, target là prior
+activated release và version hiện tại của pointer. Procedure sẽ từ chối target
+sentinel/unseen/stale/incomplete thay vì tự chọn release hoặc pointer version.
+
 Initial activation từ pointer v0 có thể được kiểm tra với release đầu tiên,
 nhưng rollback server-side không thể quay về sentinel `__UNINITIALIZED__`.
 Một rollback live thực cần một release immutable trước đó và một release thứ hai

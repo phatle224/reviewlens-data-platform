@@ -74,6 +74,13 @@ from reviewlens.warehouse.release_resolver import (
     ReleaseResolutionError,
     ServingAudience,
 )
+from reviewlens.warehouse.release_transition import (
+    M3ReleaseTransitionError,
+    M3ReleaseTransitionResult,
+    ReleaseTransitionAction,
+    run_m3_release_transition,
+    validate_release_transition_settings,
+)
 from reviewlens.warehouse.releases import (
     RELEASE_DEFINITION_VERSION,
     RELEASE_POINTER_NAME,
@@ -169,6 +176,8 @@ __all__ = [
     "InMemoryReleaseRegistry",
     "M3ReleaseRegistrationError",
     "M3ReleaseRegistrationResult",
+    "M3ReleaseTransitionError",
+    "M3ReleaseTransitionResult",
     "M3ReplayDrillError",
     "M3ReplayDrillPlan",
     "MetricContractError",
@@ -187,6 +196,7 @@ __all__ = [
     "ReleaseRequestPin",
     "ReleaseResolutionError",
     "ReleaseTransition",
+    "ReleaseTransitionAction",
     "ReviewMetricInput",
     "ReviewMetricSummary",
     "RevisionDisposition",
@@ -216,10 +226,12 @@ __all__ = [
     "resolve_dimension_revisions",
     "resolve_semantic_view",
     "run_m3_release_registration",
+    "run_m3_release_transition",
     "snapshot_from_fingerprint_rows",
     "summarize_customer_cohort",
     "summarize_order_metrics",
     "summarize_review_metrics",
     "unknown_member",
     "validate_release_registration_settings",
+    "validate_release_transition_settings",
 ]
