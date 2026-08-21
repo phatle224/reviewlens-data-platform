@@ -3,10 +3,10 @@
 | Attribute | Value |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 3/15 work items |
+| Completed | 6/15 work items |
 | Partial | 0/15 work items |
 | Blocked | 0/15 work items |
-| Not started | 12/15 work items |
+| Not started | 9/15 work items |
 | Last updated | 2026-08-21 |
 
 ## Implementation-plan checklist
@@ -16,9 +16,9 @@
 | IMP-M4-001 | `DONE` | Freeze enrichment JSON Schema, taxonomy and version-key code | `reviewlens.ai.enrichment` freezes schema v1, sentiment/aspect/topic taxonomy and SHA-256 version key across model/provider policy/prompt/schema/taxonomy; TC-M4-001/002 pass offline |
 | IMP-M4-002 | `DONE` | Build `AI_ENRICHMENT_RUN/INVOCATION/RESULT_MAP` ledgers | In-memory replay/transition contract and additive secret-free `009_ai_enrichment_ledgers.sql` add exact append-only ledgers/grants; TC-M4-003/004/005 pass offline; migration is intentionally not applied live |
 | IMP-M4-003 | `DONE` | Implement review-text DLP/minimization projection | Private pure projection redacts email/URL/phone/CPF-like values, drops natural IDs through opaque hash refs, and quarantines empty/over-limit/direct-ID/secret-like inputs; TC-M4-006…009 pass with synthetic Portuguese fixtures |
-| IMP-M4-004 | `NOT_STARTED` | Snapshot OpenRouter catalog, provider policy and price | Requires an opt-in catalog request; no real review text |
-| IMP-M4-005 | `NOT_STARTED` | Implement eligible new/changed/reused selector | Depends on M4-001/003 and pinned release refs |
-| IMP-M4-006 | `NOT_STARTED` | Design Portuguese-aware prompt with delimited untrusted evidence | Depends on projection contract; injection fixtures required |
+| IMP-M4-004 | `DONE` | Snapshot OpenRouter catalog, provider policy and price | Read-only public catalog client validates pinned enrichment slug, context, prompt/completion price and structured-output support; safe evidence snapshot confirms `google/gemini-2.5-flash-lite`, 1,048,576 context and 0.0000001/0.0000004 USD-token prices at 2026-08-21T10:08:04Z; no key/prompt/review is sent |
+| IMP-M4-005 | `DONE` | Implement eligible new/changed/reused selector | Private deterministic selector compares hashed review lineage + approved input hash at one enrichment version; emits only `NEW`/`CHANGED` for dispatch, `REUSED` or explicit exclusion, and rejects conflicting hashed lineage |
+| IMP-M4-006 | `DONE` | Design Portuguese-aware prompt with delimited untrusted evidence | Two-message Portuguese contract puts stable controls in `SYSTEM` and only DLP-approved evidence in `<REVIEW_UNTRUSTED>` user delimiters; synthetic injection fixture proves review instructions never enter control text |
 | IMP-M4-007 | `NOT_STARTED` | Implement OpenRouter structured-output client and rate limiter | Adapter exists from M1; M4 adds structured output, fakes and opt-in synthetic smoke |
 | IMP-M4-008 | `NOT_STARTED` | Add schema/semantic validation and one repair path | Invalid output must fail closed; maximum one repair |
 | IMP-M4-009 | `NOT_STARTED` | Add bounded retry, idempotency, permanent-error quarantine and resume | Requires ledger and provider error classification |

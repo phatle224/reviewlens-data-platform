@@ -13,9 +13,9 @@
 | TC-M4-007 | DLP/redaction | Synthetic review includes email, URL, phone or CPF-like number | Identifiers are redacted; raw natural IDs never reach provider payload | `PASS` | Four identifier patterns become placeholders before `ApprovedAIText` boundary |
 | TC-M4-008 | DLP/fail closed | Empty, over-limit, secret-like or ambiguous review input | Projection is quarantined with stable sanitized code | `PASS` | Empty/over-limit/direct-ID/secret-like fixtures quarantine and cannot build provider payload |
 | TC-M4-009 | DLP/replay | Same permitted source hash/text/policy is projected twice | Same opaque reference/content hash and decision | `PASS` | Projection is deterministic and its representation excludes the synthetic review text |
-| TC-M4-010 | Catalog/cost | Snapshot pinned OpenRouter model catalog | Slug/context/price/provider-policy evidence is stored without key or prompt | `PENDING` | IMP-M4-004; opt-in provider call |
-| TC-M4-011 | Selector | New, changed, reused, ineligible and quarantined reviews | Deterministic selection counts and no duplicate dispatch | `PENDING` | IMP-M4-005 |
-| TC-M4-012 | Prompt/security | Portuguese instruction-injection review fixture | Evidence remains delimited data; no tool/instruction escalation | `PENDING` | IMP-M4-006 |
+| TC-M4-010 | Catalog/cost | Snapshot pinned OpenRouter model catalog | Slug/context/price/provider-policy evidence is stored without key or prompt | `PASS` | Public read-only `/models` request through `OpenRouterCatalogClient` on 2026-08-21; [safe snapshot](../../evidence/M4_OPENROUTER_ENRICHMENT_CATALOG_2026-08-21.json) validates slug/context/prices/structured output, no API key or content payload |
+| TC-M4-011 | Selector | New, changed, reused, ineligible and quarantined reviews | Deterministic selection counts and no duplicate dispatch | `PASS` | Synthetic hashes cover all five dispositions, reverse-order determinism and conflicting-lineage denial |
+| TC-M4-012 | Prompt/security | Portuguese instruction-injection review fixture | Evidence remains delimited data; no tool/instruction escalation | `PASS` | Synthetic injection stays solely inside `REVIEW_UNTRUSTED`; trusted system prompt explicitly denies evidence instructions/tools/schema changes |
 | TC-M4-013 | Provider | Structured output fake plus opt-in synthetic live smoke | Pinned model, schema and rate controls respected | `PENDING` | IMP-M4-007 |
 | TC-M4-014 | Validation/retry | Invalid enum/range/ID and transient/permanent provider failures | At most one repair, bounded retry, quarantine/resume safely | `PENDING` | IMP-M4-008/009 |
 | TC-M4-015 | Budget | Estimated/actual spend reaches warning and hard cap | Warning at 0.50 USD/day; new calls stop at 5 USD | `PENDING` | IMP-M4-010 |
@@ -38,3 +38,19 @@
   --cov-report=term-missing` → **511 passed, 8 opt-in live skipped, 86.05%
   coverage**. The default Windows user temp root was access-denied, so it is not
   used as evidence for this run.
+
+## Execution log — 2026-08-21 (`IMP-M4-004…006`)
+
+- Focused M4 suite: `uv run pytest tests/test_m4_enrichment.py
+  tests/test_m4_enrichment_migration.py tests/test_m4_catalog_selection_prompt.py
+  -q -p no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-bundle` → **26 passed**.
+- One public metadata-only call through the catalog implementation confirmed the
+  configured enrichment model still exists, has a 1,048,576-token context,
+  supports structured outputs and has prompt/completion price 0.0000001 /
+  0.0000004 USD per token. It used no API key, token-generating endpoint,
+  prompt, review, R2, Snowflake or Chroma request.
+- Full local regression after the bundle: `uv run pytest -q -p
+  no:cacheprovider --basetemp D:\project\reviewlens-data-platform\.tmp\pytest-m4-full-2
+  --cov=reviewlens --cov-report=term-missing` → **518 passed, 8 opt-in live
+  skipped, 86.12% coverage**.
