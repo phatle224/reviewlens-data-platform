@@ -21,6 +21,7 @@ chroma_data/
 airflow/logs/
 logs/
 runtime_state/
+private_evaluation/
 
 # Python
 .venv/
