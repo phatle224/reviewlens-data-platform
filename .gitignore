@@ -20,6 +20,7 @@ manifests/
 chroma_data/
 airflow/logs/
 logs/
+runtime_state/
 
 # Python
 .venv/

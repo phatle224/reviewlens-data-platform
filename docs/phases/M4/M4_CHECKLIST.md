@@ -3,11 +3,11 @@
 | Attribute | Value |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 8/15 work items |
+| Completed | 9/15 work items |
 | Partial | 1/15 work items |
 | Blocked | 0/15 work items |
-| Not started | 6/15 work items |
-| Last updated | 2026-08-21 |
+| Not started | 5/15 work items |
+| Last updated | 2026-08-22 |
 
 ## Implementation-plan checklist
 
@@ -22,7 +22,7 @@
 | IMP-M4-007 | `PARTIAL` | Implement OpenRouter structured-output client and rate limiter | Strict `response_format.json_schema`, data-collection deny/no-fallback route and deterministic 2-per-second limiter pass fakes; opt-in synthetic-only live smoke exists but is not executed because it may incur OpenRouter token cost |
 | IMP-M4-008 | `DONE` | Add schema/semantic validation and one repair path | Pydantic strict schema/semantic validator rejects malformed JSON, invalid/duplicate taxonomy, empty/restricted output; executor allows exactly one static-control repair then quarantines invalid output |
 | IMP-M4-009 | `DONE` | Add bounded retry, idempotency, permanent-error quarantine and resume | In-memory executor persists retryable/succeeded/quarantined state per work ID; transient errors resume to the bounded max, permanent errors quarantine immediately and terminal calls are idempotent |
-| IMP-M4-010 | `NOT_STARTED` | Token/cost estimator, 0.50 USD warning and 5 USD hard stop | Requires catalog price evidence; dispatch must stop at cap |
+| IMP-M4-010 | `DONE` | Token/cost estimator, 0.50 USD warning and 5 USD hard stop | Deterministic token envelope uses catalog-pinned prices; a durable local aggregate-only reservation ledger warns at 0.50 USD/day and blocks before a request would exceed 5 USD. The synthetic live smoke now wraps every provider call in the guard; no live call was made. TC-M4-015 passes offline. |
 | IMP-M4-011 | `NOT_STARTED` | Build committed `AI_REVIEW_ENRICHED` and coverage projection | Validated results only; base review fact never removed |
 | IMP-M4-012 | `NOT_STARTED` | Create stratified golden/holdout and semantic evaluator | Private/restricted label workflow; ≥20% blind holdout |
 | IMP-M4-013 | `NOT_STARTED` | Add AI quality gate to release process | Bad AI candidate cannot publish |

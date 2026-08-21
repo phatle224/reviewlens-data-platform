@@ -18,7 +18,7 @@
 | TC-M4-012 | Prompt/security | Portuguese instruction-injection review fixture | Evidence remains delimited data; no tool/instruction escalation | `PASS` | Synthetic injection stays solely inside `REVIEW_UNTRUSTED`; trusted system prompt explicitly denies evidence instructions/tools/schema changes |
 | TC-M4-013 | Provider | Structured output fake plus opt-in synthetic live smoke | Pinned model, schema and rate controls respected | `PENDING` | Fake contract passes; `tests/live/test_openrouter_enrichment_live.py` is synthetic-only and awaits explicit token-cost opt-in |
 | TC-M4-014 | Validation/retry | Invalid enum/range/ID and transient/permanent provider failures | At most one repair, bounded retry, quarantine/resume safely | `PASS` | Synthetic malformed/unknown/duplicate/restricted outputs fail closed; exact one repair, transient resume/max-attempt quarantine and permanent-error quarantine pass |
-| TC-M4-015 | Budget | Estimated/actual spend reaches warning and hard cap | Warning at 0.50 USD/day; new calls stop at 5 USD | `PENDING` | IMP-M4-010 |
+| TC-M4-015 | Budget | Estimated/actual spend reaches warning and hard cap | Warning at 0.50 USD/day; new calls stop at 5 USD | `PASS` | Offline deterministic estimator, durable aggregate-only reservation/settlement and pre-delegate hard-stop tests pass; live smoke is wrapped but remains opt-in/unexecuted |
 | TC-M4-016 | Commit/coverage | Partial valid/invalid result batch | Only validated result commits; coverage/base fact reconcile | `PENDING` | IMP-M4-011 |
 | TC-M4-017 | Evaluation | Stratified private golden/holdout is re-run | Reproducible semantic report; holdout remains blind | `PENDING` | IMP-M4-012 |
 | TC-M4-018 | Release gate | AI candidate below quality threshold | Candidate cannot publish or alter active data release | `PENDING` | IMP-M4-013 |
@@ -68,3 +68,25 @@
   owner explicitly accepts the limited token cost.
 - Full local regression: **529 passed, 9 opt-in live skipped, 86.18% coverage**
   using workspace-local pytest temp `...\.tmp\pytest-m4-full-3`.
+
+## Execution log — 2026-08-22 (`IMP-M4-010`)
+
+- Offline M4 cost-control suite: `uv run pytest tests\test_m4_enrichment.py
+  tests\test_m4_enrichment_migration.py tests\test_m4_catalog_selection_prompt.py
+  tests\test_m4_execution.py tests\test_m4_budget.py tests\test_openrouter.py -q
+  -p no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-010-focused` → **49 passed**.
+- `EnrichmentBudget` persists only schema version, opaque reservation IDs, ISO
+  dates and aggregate USD amounts under ignored `runtime_state/`; it never stores
+  text, prompt, response, model payload or natural identifier. Reservation is
+  written before provider delegation and remains counted after an interrupted
+  process, so a restart cannot bypass the cap.
+- Ruff format/lint and strict mypy pass for the new guard and its tests. The
+  live test remains skipped unless the owner sets its explicit opt-in variable;
+  no OpenRouter completion, R2, Snowflake or Chroma request was made.
+- Full local regression after regenerating the declared artifact lock:
+  `uv run pytest -q -p no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-010-full-3
+  --cov=reviewlens --cov-report=term-missing` → **532 passed, 9 opt-in live
+  skipped, 86.08% coverage**. `tests\test_deploy.py` also passes after the
+  lock refresh.

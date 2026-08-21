@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import date
 from enum import StrEnum
 from typing import Protocol
 
+from reviewlens.ai.budget import EnrichmentBudget, EnrichmentPricing, TokenEstimate
 from reviewlens.ai.enrichment import EnrichmentVersionInput, enrichment_json_schema
 from reviewlens.ai.prompt import EnrichmentPrompt, build_single_repair_prompt
 from reviewlens.ai.rate_limit import EnrichmentRateLimiter
@@ -63,6 +66,44 @@ class RateLimitedOpenRouterEnrichmentTransport:
         except OpenRouterProviderError:
             raise EnrichmentTransportError(code="OPENROUTER_TRANSIENT", transient=True) from None
         return completion.content
+
+
+class BudgetGuardedEnrichmentTransport:
+    """Reserve the bounded worst-case cost before delegating to a provider.
+
+    The guard raises its sanitized budget error before the delegate is touched.
+    A failed delegate releases its reservation; a successful delegate commits the
+    conservative envelope until later ledger reconciliation records actual usage.
+    """
+
+    def __init__(
+        self,
+        *,
+        delegate: StructuredEnrichmentTransport,
+        budget: EnrichmentBudget,
+        pricing: EnrichmentPricing,
+        estimate: TokenEstimate,
+        today: Callable[[], date] = date.today,
+    ) -> None:
+        self._delegate = delegate
+        self._budget = budget
+        self._pricing = pricing
+        self._estimate = estimate
+        self._today = today
+
+    def complete(self, *, prompt: EnrichmentPrompt, repair: bool) -> str:
+        reservation = self._budget.reserve(
+            estimate=self._estimate,
+            pricing=self._pricing,
+            on_day=self._today(),
+        )
+        try:
+            response = self._delegate.complete(prompt=prompt, repair=repair)
+        except Exception:
+            self._budget.release(reservation)
+            raise
+        self._budget.commit(reservation)
+        return response
 
 
 @dataclass(frozen=True, slots=True)
