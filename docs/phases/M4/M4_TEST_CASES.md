@@ -19,7 +19,7 @@
 | TC-M4-013 | Provider | Structured output fake plus opt-in synthetic live smoke | Pinned model, schema and rate controls respected | `PENDING` | Fake contract passes; `tests/live/test_openrouter_enrichment_live.py` is synthetic-only and awaits explicit token-cost opt-in |
 | TC-M4-014 | Validation/retry | Invalid enum/range/ID and transient/permanent provider failures | At most one repair, bounded retry, quarantine/resume safely | `PASS` | Synthetic malformed/unknown/duplicate/restricted outputs fail closed; exact one repair, transient resume/max-attempt quarantine and permanent-error quarantine pass |
 | TC-M4-015 | Budget | Estimated/actual spend reaches warning and hard cap | Warning at 0.50 USD/day; new calls stop at 5 USD | `PASS` | Offline deterministic estimator, durable aggregate-only reservation/settlement and pre-delegate hard-stop tests pass; live smoke is wrapped but remains opt-in/unexecuted |
-| TC-M4-016 | Commit/coverage | Partial valid/invalid result batch | Only validated result commits; coverage/base fact reconcile | `PENDING` | IMP-M4-011 |
+| TC-M4-016 | Commit/coverage | Partial valid/invalid result batch | Only validated result commits; coverage/base fact reconcile | `PASS` | Synthetic commit contract rejects result-map/hash mismatch before write; exact replay is reused, changed approved input replaces atomically, and aggregate coverage keeps missing/ineligible base reviews in its denominator |
 | TC-M4-017 | Evaluation | Stratified private golden/holdout is re-run | Reproducible semantic report; holdout remains blind | `PENDING` | IMP-M4-012 |
 | TC-M4-018 | Release gate | AI candidate below quality threshold | Candidate cannot publish or alter active data release | `PENDING` | IMP-M4-013 |
 | TC-M4-019 | Observability | Aggregate dashboard/reconciliation query | Tokens, cost, latency, errors and coverage reconcile with ledgers | `PENDING` | IMP-M4-014 |
@@ -90,3 +90,21 @@
   --cov=reviewlens --cov-report=term-missing` → **532 passed, 9 opt-in live
   skipped, 86.08% coverage**. `tests\test_deploy.py` also passes after the
   lock refresh.
+
+## Execution log — 2026-08-22 (`IMP-M4-011`)
+
+- Offline validated-commit and coverage suite: `uv run pytest
+  tests\test_m4_commit.py tests\test_m4_enrichment.py
+  tests\test_m4_enrichment_migration.py tests\test_m4_catalog_selection_prompt.py
+  tests\test_m4_execution.py tests\test_m4_budget.py tests\test_openrouter.py -q
+  -p no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-011-focused` → **54 passed**.
+- The static `010_ai_review_enriched.sql` contract is replayed through the
+  Snowflake adapter fake and grants only the exact private table privileges to
+  `AI_ENRICH_ROLE`. It is not applied to Snowflake. No OpenRouter, R2,
+  Snowflake or Chroma request was made.
+- Full local regression after artifact-lock refresh: `uv run pytest -q -p
+  no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-011-full
+  --cov=reviewlens --cov-report=term-missing` → **537 passed, 9 opt-in live
+  skipped, 86.10% coverage**.

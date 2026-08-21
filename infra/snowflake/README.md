@@ -214,3 +214,18 @@ The M4 offline bundle validates the migration through the Snowflake adapter fake
 but does not apply it. Apply only from the owner/bootstrap session after the
 remaining M4 provider, validation, retry and budget gates are complete; never
 apply it in CI or as a substitute for the DLP gate.
+
+## M4 committed enrichment contract
+
+`010_ai_review_enriched.sql` adds the private current-result table
+`AI.AI_REVIEW_ENRICHED`. It stores only schema- and semantic-validated output
+linked to the hash-only result map; restricted source review text, prompts, raw
+provider payloads, credentials, payment values and vector payloads are excluded.
+The `AI_ENRICH_ROLE` receives exact table `SELECT, INSERT, UPDATE` privileges so
+an approved changed input can atomically replace its current valid result; audit
+history remains append-only in `009` ledgers. `FACT_REVIEW_BASE` is deliberately
+not mutated or filtered by this table, and coverage is aggregate-only.
+
+The migration is static-contract tested and unapplied. Do not apply `009` or
+`010` in CI, during a synthetic demo, or before a separately authorized bounded
+pilot.

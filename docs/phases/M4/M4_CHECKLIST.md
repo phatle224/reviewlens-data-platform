@@ -3,10 +3,10 @@
 | Attribute | Value |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 9/15 work items |
+| Completed | 10/15 work items |
 | Partial | 1/15 work items |
 | Blocked | 0/15 work items |
-| Not started | 5/15 work items |
+| Not started | 4/15 work items |
 | Last updated | 2026-08-22 |
 
 ## Implementation-plan checklist
@@ -23,7 +23,7 @@
 | IMP-M4-008 | `DONE` | Add schema/semantic validation and one repair path | Pydantic strict schema/semantic validator rejects malformed JSON, invalid/duplicate taxonomy, empty/restricted output; executor allows exactly one static-control repair then quarantines invalid output |
 | IMP-M4-009 | `DONE` | Add bounded retry, idempotency, permanent-error quarantine and resume | In-memory executor persists retryable/succeeded/quarantined state per work ID; transient errors resume to the bounded max, permanent errors quarantine immediately and terminal calls are idempotent |
 | IMP-M4-010 | `DONE` | Token/cost estimator, 0.50 USD warning and 5 USD hard stop | Deterministic token envelope uses catalog-pinned prices; a durable local aggregate-only reservation ledger warns at 0.50 USD/day and blocks before a request would exceed 5 USD. The synthetic live smoke now wraps every provider call in the guard; no live call was made. TC-M4-015 passes offline. |
-| IMP-M4-011 | `NOT_STARTED` | Build committed `AI_REVIEW_ENRICHED` and coverage projection | Validated results only; base review fact never removed |
+| IMP-M4-011 | `DONE` | Build committed `AI_REVIEW_ENRICHED` and coverage projection | Private `AI_REVIEW_ENRICHED` DDL (`010`) and an atomic in-memory contract accept only hash-matched `ValidatedEnrichment` linked to a successful result-map; exact replay reuses, changed approved input replaces the current valid result, and coverage is aggregate-only. The base-review count is independent of valid/missing/ineligible AI coverage. Migration is deliberately not applied live; TC-M4-016 passes offline. |
 | IMP-M4-012 | `NOT_STARTED` | Create stratified golden/holdout and semantic evaluator | Private/restricted label workflow; ≥20% blind holdout |
 | IMP-M4-013 | `NOT_STARTED` | Add AI quality gate to release process | Bad AI candidate cannot publish |
 | IMP-M4-014 | `NOT_STARTED` | Add tokens/cost/latency/error/coverage dashboards | Ledger aggregates reconcile without raw content |
