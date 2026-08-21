@@ -1,0 +1,40 @@
+# M4 Test Cases and Results
+
+## Test matrix
+
+| ID | Type | Scenario | Expected result | Status | Evidence |
+|---|---|---|---|---|---|
+| TC-M4-001 | Schema/version | Construct the pinned enrichment JSON Schema and compute its version key twice | Immutable schema/taxonomy and stable SHA-256 key | `PASS` | `uv run pytest tests/test_m4_enrichment.py tests/test_m4_enrichment_migration.py -q -p no:cacheprovider` — 19 passed, 2026-08-21 |
+| TC-M4-002 | Negative/schema | Change one model, policy, prompt, schema or taxonomy input | Version key changes; empty/unsafe version input is denied | `PASS` | Same focused offline suite verifies all five version inputs and unsafe values |
+| TC-M4-003 | Ledger/replay | Register the same run/invocation/result-map event twice | Same event is returned; conflicting payload is denied | `PASS` | Deterministic in-memory run/invocation/result map replay test passes |
+| TC-M4-004 | Ledger/transition | Attempt skipped, stale or terminal-state transition | Illegal transition is denied without raw/error payload leakage | `PASS` | Unvalidated result and skipped invocation transitions return stable sanitized errors |
+| TC-M4-005 | Migration/security | Inspect and replay migration `009` through the adapter fake | Three additive, exact-grant, secret-free ledgers; no raw text/body columns | `PASS` | Static DDL/grant scan and two-pass `SnowflakeClient` fake replay pass; migration not applied live |
+| TC-M4-006 | DLP/happy path | Project a synthetic Portuguese review with no identifier | Opaque review reference and DLP-approved text/hash only | `PASS` | Deterministic synthetic Portuguese fixture produces only opaque SHA-256 reference and approved payload |
+| TC-M4-007 | DLP/redaction | Synthetic review includes email, URL, phone or CPF-like number | Identifiers are redacted; raw natural IDs never reach provider payload | `PASS` | Four identifier patterns become placeholders before `ApprovedAIText` boundary |
+| TC-M4-008 | DLP/fail closed | Empty, over-limit, secret-like or ambiguous review input | Projection is quarantined with stable sanitized code | `PASS` | Empty/over-limit/direct-ID/secret-like fixtures quarantine and cannot build provider payload |
+| TC-M4-009 | DLP/replay | Same permitted source hash/text/policy is projected twice | Same opaque reference/content hash and decision | `PASS` | Projection is deterministic and its representation excludes the synthetic review text |
+| TC-M4-010 | Catalog/cost | Snapshot pinned OpenRouter model catalog | Slug/context/price/provider-policy evidence is stored without key or prompt | `PENDING` | IMP-M4-004; opt-in provider call |
+| TC-M4-011 | Selector | New, changed, reused, ineligible and quarantined reviews | Deterministic selection counts and no duplicate dispatch | `PENDING` | IMP-M4-005 |
+| TC-M4-012 | Prompt/security | Portuguese instruction-injection review fixture | Evidence remains delimited data; no tool/instruction escalation | `PENDING` | IMP-M4-006 |
+| TC-M4-013 | Provider | Structured output fake plus opt-in synthetic live smoke | Pinned model, schema and rate controls respected | `PENDING` | IMP-M4-007 |
+| TC-M4-014 | Validation/retry | Invalid enum/range/ID and transient/permanent provider failures | At most one repair, bounded retry, quarantine/resume safely | `PENDING` | IMP-M4-008/009 |
+| TC-M4-015 | Budget | Estimated/actual spend reaches warning and hard cap | Warning at 0.50 USD/day; new calls stop at 5 USD | `PENDING` | IMP-M4-010 |
+| TC-M4-016 | Commit/coverage | Partial valid/invalid result batch | Only validated result commits; coverage/base fact reconcile | `PENDING` | IMP-M4-011 |
+| TC-M4-017 | Evaluation | Stratified private golden/holdout is re-run | Reproducible semantic report; holdout remains blind | `PENDING` | IMP-M4-012 |
+| TC-M4-018 | Release gate | AI candidate below quality threshold | Candidate cannot publish or alter active data release | `PENDING` | IMP-M4-013 |
+| TC-M4-019 | Observability | Aggregate dashboard/reconciliation query | Tokens, cost, latency, errors and coverage reconcile with ledgers | `PENDING` | IMP-M4-014 |
+| TC-M4-020 | Recovery | Pause/resume/model-change/purge tabletop | Bounded recovery preserves base facts and auditability | `PENDING` | IMP-M4-015 |
+
+## Execution log — 2026-08-21 (`IMP-M4-001…003`)
+
+- Focused M4 offline suite: `uv run pytest tests/test_m4_enrichment.py
+  tests/test_m4_enrichment_migration.py -q -p no:cacheprovider` → **19 passed**.
+- `uv run ruff format --check`, `uv run ruff check` and strict `uv run mypy`
+  over the new M4 source/tests pass. No Snowflake, R2, OpenRouter or Chroma
+  request was made and fixtures contain synthetic text only.
+- Full local regression with an explicit workspace pytest base temp directory:
+  `uv run pytest -q -p no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-full --cov=reviewlens
+  --cov-report=term-missing` → **511 passed, 8 opt-in live skipped, 86.05%
+  coverage**. The default Windows user temp root was access-denied, so it is not
+  used as evidence for this run.

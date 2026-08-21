@@ -200,3 +200,17 @@ warehouse. It requires an explicit process-local confirmation; see the
 [M3 release operations runbook](../../docs/runbooks/M3_RELEASE_OPERATIONS.md).
 Do not apply `008` or run registration from CI, with synthetic mode, or without
 a separate owner/cost decision.
+
+## M4 enrichment ledgers
+
+`009_ai_enrichment_ledgers.sql` adds `AI_ENRICHMENT_RUN`,
+`AI_ENRICHMENT_INVOCATION` and `AI_ENRICHMENT_RESULT_MAP`. These are additive,
+append-only metadata ledgers with exact `AI_ENRICH_ROLE` `SELECT, INSERT`
+grants. They store versions, hashes, state, token/cost/latency values and
+sanitized error codes only; no review text, prompt, response body, natural ID,
+credential, payment value or embedding column is permitted.
+
+The M4 offline bundle validates the migration through the Snowflake adapter fake
+but does not apply it. Apply only from the owner/bootstrap session after the
+remaining M4 provider, validation, retry and budget gates are complete; never
+apply it in CI or as a substitute for the DLP gate.
