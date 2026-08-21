@@ -3,10 +3,10 @@
 | Attribute | Value |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 6/15 work items |
-| Partial | 0/15 work items |
+| Completed | 8/15 work items |
+| Partial | 1/15 work items |
 | Blocked | 0/15 work items |
-| Not started | 9/15 work items |
+| Not started | 6/15 work items |
 | Last updated | 2026-08-21 |
 
 ## Implementation-plan checklist
@@ -19,9 +19,9 @@
 | IMP-M4-004 | `DONE` | Snapshot OpenRouter catalog, provider policy and price | Read-only public catalog client validates pinned enrichment slug, context, prompt/completion price and structured-output support; safe evidence snapshot confirms `google/gemini-2.5-flash-lite`, 1,048,576 context and 0.0000001/0.0000004 USD-token prices at 2026-08-21T10:08:04Z; no key/prompt/review is sent |
 | IMP-M4-005 | `DONE` | Implement eligible new/changed/reused selector | Private deterministic selector compares hashed review lineage + approved input hash at one enrichment version; emits only `NEW`/`CHANGED` for dispatch, `REUSED` or explicit exclusion, and rejects conflicting hashed lineage |
 | IMP-M4-006 | `DONE` | Design Portuguese-aware prompt with delimited untrusted evidence | Two-message Portuguese contract puts stable controls in `SYSTEM` and only DLP-approved evidence in `<REVIEW_UNTRUSTED>` user delimiters; synthetic injection fixture proves review instructions never enter control text |
-| IMP-M4-007 | `NOT_STARTED` | Implement OpenRouter structured-output client and rate limiter | Adapter exists from M1; M4 adds structured output, fakes and opt-in synthetic smoke |
-| IMP-M4-008 | `NOT_STARTED` | Add schema/semantic validation and one repair path | Invalid output must fail closed; maximum one repair |
-| IMP-M4-009 | `NOT_STARTED` | Add bounded retry, idempotency, permanent-error quarantine and resume | Requires ledger and provider error classification |
+| IMP-M4-007 | `PARTIAL` | Implement OpenRouter structured-output client and rate limiter | Strict `response_format.json_schema`, data-collection deny/no-fallback route and deterministic 2-per-second limiter pass fakes; opt-in synthetic-only live smoke exists but is not executed because it may incur OpenRouter token cost |
+| IMP-M4-008 | `DONE` | Add schema/semantic validation and one repair path | Pydantic strict schema/semantic validator rejects malformed JSON, invalid/duplicate taxonomy, empty/restricted output; executor allows exactly one static-control repair then quarantines invalid output |
+| IMP-M4-009 | `DONE` | Add bounded retry, idempotency, permanent-error quarantine and resume | In-memory executor persists retryable/succeeded/quarantined state per work ID; transient errors resume to the bounded max, permanent errors quarantine immediately and terminal calls are idempotent |
 | IMP-M4-010 | `NOT_STARTED` | Token/cost estimator, 0.50 USD warning and 5 USD hard stop | Requires catalog price evidence; dispatch must stop at cap |
 | IMP-M4-011 | `NOT_STARTED` | Build committed `AI_REVIEW_ENRICHED` and coverage projection | Validated results only; base review fact never removed |
 | IMP-M4-012 | `NOT_STARTED` | Create stratified golden/holdout and semantic evaluator | Private/restricted label workflow; ≥20% blind holdout |

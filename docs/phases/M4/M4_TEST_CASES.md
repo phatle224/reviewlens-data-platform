@@ -16,8 +16,8 @@
 | TC-M4-010 | Catalog/cost | Snapshot pinned OpenRouter model catalog | Slug/context/price/provider-policy evidence is stored without key or prompt | `PASS` | Public read-only `/models` request through `OpenRouterCatalogClient` on 2026-08-21; [safe snapshot](../../evidence/M4_OPENROUTER_ENRICHMENT_CATALOG_2026-08-21.json) validates slug/context/prices/structured output, no API key or content payload |
 | TC-M4-011 | Selector | New, changed, reused, ineligible and quarantined reviews | Deterministic selection counts and no duplicate dispatch | `PASS` | Synthetic hashes cover all five dispositions, reverse-order determinism and conflicting-lineage denial |
 | TC-M4-012 | Prompt/security | Portuguese instruction-injection review fixture | Evidence remains delimited data; no tool/instruction escalation | `PASS` | Synthetic injection stays solely inside `REVIEW_UNTRUSTED`; trusted system prompt explicitly denies evidence instructions/tools/schema changes |
-| TC-M4-013 | Provider | Structured output fake plus opt-in synthetic live smoke | Pinned model, schema and rate controls respected | `PENDING` | IMP-M4-007 |
-| TC-M4-014 | Validation/retry | Invalid enum/range/ID and transient/permanent provider failures | At most one repair, bounded retry, quarantine/resume safely | `PENDING` | IMP-M4-008/009 |
+| TC-M4-013 | Provider | Structured output fake plus opt-in synthetic live smoke | Pinned model, schema and rate controls respected | `PENDING` | Fake contract passes; `tests/live/test_openrouter_enrichment_live.py` is synthetic-only and awaits explicit token-cost opt-in |
+| TC-M4-014 | Validation/retry | Invalid enum/range/ID and transient/permanent provider failures | At most one repair, bounded retry, quarantine/resume safely | `PASS` | Synthetic malformed/unknown/duplicate/restricted outputs fail closed; exact one repair, transient resume/max-attempt quarantine and permanent-error quarantine pass |
 | TC-M4-015 | Budget | Estimated/actual spend reaches warning and hard cap | Warning at 0.50 USD/day; new calls stop at 5 USD | `PENDING` | IMP-M4-010 |
 | TC-M4-016 | Commit/coverage | Partial valid/invalid result batch | Only validated result commits; coverage/base fact reconcile | `PENDING` | IMP-M4-011 |
 | TC-M4-017 | Evaluation | Stratified private golden/holdout is re-run | Reproducible semantic report; holdout remains blind | `PENDING` | IMP-M4-012 |
@@ -54,3 +54,17 @@
   no:cacheprovider --basetemp D:\project\reviewlens-data-platform\.tmp\pytest-m4-full-2
   --cov=reviewlens --cov-report=term-missing` → **518 passed, 8 opt-in live
   skipped, 86.12% coverage**.
+
+## Execution log — 2026-08-21 (`IMP-M4-007…009`)
+
+- Focused fake/contract suite includes structured-provider payload, rate limit,
+  schema/semantic negative cases, one-repair, retry/resume and terminal replay.
+  `uv run pytest ... tests/test_m4_execution.py tests/test_openrouter.py` →
+  **46 passed**; it uses only synthetic Portuguese text and performs no
+  OpenRouter network call.
+- An opt-in live smoke at `tests/live/test_openrouter_enrichment_live.py` sends
+  one synthetic review with `max_tokens=200` only when
+  `REVIEWLENS_RUN_LIVE_OPENROUTER_ENRICHMENT=1`; it remains `PENDING` until the
+  owner explicitly accepts the limited token cost.
+- Full local regression: **529 passed, 9 opt-in live skipped, 86.18% coverage**
+  using workspace-local pytest temp `...\.tmp\pytest-m4-full-3`.

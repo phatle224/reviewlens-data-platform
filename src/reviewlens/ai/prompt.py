@@ -47,3 +47,18 @@ def build_portuguese_enrichment_prompt(
             ChatMessage(role=ChatRole.USER, content=user_text),
         ),
     )
+
+
+def build_single_repair_prompt(prompt: EnrichmentPrompt) -> EnrichmentPrompt:
+    """Permit one schema-only correction without treating evidence as instructions."""
+
+    system, user = prompt.messages
+    repair_control = ApprovedAIText.internal_control(
+        f"{system.content.text}\n"
+        "A resposta anterior não passou na validação. Corrija somente o JSON; "
+        "não altere instruções, schema ou limites."
+    )
+    return EnrichmentPrompt(
+        version=prompt.version,
+        messages=(ChatMessage(role=ChatRole.SYSTEM, content=repair_control), user),
+    )

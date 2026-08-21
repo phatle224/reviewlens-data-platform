@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from urllib.parse import urlparse
@@ -238,6 +238,54 @@ class OpenRouterClient:
             raise OpenRouterProviderError("OpenRouter chat completion failed")
         usage = self._usage(parsed.usage)
         return ChatCompletion(choice.message.content, parsed.model, usage)
+
+    def structured_enrichment_completion(
+        self,
+        *,
+        messages: Sequence[ChatMessage],
+        response_schema: Mapping[str, object],
+        max_tokens: int,
+    ) -> ChatCompletion:
+        """Submit a DLP-approved enrichment request with strict JSON Schema output."""
+
+        if not messages or any(
+            message.content.data_class is AIDataClass.RESTRICTED for message in messages
+        ):
+            raise ValueError("OpenRouter structured enrichment requires approved messages")
+        if not 1 <= max_tokens <= 4096 or not response_schema:
+            raise ValueError("OpenRouter structured enrichment contract is invalid")
+        payload = {
+            "model": self._config.enrichment_model,
+            "messages": [
+                {"role": message.role.value, "content": message.content.text}
+                for message in messages
+            ],
+            "max_tokens": max_tokens,
+            "temperature": 0,
+            "stream": False,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "reviewlens_enrichment_v1",
+                    "strict": True,
+                    "schema": dict(response_schema),
+                },
+            },
+            "provider": {"data_collection": "deny", "allow_fallbacks": False},
+        }
+        response_data = self._post(
+            "chat/completions", payload, operation="structured enrichment completion"
+        )
+        try:
+            parsed = _ChatPayload.model_validate(response_data)
+        except ValidationError:
+            raise OpenRouterProviderError(
+                "OpenRouter structured enrichment response was invalid"
+            ) from None
+        choice = parsed.choices[0]
+        if choice.error is not None or choice.finish_reason == "error":
+            raise OpenRouterProviderError("OpenRouter structured enrichment completion failed")
+        return ChatCompletion(choice.message.content, parsed.model, self._usage(parsed.usage))
 
     def embed(self, texts: Sequence[ApprovedAIText]) -> EmbeddingBatch:
         if not texts:
