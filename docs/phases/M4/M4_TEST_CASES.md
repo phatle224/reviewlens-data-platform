@@ -23,7 +23,7 @@
 | TC-M4-017 | Evaluation | Stratified private golden/holdout is re-run | Reproducible semantic report; holdout remains blind | `PENDING` | Splitter/evaluator contract passes with synthetic labels, but the required private human-reviewed golden set (minimum 200, ≥20% blind holdout) has not yet been created or run |
 | TC-M4-018 | Release gate | AI candidate below quality threshold | Candidate cannot publish or alter active data release | `PASS` | Synthetic version-bound gate blocks low metrics, missing evaluation and version mismatch before the publish callback; no Snowflake pointer mutation exists in this offline contract |
 | TC-M4-019 | Observability | Aggregate dashboard/reconciliation query | Tokens, cost, latency, errors and coverage reconcile with ledgers | `PASS` | Synthetic terminal telemetry is deterministic and reconciles exact committed USD and current valid coverage; duplicate opaque IDs plus budget/version/coverage drift are denied before snapshot creation, 2026-08-22 |
-| TC-M4-020 | Recovery | Pause/resume/model-change/purge tabletop | Bounded recovery preserves base facts and auditability | `PENDING` | IMP-M4-015 |
+| TC-M4-020 | Recovery | Pause/resume/model-change/purge tabletop | Bounded recovery preserves base facts and auditability | `PASS` | Private-safe runbook contract verifies pause/triage, bounded retryable resume, version-isolated model change and no-direct-delete purge protocol; 27 focused offline tests pass, 2026-08-22 |
 
 ## Execution log — 2026-08-21 (`IMP-M4-001…003`)
 
@@ -164,4 +164,23 @@
   no:cacheprovider --basetemp
   D:\project\reviewlens-data-platform\.tmp\pytest-m4-014-full-rerun
   --cov=reviewlens --cov-report=term-missing` → **547 passed, 9 opt-in live
+  skipped, 86.13% coverage**.
+
+## Execution log — 2026-08-22 (`IMP-M4-015`)
+
+- `docs/runbooks/M4_AI_ENRICHMENT_OPERATIONS.md` and a static safety contract
+  define the M4 recovery procedure. The drill has four synthetic scenarios:
+  pause/triage, bounded same-work retryable resume, versioned model change and
+  a purge request that is fail-closed until a separately approved migration and
+  restore drill exist. It preserves `FACT_REVIEW_BASE`, immutable raw source,
+  release/rollback state and audit lineage; no direct delete command is supplied.
+- Offline focused suite: `uv run pytest tests\test_m4_operations.py
+  tests\test_m4_execution.py tests\test_m4_budget.py tests\test_m4_commit.py
+  tests\test_m4_quality.py tests\test_m4_observability.py -q -p no:cacheprovider
+  --basetemp D:\project\reviewlens-data-platform\.tmp\pytest-m4-015-focused-rerun-2`
+  → **27 passed**. No OpenRouter, R2, Snowflake, Chroma or Docker runtime call
+  occurred.
+- Full local regression: `uv run pytest -q -p no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-015-full
+  --cov=reviewlens --cov-report=term-missing` → **549 passed, 9 opt-in live
   skipped, 86.13% coverage**.

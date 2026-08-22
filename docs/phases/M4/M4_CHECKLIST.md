@@ -3,10 +3,10 @@
 | Attribute | Value |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 11/15 work items |
+| Completed | 12/15 work items |
 | Partial | 3/15 work items |
 | Blocked | 0/15 work items |
-| Not started | 1/15 work items |
+| Not started | 0/15 work items |
 | Last updated | 2026-08-22 |
 
 ## Implementation-plan checklist
@@ -27,7 +27,7 @@
 | IMP-M4-012 | `PARTIAL` | Create stratified golden/holdout and semantic evaluator | Deterministic private-label splitter stratifies score/aspect/length/opaque-category/delivery outcome, reserves ≥20% blind holdout, evaluates only declared holdout IDs, and reports macro sentiment/aspect F1, topic micro F1 and schema pass rate. Synthetic regression passes; a real private human-reviewed set of at least 200 rows has not been created, so the real evaluation gate remains open. |
 | IMP-M4-013 | `PARTIAL` | Add AI quality gate to release process | Version-bound fake-tested gate requires initial M0 metric thresholds and calls the publish callback only for the exact passing candidate; below-threshold, missing-evaluation and version-mismatch candidates are denied before publish. It is deliberately not yet wired to the live guarded Snowflake release transition because no private human-reviewed golden report or real AI candidate exists. |
 | IMP-M4-014 | `DONE` | Add tokens/cost/latency/error/coverage dashboards | Aggregate-only terminal telemetry creates a reproducible dashboard payload for input/output tokens, exact committed USD, total/p95 latency, sanitized error-code counts and base/eligible/valid/missing coverage. It rejects duplicate opaque invocations, version/coverage drift and committed-budget mismatch; no raw content or row-level output is retained. TC-M4-019 passes offline. |
-| IMP-M4-015 | `NOT_STARTED` | Write pause/resume/model-change/purge runbook | Recovery drill required |
+| IMP-M4-015 | `DONE` | Write pause/resume/model-change/purge runbook | `docs/runbooks/M4_AI_ENRICHMENT_OPERATIONS.md` documents private-safe pause/triage, same-work bounded resume, version-isolated model change and a no-direct-delete purge request. Its deterministic tabletop contract confirms base/raw/release/audit preservation, terminal retry denial and mandatory quality/budget gates. TC-M4-020 passes offline; no live provider or destructive operation was run. |
 
 ## Exit gate
 

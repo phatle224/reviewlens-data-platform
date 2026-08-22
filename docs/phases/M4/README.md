@@ -14,7 +14,7 @@ evidence, or an audit ledger.
 | [ADR-016](../../ADR/ADR-016-m4-enrichment-contract-and-dlp-projection.md) | Frozen output and transfer contract |
 | [M0 security/privacy baseline](../M0/M0_SECURITY_PRIVACY.md) | DLP-before-AI and retention boundary |
 
-Phase status: `IN_PROGRESS` with 11/15 work items complete and three partial. The first three bundles
+Phase status: `IN_PROGRESS` with 12/15 work items complete and three partial. The first three bundles
 freeze the schema/taxonomy/version-key contract, append-only enrichment ledgers,
 a minimized review-text projection, catalog evidence, deterministic selection and
 a Portuguese prompt that isolates untrusted evidence, schema/semantic validation,
@@ -40,3 +40,7 @@ dashboard payload for terminal token/cost/latency/error/coverage data. It
 reconciles exactly to the committed budget and current valid-enrichment
 coverage, and fails closed on ledger/version drift without retaining raw text,
 prompt, response, natural identifier or row-level result.
+The recovery runbook now defines pause/triage, bounded retryable resume,
+versioned model change and fail-closed purge-request procedures. Its executed
+evidence is synthetic tabletop only, so it does not replace the pending provider
+smoke, private golden evaluation or guarded live release integration.
