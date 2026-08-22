@@ -14,7 +14,7 @@ evidence, or an audit ledger.
 | [ADR-016](../../ADR/ADR-016-m4-enrichment-contract-and-dlp-projection.md) | Frozen output and transfer contract |
 | [M0 security/privacy baseline](../M0/M0_SECURITY_PRIVACY.md) | DLP-before-AI and retention boundary |
 
-Phase status: `IN_PROGRESS` with 12/15 work items complete and three partial. The first three bundles
+Phase status: `IN_PROGRESS` with 13/15 work items complete and two partial. The first three bundles
 freeze the schema/taxonomy/version-key contract, append-only enrichment ledgers,
 a minimized review-text projection, catalog evidence, deterministic selection and
 a Portuguese prompt that isolates untrusted evidence, schema/semantic validation,
@@ -52,3 +52,9 @@ validates the blind holdout using the annotation runbook.
 An owner-authorized offline score/delivery heuristic has populated a separate
 `machine_assisted` suggestion file, but the loader rejects it as human-golden
 evidence until each row is reviewed and explicitly approved.
+
+## Latest private pilot evidence
+
+The owner-authorized 40-item prediction run on 2026-08-23 stopped fail-closed
+with `AI_ENRICHMENT_SCHEMA_INVALID`. It created neither private predictions nor
+an aggregate report; a recovery dispatch is a new cost-bearing owner decision.

@@ -39,6 +39,19 @@ OPENROUTER_RESPONSE_INVALID, AI_ENRICHMENT_BUDGET_EXHAUSTED or a DLP code, stop.
 Do not retry. Inspect runtime_state/ai_enrichment_budget.json only for aggregate
 USD, do not edit it, and ask the owner for explicit retry approval.
 
+## Single-item diagnostic retry
+
+When the owner authorizes exactly one diagnostic retry, run this command. It
+sends one DLP-approved holdout item, persists no prediction and prints only a
+sanitized status:
+
+~~~powershell
+uv run dotenv -f .env run -- uv run reviewlens-m4-holdout-pilot diagnose --labels-path private_evaluation\m4_enrichment_v1\labels.jsonl --annotation-queue-path private_evaluation\m4_enrichment_v1\annotation_queue.jsonl --split-seed m4-eval-holdout-v1
+~~~
+
+Do not treat diagnostic success as a 40-item evaluation. A full prediction batch
+still requires a separate owner approval.
+
 ## Evaluation after a complete pilot
 
 ~~~powershell

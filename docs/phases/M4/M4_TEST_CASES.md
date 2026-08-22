@@ -16,11 +16,11 @@
 | TC-M4-010 | Catalog/cost | Snapshot pinned OpenRouter model catalog | Slug/context/price/provider-policy evidence is stored without key or prompt | `PASS` | Public read-only `/models` request through `OpenRouterCatalogClient` on 2026-08-21; [safe snapshot](../../evidence/M4_OPENROUTER_ENRICHMENT_CATALOG_2026-08-21.json) validates slug/context/prices/structured output, no API key or content payload |
 | TC-M4-011 | Selector | New, changed, reused, ineligible and quarantined reviews | Deterministic selection counts and no duplicate dispatch | `PASS` | Synthetic hashes cover all five dispositions, reverse-order determinism and conflicting-lineage denial |
 | TC-M4-012 | Prompt/security | Portuguese instruction-injection review fixture | Evidence remains delimited data; no tool/instruction escalation | `PASS` | Synthetic injection stays solely inside `REVIEW_UNTRUSTED`; trusted system prompt explicitly denies evidence instructions/tools/schema changes |
-| TC-M4-013 | Provider | Structured output fake plus opt-in synthetic live smoke | Pinned model, schema and rate controls respected | `PENDING` | Fake contract passes. The owner-authorized 40-item real private pilot passed DLP preflight but its first dispatch failed closed, wrote no predictions and was not retried; sanitized HTTP-status diagnostics are now implemented. |
+| TC-M4-013 | Provider | Structured output fake plus opt-in synthetic live smoke | Pinned model, schema and rate controls respected | `PASS` | Fake contracts pass; 40/40 real holdout DLP preflight and one owner-authorized real single-item diagnostic completed with a schema-valid structured result. No row-level output was persisted. |
 | TC-M4-014 | Validation/retry | Invalid enum/range/ID and transient/permanent provider failures | At most one repair, bounded retry, quarantine/resume safely | `PASS` | Synthetic malformed/unknown/duplicate/restricted outputs fail closed; exact one repair, transient resume/max-attempt quarantine and permanent-error quarantine pass |
 | TC-M4-015 | Budget | Estimated/actual spend reaches warning and hard cap | Warning at 0.50 USD/day; new calls stop at 5 USD | `PASS` | Offline deterministic estimator, durable aggregate-only reservation/settlement and pre-delegate hard-stop tests pass; live smoke is wrapped but remains opt-in/unexecuted |
 | TC-M4-016 | Commit/coverage | Partial valid/invalid result batch | Only validated result commits; coverage/base fact reconcile | `PASS` | Synthetic commit contract rejects result-map/hash mismatch before write; exact replay is reused, changed approved input replaces atomically, and aggregate coverage keeps missing/ineligible base reviews in its denominator |
-| TC-M4-017 | Evaluation | Stratified private golden/holdout is re-run | Reproducible semantic report; holdout remains blind | `PENDING` | 200 private labels are human-approved and the deterministic split has 40 blind holdout items. The private evaluator rejects train/missing/duplicate IDs and stores only aggregate metrics, but no real model prediction/report exists yet. |
+| TC-M4-017 | Evaluation | Stratified private golden/holdout is re-run | Reproducible semantic report; holdout remains blind | `PENDING` | 200 private labels are human-approved and the deterministic split has 40 blind holdout items. The owner-authorized full run stopped fail-closed on `AI_ENRICHMENT_SCHEMA_INVALID`, so no prediction/report exists and no metric may be claimed. The evaluator rejects train/missing/duplicate IDs and stores only aggregate metrics. |
 | TC-M4-018 | Release gate | AI candidate below quality threshold | Candidate cannot publish or alter active data release | `PASS` | Synthetic version-bound gate blocks low metrics, missing evaluation and version mismatch before the publish callback; no Snowflake pointer mutation exists in this offline contract |
 | TC-M4-019 | Observability | Aggregate dashboard/reconciliation query | Tokens, cost, latency, errors and coverage reconcile with ledgers | `PASS` | Synthetic terminal telemetry is deterministic and reconciles exact committed USD and current valid coverage; duplicate opaque IDs plus budget/version/coverage drift are denied before snapshot creation, 2026-08-22 |
 | TC-M4-020 | Recovery | Pause/resume/model-change/purge tabletop | Bounded recovery preserves base facts and auditability | `PASS` | Private-safe runbook contract verifies pause/triage, bounded retryable resume, version-isolated model change and no-direct-delete purge protocol; 27 focused offline tests pass, 2026-08-22 |
@@ -248,6 +248,11 @@
 - One bounded real dispatch (200 completion tokens maximum, no retry) failed closed on the first item. No prediction/report was written; the aggregate-only budget ledger records **0.0004600 USD** and no pending reservation. No review, prompt or response body was logged.
 - Offline diagnostics now retain only a sanitized provider HTTP status for a separately approved retry. `tests/test_openrouter.py tests/test_m4_execution.py tests/test_m4_holdout_pilot.py` → **22 passed**.
 
+## Execution log — 2026-08-23 (`IMP-M4-007`, single-item diagnostic retry)
+
+- Owner authorized exactly one DLP-approved real diagnostic retry. It completed with `private_diagnostic_succeeded`, confirming the pinned provider path returned a schema-valid structured result. The diagnostic intentionally persisted no prediction, review, prompt or response body.
+- Aggregate budget ledger after both dispatches: **0.0006900 USD**, no pending reservation. TC-M4-013 is now `PASS`; full 40-item prediction/evaluation remains a separate owner-approved operation.
+
 ## Execution log — 2026-08-23 (`IMP-M4-012`, private prediction evaluator)
 
 - Revalidated the human-approved private set: `uv run reviewlens-golden-pack
@@ -263,3 +268,16 @@
   --basetemp D:\project\reviewlens-data-platform\.tmp\pytest-m4-012-evaluator-focused`
   → **14 passed**. A real prediction/report remains pending owner authorization
   for the separate bounded provider pilot.
+
+## Execution log — 2026-08-23 (`IMP-M4-012`, owner-authorized 40-item pilot)
+
+- A fresh DLP preflight passed **40/40** blind-holdout items and verified that
+  the private prediction path was absent before the one authorized batch.
+- The batch stopped fail-closed with the sanitized code
+  `AI_ENRICHMENT_SCHEMA_INVALID`. It did not create a prediction file or an
+  evaluation report, and it made no automatic retry. No review, prompt,
+  provider response body or row-level output was logged.
+- The aggregate-only budget ledger is **0.0011500 USD** with no pending
+  reservation. TC-M4-017 remains `PENDING`: the expected 40-prediction
+  aggregate report was not produced. Any recovery dispatch requires fresh
+  owner approval.

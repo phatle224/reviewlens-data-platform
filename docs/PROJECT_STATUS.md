@@ -8,7 +8,7 @@
 |---|---|
 | Trạng thái tổng thể | `ON_TRACK` |
 | Phase hiện tại | `M4` — DLP-approved review enrichment |
-| Trạng thái phase hiện tại | `IN_PROGRESS` — 12/15 M4 items complete, 3 partial; structured provider smoke remains opt-in |
+| Trạng thái phase hiện tại | `IN_PROGRESS` — 13/15 M4 items complete, 2 partial; full private golden evaluation and release wiring remain open |
 | Phase gần nhất hoàn tất | `M3` — Conformed Silver, Gold and atomic release |
 | Cập nhật lần cuối | 2026-08-23 |
 | Người thực hiện | Solo Developer |
@@ -34,6 +34,8 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 
 ## Kết quả phiên gần nhất
 
+- M4 `IMP-M4-012` owner-authorized full private 40-item holdout run on 2026-08-23 stopped fail-closed with `AI_ENRICHMENT_SCHEMA_INVALID`. A fresh DLP preflight passed 40/40; no prediction file or aggregate evaluation report was created and no automatic retry occurred. The aggregate-only OpenRouter ledger is 0.0011500 USD with no pending reservation. A recovery strategy and a separately approved retry remain required before metrics or quality-gate activation can proceed.
+- M4 `IMP-M4-007` completed with owner-authorized private evidence on 2026-08-23: 40/40 DLP holdout preflight and exactly one real diagnostic dispatch succeeded with schema-valid structured output. No row-level output was persisted. The aggregate budget ledger is 0.0006900 USD with no pending reservation; full 40-item prediction/evaluation remains separately gated.
 - M4 `IMP-M4-007/012` owner-authorized private pilot on 2026-08-23: DLP preflight approved all 40 blind-holdout items. The first bounded provider dispatch failed closed, so no prediction/report was written and no retry was made. Aggregate budget ledger records 0.0004600 USD only. Offline code now preserves a sanitized provider HTTP status for any future separately approved diagnostic retry; no review, prompt or response body was logged.
 - M4 `IMP-M4-012` progressed offline on 2026-08-23: the completed 200-label
   private set was revalidated as a 40-item blind holdout. A new local evaluator
@@ -137,7 +139,7 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 | M1 | 41 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 193 pass/6 live skip plus owner-approved live rotation 1 pass; Chroma quarantine + clean-path/container/Compose/artifact/metrics + CI policy/dependency/AppTest/logging/audit/Airflow/dbt/provider/R2/stage/RBAC/JWT evidence |
 | M2 | 25 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M2 test cases](./phases/M2/M2_TEST_CASES.md); offline, synthetic live and full private nine-file DAG/replay evidence pass |
 | M3 | 31 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M3 test cases](./phases/M3/M3_TEST_CASES.md); private same-candidate-pair full/replay, guarded activation and real two-release rollback pass live |
-| M4 | 18 `PASS`, 2 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M4 test cases](./phases/M4/M4_TEST_CASES.md); provider smoke and real private golden evaluation remain pending |
+| M4 | 19 `PASS`, 1 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M4 test cases](./phases/M4/M4_TEST_CASES.md); real private golden evaluation remains pending |
 | Quality | `PARTIAL` | Ruff, strict mypy, dbt parse, 554 offline tests (9 opt-in live skips, 85.52% coverage), artifact lock, repository policy and status validator pass. Dependency audit flags 12 known CVEs in Airflow 3.3.0/sqlparse 0.5.5; remediation is tracked before M8/container release. |
 | Status validator | `PASS` — 0 errors, 0 warnings | M0–M3 complete; M3 synchronized at 20/20 done and 31/31 pass |
 
@@ -156,23 +158,23 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 
 | Dịch vụ | Budget/gate hiện tại | Usage đã xác minh |
 |---|---|---|
-| OpenRouter | 5 USD/project; warning 0.50 USD/day | One owner-authorized private holdout dispatch attempted on 2026-08-23; aggregate budget reservation committed at 0.0004600 USD, no prediction/result persisted |
+| OpenRouter | 5 USD/project; warning 0.50 USD/day | Owner-authorized 40-item holdout run stopped fail-closed on `AI_ENRICHMENT_SCHEMA_INVALID`; no prediction/report was written. Aggregate ledger committed 0.0011500 USD with no pending reservation |
 | Snowflake | ≤10 credits/month; X-Small, auto-suspend 60s | Nine Bronze tables contain 1,289,091 reconciled accepted rows; M3 full/replay, two private registrations, guarded activation and rollback passed; pointer is v3 and warehouse is suspended |
 | Cloudflare R2 | Standard; target ≤15 GB; private/lifecycle | 9 approved CSV (~126.19 MB), source manifest and immutable raw/quarantine artifacts retained privately; replay verified create-only objects |
 | ChromaDB | ≤5 GB local | Typed/in-memory adapter tests only; chưa provision/index và 0 byte project data được ghi |
 
 ## Input cần từ chủ project
 
-Không cần credential hoặc secret. Human review 200/200, local holdout split và
-DLP preflight 40/40 đã pass. Một real dispatch đã fail closed after incurring
-aggregate 0.0004600 USD and was not retried. Cần owner chấp thuận riêng một
-diagnostic retry trước bất kỳ review nào được gửi lại.
+Không cần credential hoặc secret. Human review 200/200, local holdout split,
+DLP preflight 40/40 and one real schema-valid diagnostic all pass. Cần owner
+chấp thuận riêng batch prediction đủ 40 holdout trước khi gửi review lại.
 
 ## Việc tiếp theo
 
-1. Inspect the sanitized provider status from exactly one owner-authorized diagnostic retry; do not retry automatically or use train IDs.
-2. If the retry succeeds with all 40 predictions, run the local evaluator to create the aggregate-only golden report; do not include public artifacts.
-3. After a real private golden report exists, deliberately wire the M4 quality gate to the guarded release runtime; do not bypass the current no-pointer contract.
+1. Choose a recovery approach for the schema-invalid full holdout run: retain strict no-retry behaviour or permit one bounded repair request per invalid item.
+2. After separately approving a recovery run, create exactly 40 private predictions without train IDs or public artifacts.
+3. Run the local evaluator to create the aggregate-only golden report only after exactly 40 predictions exist.
+4. After a real private golden report exists, deliberately wire the M4 quality gate to the guarded release runtime; do not bypass the current no-pointer contract.
 4. Re-audit Chroma at `IMP-M5-001`; do not bypass blocked policy to provision early; before M8, remediate Airflow/sqlparse dependency audit and rebuild one controlled image.
 
 ## Dự báo hoàn thành (solo portfolio)

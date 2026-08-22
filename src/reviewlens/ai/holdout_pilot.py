@@ -204,12 +204,83 @@ def run_private_holdout_pilot(
     )
 
 
+def run_private_holdout_diagnostic(
+    *,
+    labels_path: Path,
+    annotation_queue_path: Path,
+    split_seed: str,
+) -> None:
+    """Dispatch exactly one DLP-approved holdout item without persisting output."""
+
+    settings = load_settings()
+    version_input = EnrichmentVersionInput(
+        model_slug=settings.openrouter.enrichment_model,
+        provider_policy_version="openrouter-data-collection-deny-v1",
+        prompt_version="pt-br-enrichment-untrusted-evidence-v1",
+    )
+    preflight, items = preflight_private_holdout(
+        labels_path=labels_path,
+        annotation_queue_path=annotation_queue_path,
+        split_seed=split_seed,
+        version_input=version_input,
+    )
+    if preflight.holdout_count != 40 or preflight.approved_count != 40:
+        raise HoldoutPilotError("AI_ENRICHMENT_PILOT_SCOPE_INVALID")
+    pricing = EnrichmentPricing(
+        prompt_usd_per_token=_PROMPT_PRICE_USD,
+        completion_usd_per_token=_COMPLETION_PRICE_USD,
+    )
+    budget = EnrichmentBudget(
+        hard_budget_usd=Decimal(str(settings.openrouter.hard_budget_usd)),
+        daily_warning_usd=Decimal(str(settings.openrouter.daily_warning_usd)),
+        ledger_path=project_root() / "runtime_state" / "ai_enrichment_budget.json",
+    )
+    estimate = estimate_tokens_from_char_count(
+        approved_text_characters=MAX_REVIEW_TEXT_CHARACTERS,
+        max_completion_tokens=_MAX_COMPLETION_TOKENS,
+        control_overhead_tokens=_CONTROL_OVERHEAD_TOKENS,
+    )
+    client = OpenRouterClient.from_config(settings.openrouter)
+    try:
+        item = items[0]
+        execution = InMemoryEnrichmentExecutor(max_attempts=1).execute(
+            work=EnrichmentWork(
+                work_id=item.opaque_example_id,
+                prompt=build_portuguese_enrichment_prompt(
+                    projection=item.projection,
+                    version_input=version_input,
+                ),
+                version_input=version_input,
+            ),
+            transport=BudgetGuardedEnrichmentTransport(
+                delegate=RateLimitedOpenRouterEnrichmentTransport(
+                    client=client,
+                    limiter=EnrichmentRateLimiter(max_requests=1, monotonic=time.monotonic),
+                    max_tokens=_MAX_COMPLETION_TOKENS,
+                ),
+                budget=budget,
+                pricing=pricing,
+                estimate=estimate,
+            ),
+        )
+    finally:
+        client.close()
+    if execution.state is not EnrichmentWorkState.SUCCEEDED or execution.result is None:
+        raise HoldoutPilotError(
+            execution.sanitized_error_code or "AI_ENRICHMENT_PILOT_DIAGNOSTIC_INCOMPLETE"
+        )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run aggregate-safe preflight or the explicitly authorized private pilot."""
 
     parser = argparse.ArgumentParser(description="ReviewLens private M4 blind-holdout pilot")
     commands = parser.add_subparsers(dest="command", required=True)
-    for command in (commands.add_parser("preflight"), commands.add_parser("run")):
+    for command in (
+        commands.add_parser("preflight"),
+        commands.add_parser("diagnose"),
+        commands.add_parser("run"),
+    ):
         command.add_argument("--labels-path", type=Path, required=True)
         command.add_argument("--annotation-queue-path", type=Path, required=True)
         command.add_argument("--split-seed", required=True)
@@ -240,6 +311,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                     sort_keys=True,
                 )
             )
+            return 0
+        if args.command == "diagnose":
+            run_private_holdout_diagnostic(
+                labels_path=args.labels_path,
+                annotation_queue_path=args.annotation_queue_path,
+                split_seed=args.split_seed,
+            )
+            print(json.dumps({"status": "private_diagnostic_succeeded"}, sort_keys=True))
             return 0
         pilot_result = run_private_holdout_pilot(
             labels_path=args.labels_path,
