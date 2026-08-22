@@ -20,7 +20,7 @@
 | TC-M4-014 | Validation/retry | Invalid enum/range/ID and transient/permanent provider failures | At most one repair, bounded retry, quarantine/resume safely | `PASS` | Synthetic malformed/unknown/duplicate/restricted outputs fail closed; exact one repair, transient resume/max-attempt quarantine and permanent-error quarantine pass |
 | TC-M4-015 | Budget | Estimated/actual spend reaches warning and hard cap | Warning at 0.50 USD/day; new calls stop at 5 USD | `PASS` | Offline deterministic estimator, durable aggregate-only reservation/settlement and pre-delegate hard-stop tests pass; live smoke is wrapped but remains opt-in/unexecuted |
 | TC-M4-016 | Commit/coverage | Partial valid/invalid result batch | Only validated result commits; coverage/base fact reconcile | `PASS` | Synthetic commit contract rejects result-map/hash mismatch before write; exact replay is reused, changed approved input replaces atomically, and aggregate coverage keeps missing/ineligible base reviews in its denominator |
-| TC-M4-017 | Evaluation | Stratified private golden/holdout is re-run | Reproducible semantic report; holdout remains blind | `PENDING` | Splitter/evaluator contract passes with synthetic labels, but the required private human-reviewed golden set (minimum 200, ≥20% blind holdout) has not yet been created or run |
+| TC-M4-017 | Evaluation | Stratified private golden/holdout is re-run | Reproducible semantic report; holdout remains blind | `PENDING` | Splitter/evaluator and private pack tooling pass with synthetic fixtures; a 200-row queue/template and separate `machine_assisted` local suggestion file exist, but no labels are human-approved and no real holdout report exists yet |
 | TC-M4-018 | Release gate | AI candidate below quality threshold | Candidate cannot publish or alter active data release | `PASS` | Synthetic version-bound gate blocks low metrics, missing evaluation and version mismatch before the publish callback; no Snowflake pointer mutation exists in this offline contract |
 | TC-M4-019 | Observability | Aggregate dashboard/reconciliation query | Tokens, cost, latency, errors and coverage reconcile with ledgers | `PASS` | Synthetic terminal telemetry is deterministic and reconciles exact committed USD and current valid coverage; duplicate opaque IDs plus budget/version/coverage drift are denied before snapshot creation, 2026-08-22 |
 | TC-M4-020 | Recovery | Pause/resume/model-change/purge tabletop | Bounded recovery preserves base facts and auditability | `PASS` | Private-safe runbook contract verifies pause/triage, bounded retryable resume, version-isolated model change and no-direct-delete purge protocol; 27 focused offline tests pass, 2026-08-22 |
@@ -127,6 +127,55 @@
   D:\project\reviewlens-data-platform\.tmp\pytest-m4-012-full
   --cov=reviewlens --cov-report=term-missing` → **541 passed, 9 opt-in live
   skipped, 86.03% coverage**.
+
+## Execution log — 2026-08-22 (`IMP-M4-012`, annotation-pack progress)
+
+- Added `reviewlens-golden-pack`: it joins private local Olist review/order/item/
+  product metadata, removes natural IDs from the annotation shape, maps category
+  to an opaque bucket, samples deterministically across score/length/category/
+  delivery, and writes a queue plus blank structured labels only under ignored
+  `private_evaluation/`. The human aspect label is intentionally not inferred by
+  the sampler; it becomes part of the later split after review.
+- Executed `uv run reviewlens-golden-pack generate --archive-dir archive
+  --output-dir private_evaluation\m4_enrichment_v1 --seed
+  m4-olist-annotation-v1` → **200 candidates**, `pending_human_review`. Console
+  output contained only count/path/status; no review text, natural ID, OpenRouter,
+  R2, Snowflake or Chroma call occurred.
+- Focused tool/evaluator suite: `uv run pytest tests\test_m4_golden_pack.py
+  tests\test_m4_evaluation.py -q -p no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-012-pack-focused-final`
+  → **8 passed**. TC-M4-017 remains pending until all real labels are approved,
+  the private holdout is validated, and a version-bound prediction report exists.
+- Full local regression after artifact-lock refresh: `uv run pytest -q -p
+  no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-012-pack-full-rerun
+  --cov=reviewlens --cov-report=term-missing` → **553 passed, 9 opt-in live
+  skipped, 85.69% coverage**.
+
+## Execution log — 2026-08-22 (`IMP-M4-012`, machine-assisted suggestions)
+
+- Owner authorized automatic private suggestions. `reviewlens-golden-pack suggest`
+  reads only queue score/delivery metadata and writes 200 `machine_assisted`
+  labels with source `offline_score_delivery_heuristic_v1`; it does not send or
+  semantically inspect review text, call an LLM, or overwrite the pending label
+  template. The completed-golden loader rejects this status by design.
+- Executed `uv run reviewlens-golden-pack suggest --annotation-queue-path
+  private_evaluation\m4_enrichment_v1\annotation_queue.jsonl --labels-path
+  private_evaluation\m4_enrichment_v1\labels.jsonl --output-path
+  private_evaluation\m4_enrichment_v1\labels.machine_assisted.jsonl` → **200
+  candidates**, `machine_assisted_review_required`. Console output was aggregate
+  only; no OpenRouter, R2, Snowflake or Chroma request occurred.
+- Focused static checks pass: Ruff format/lint and strict mypy over the golden-pack
+  implementation/tests; `uv run pytest tests\test_m4_golden_pack.py
+  tests\test_m4_evaluation.py -q -p no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-012-machine-focused`
+  → **9 passed**. The test proves that `machine_assisted` labels are rejected by
+  the completed-golden loader.
+- Final local regression after artifact-lock refresh: `uv run pytest -q -p
+  no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-012-machine-full-rerun
+  --cov=reviewlens --cov-report=term-missing` → **554 passed, 9 opt-in live
+  skipped, 85.52% coverage**.
 
 ## Execution log — 2026-08-22 (`IMP-M4-013`, partial)
 

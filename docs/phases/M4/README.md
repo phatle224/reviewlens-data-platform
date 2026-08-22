@@ -44,3 +44,10 @@ The recovery runbook now defines pause/triage, bounded retryable resume,
 versioned model change and fail-closed purge-request procedures. Its executed
 evidence is synthetic tabletop only, so it does not replace the pending provider
 smoke, private golden evaluation or guarded live release integration.
+A 200-row private annotation pack now exists under ignored
+`private_evaluation/m4_enrichment_v1/`; it is intentionally not evidence of a
+golden evaluation until the solo developer completes the human labels and
+validates the blind holdout using the annotation runbook.
+An owner-authorized offline score/delivery heuristic has populated a separate
+`machine_assisted` suggestion file, but the loader rejects it as human-golden
+evidence until each row is reviewed and explicitly approved.

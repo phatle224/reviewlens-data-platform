@@ -37,6 +37,7 @@ reviewlens-m3-drill = "reviewlens.warehouse.replay_drill:main"
 reviewlens-m3-live-drill = "reviewlens.warehouse.live_drill:main"
 reviewlens-m3-register-release = "reviewlens.warehouse.release_registration:main"
 reviewlens-m3-transition-release = "reviewlens.warehouse.release_transition:main"
+reviewlens-golden-pack = "reviewlens.ai.golden_pack:main"
 
 [dependency-groups]
 dev = [

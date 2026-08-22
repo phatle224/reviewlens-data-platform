@@ -34,6 +34,17 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 
 ## Kết quả phiên gần nhất
 
+- M4 `IMP-M4-012` progressed offline on 2026-08-22: the owner-authorized local
+  heuristic generated 200 `machine_assisted` suggestions from score/delivery
+  metadata only. It made no provider call and is explicitly rejected by the
+  human-golden loader; every suggestion still needs private human review before
+  `approved` status. It therefore does not close the golden gate.
+- M4 `IMP-M4-012` progressed offline on 2026-08-22: a private-only CLI now
+  generated a deterministic 200-row Olist annotation queue/template under
+  ignored `private_evaluation/m4_enrichment_v1/`. It exposes no natural IDs in
+  its label shape and prints only aggregate generation output. The pack is still
+  `pending_human_review`, so it does not close the golden evaluation or permit a
+  provider call; no managed-service request occurred.
 - M4 `IMP-M4-015` completed offline on 2026-08-22: solo-operator recovery
   runbook and a synthetic tabletop contract now cover pause/triage, bounded
   retryable resume, versioned model/prompt/schema/taxonomy change and a
@@ -58,9 +69,10 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 - M4 `IMP-M4-012` progressed offline on 2026-08-22: deterministic splitting
   stratifies private structured labels and reserves a blind ≥20% holdout; the
   evaluator reports only aggregate F1/schema metrics and rejects train or
-  incomplete holdout predictions. It is partial because no real private
-  human-reviewed 200-row golden set has been created or evaluated. The ignored
-  `private_evaluation/` location is reserved for it; no managed-service call occurred.
+  incomplete holdout predictions. A private 200-row annotation pack has now
+  been generated from the local archive under ignored `private_evaluation/`,
+  but every row remains `pending_human_review`; it is therefore still partial.
+  No managed-service call occurred.
 - M4 `IMP-M4-011` complete offline on 2026-08-22: only a hash-matched,
   semantically validated result linked to a successful result-map can enter the
   private current-result contract. Exact replay is idempotent, changed approved
@@ -102,7 +114,7 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 - Owner-confirmed initial activation pass live ngày 2026-08-20: executor gọi đúng một owner procedure qua `CALL` với CAS v0, đọc lại pointer v1 và aggregate post-check xác nhận đúng một `ACTIVATED` event; warehouse `SUSPENDED`. Hai runtime gaps đã được sửa: Snowflake procedure phải dùng `CALL` (không phải `SELECT`) và migration `008` re-grant exact `USAGE` sau `CREATE OR REPLACE PROCEDURE`. Không có direct `UPDATE`, retry CAS version mới hay public/raw output.
 - Owner-approved rollback proof pass live ngày 2026-08-20: revision lineage private tạo một candidate pair thứ hai nhưng giữ nguyên Olist inputs, batch, dbt selectors và semantic contract. Full-refresh/replay trả `equivalent=true`; release 2 activate v1→v2 và guarded rollback về release 1 v2→v3. Aggregate check: 2 definitions, 56 refs, 2 `CREATED`, 2 `ACTIVATED`, 1 `ROLLED_BACK`, 2 ready releases; warehouse `SUSPENDED`. M3 exit gate đóng.
 - dbt profile vẫn là một local target nhưng Gold command nay phải override tạm thời sang `GOLD_BUILDER_ROLE`; planner chỉ tạo đúng 10 object-level Silver `SELECT` grants cho Gold, không thêm schema/future privilege. Safe credential-presence check cho transform/Gold key path pass; không đọc hay in secret, không gọi provider.
-- Gate local sau M4-015 contract: Ruff format/lint cho `src`/`tests`, strict mypy, dbt parse `--warn-error`, 549 offline tests (9 opt-in live skips, 86.13% coverage), artifact lock, repository policy và status validator pass. Full suite dùng workspace-local pytest temp do Windows user-temp bị access-denied.
+- Gate local sau M4-012 machine-assisted suggestion tooling: Ruff format/lint cho `src`/`tests`, strict mypy, dbt parse `--warn-error`, 554 offline tests (9 opt-in live skips, 85.52% coverage), artifact lock, repository policy và status validator pass. Full suite dùng workspace-local pytest temp do Windows user-temp bị access-denied.
 
 ## Kiểm thử
 
@@ -113,7 +125,7 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 | M2 | 25 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M2 test cases](./phases/M2/M2_TEST_CASES.md); offline, synthetic live and full private nine-file DAG/replay evidence pass |
 | M3 | 31 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M3 test cases](./phases/M3/M3_TEST_CASES.md); private same-candidate-pair full/replay, guarded activation and real two-release rollback pass live |
 | M4 | 18 `PASS`, 2 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M4 test cases](./phases/M4/M4_TEST_CASES.md); provider smoke and real private golden evaluation remain pending |
-| Quality | `PARTIAL` | Ruff, strict mypy, dbt parse, 549 offline tests (9 opt-in live skips, 86.13% coverage), artifact lock, repository policy and status validator pass. Dependency audit flags 12 known CVEs in Airflow 3.3.0/sqlparse 0.5.5; remediation is tracked before M8/container release. |
+| Quality | `PARTIAL` | Ruff, strict mypy, dbt parse, 554 offline tests (9 opt-in live skips, 85.52% coverage), artifact lock, repository policy and status validator pass. Dependency audit flags 12 known CVEs in Airflow 3.3.0/sqlparse 0.5.5; remediation is tracked before M8/container release. |
 | Status validator | `PASS` — 0 errors, 0 warnings | M0–M3 complete; M3 synchronized at 20/20 done and 31/31 pass |
 
 ## Blocker và rủi ro
@@ -138,15 +150,18 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 
 ## Input cần từ chủ project
 
-Không cần thêm credential hoặc secret cho M4 offline baseline. M3 rollback proof
-đã pass. Để đóng `IMP-M4-012`/TC-M4-017, cần một tập nhãn human-reviewed private
-tối thiểu 200 rows (mục tiêu 500), đặt ngoài Git tại `private_evaluation/`, với
-≥20% blind holdout. Trước bất kỳ OpenRouter call nào trong M4, cần thực hiện
-DLP/minimization projection theo M0 và chỉ dùng review text private, không public.
+Không cần thêm credential hoặc secret cho M4 offline baseline. Private pack 200
+rows ở `private_evaluation/m4_enrichment_v1/` hiện đã có suggestion
+`machine_assisted` nhưng cần chính bạn review/correct và đổi toàn bộ label sang
+`approved`; xem
+[golden-set annotation runbook](./runbooks/M4_GOLDEN_SET_ANNOTATION.md). Sau đó
+chạy validate để tạo blind holdout ≥20%. Trước bất kỳ OpenRouter call nào trong
+M4, cần thực hiện DLP/minimization projection theo M0 và chỉ dùng review text
+private, không public.
 
 ## Việc tiếp theo
 
-1. Create and label the private enrichment golden set (minimum 200, ≥20% blind holdout) outside Git to close `IMP-M4-012`.
+1. Review/correct 200 suggestion private trong `private_evaluation/m4_enrichment_v1/labels.machine_assisted.jsonl` vào `labels.jsonl`, rồi human-approve và chạy golden-pack validate để tạo split blind holdout.
 2. Decide whether to authorize the bounded synthetic-only OpenRouter provider smoke; if yes, use the cost guard and record only safe aggregate evidence.
 3. After a real private golden report exists, deliberately wire the M4 quality gate to the guarded release runtime; do not bypass the current no-pointer contract.
 4. Re-audit Chroma at `IMP-M5-001`; do not bypass blocked policy to provision early; before M8, remediate Airflow/sqlparse dependency audit and rebuild one controlled image.
@@ -190,4 +205,5 @@ portfolio evidence. Việc cần quyết định ở M3 có thể thay đổi fo
 - [M2 ingestion operations runbook](./runbooks/M2_INGESTION_OPERATIONS.md)
 - [M3 release operations runbook](./runbooks/M3_RELEASE_OPERATIONS.md)
 - [M4 AI enrichment operations runbook](./runbooks/M4_AI_ENRICHMENT_OPERATIONS.md)
+- [M4 golden-set annotation runbook](./runbooks/M4_GOLDEN_SET_ANNOTATION.md)
 - [Architecture diagram](./images/plan.png)
