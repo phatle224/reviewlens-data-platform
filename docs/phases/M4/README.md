@@ -29,9 +29,10 @@ stops a new call before the 5 USD project cap. It remains opt-in and unexecuted.
 Validated output now has a private current-result contract and an aggregate-only
 coverage projection, while `FACT_REVIEW_BASE` stays independent of AI coverage.
 The corresponding Snowflake DDL is offline-validated only and is not applied.
-The evaluator contract is also complete offline, but its real private
-human-reviewed golden set is intentionally absent from Git; therefore the
-evaluation work item and real quality gate remain partial.
+The evaluator contract is also complete offline. Its real private human-reviewed
+golden set now has 200 approved labels and a deterministic 40-item blind holdout,
+but no private model predictions or aggregate metric report yet exist; therefore
+the evaluation work item and real quality gate remain partial.
 The quality-gate contract already rejects a bad, missing-evaluation or
 version-mismatched AI candidate before any publish callback runs; the actual
 Snowflake release transition will not be wired until a private golden report

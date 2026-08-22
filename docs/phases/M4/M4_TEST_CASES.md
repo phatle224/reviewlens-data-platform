@@ -20,7 +20,7 @@
 | TC-M4-014 | Validation/retry | Invalid enum/range/ID and transient/permanent provider failures | At most one repair, bounded retry, quarantine/resume safely | `PASS` | Synthetic malformed/unknown/duplicate/restricted outputs fail closed; exact one repair, transient resume/max-attempt quarantine and permanent-error quarantine pass |
 | TC-M4-015 | Budget | Estimated/actual spend reaches warning and hard cap | Warning at 0.50 USD/day; new calls stop at 5 USD | `PASS` | Offline deterministic estimator, durable aggregate-only reservation/settlement and pre-delegate hard-stop tests pass; live smoke is wrapped but remains opt-in/unexecuted |
 | TC-M4-016 | Commit/coverage | Partial valid/invalid result batch | Only validated result commits; coverage/base fact reconcile | `PASS` | Synthetic commit contract rejects result-map/hash mismatch before write; exact replay is reused, changed approved input replaces atomically, and aggregate coverage keeps missing/ineligible base reviews in its denominator |
-| TC-M4-017 | Evaluation | Stratified private golden/holdout is re-run | Reproducible semantic report; holdout remains blind | `PENDING` | Splitter/evaluator and private pack tooling pass with synthetic fixtures; a 200-row queue/template and separate `machine_assisted` local suggestion file exist, but no labels are human-approved and no real holdout report exists yet |
+| TC-M4-017 | Evaluation | Stratified private golden/holdout is re-run | Reproducible semantic report; holdout remains blind | `PENDING` | 200 private labels are human-approved and the deterministic split has 40 blind holdout items. The private evaluator rejects train/missing/duplicate IDs and stores only aggregate metrics, but no real model prediction/report exists yet. |
 | TC-M4-018 | Release gate | AI candidate below quality threshold | Candidate cannot publish or alter active data release | `PASS` | Synthetic version-bound gate blocks low metrics, missing evaluation and version mismatch before the publish callback; no Snowflake pointer mutation exists in this offline contract |
 | TC-M4-019 | Observability | Aggregate dashboard/reconciliation query | Tokens, cost, latency, errors and coverage reconcile with ledgers | `PASS` | Synthetic terminal telemetry is deterministic and reconciles exact committed USD and current valid coverage; duplicate opaque IDs plus budget/version/coverage drift are denied before snapshot creation, 2026-08-22 |
 | TC-M4-020 | Recovery | Pause/resume/model-change/purge tabletop | Bounded recovery preserves base facts and auditability | `PASS` | Private-safe runbook contract verifies pause/triage, bounded retryable resume, version-isolated model change and no-direct-delete purge protocol; 27 focused offline tests pass, 2026-08-22 |
@@ -233,3 +233,27 @@
   D:\project\reviewlens-data-platform\.tmp\pytest-m4-015-full
   --cov=reviewlens --cov-report=term-missing` → **549 passed, 9 opt-in live
   skipped, 86.13% coverage**.
+
+## Execution log — 2026-08-22 (`IMP-M4-012`, golden set human annotation completed)
+
+- Completed human-in-the-loop annotation for all 200 items in `private_evaluation/m4_enrichment_v1/labels.jsonl` (200/200 marked `approved`).
+- Validation command: `uv run reviewlens-golden-pack validate --labels-path private_evaluation\m4_enrichment_v1\labels.jsonl --split-seed m4-eval-holdout-v1`
+  Output: `{"dataset_sha256": "0443fcbf381ba2b94ff69a72b29c9adeb814587815b151625a64038ed86217c6", "holdout_count": 40, "label_count": 200, "split_seed_sha256": "fa56914938ea13a121b8439623d44d91a9cf140aacf413601b005ae76201fecd", "status": "ready_for_private_predictions"}`
+- Focused golden set & evaluation test suite: `uv run pytest tests/test_m4_golden_pack.py tests/test_m4_evaluation.py -q -p no:cacheprovider --basetemp D:\project\reviewlens-data-platform\.tmp\pytest-m4-012-annotation` → **9 passed**.
+- Project status validator: `python .agents/skills/reviewlens-dev-workflow/scripts/validate_project_status.py --root .` → **PASS: 0 errors, 0 warning(s)**.
+
+## Execution log — 2026-08-23 (`IMP-M4-012`, private prediction evaluator)
+
+- Revalidated the human-approved private set: `uv run reviewlens-golden-pack
+  validate --labels-path private_evaluation\m4_enrichment_v1\labels.jsonl
+  --split-seed m4-eval-holdout-v1` → **200 labels**, **40 blind holdout**,
+  `ready_for_private_predictions`. Output was aggregate-only.
+- Added `reviewlens-golden-pack evaluate`: it requires exact holdout prediction
+  IDs, validates each structured result, rejects training/missing/duplicate IDs,
+  and writes an immutable aggregate-only report. It never reads the annotation
+  queue or contacts a provider.
+- Focused contract suite: `uv run pytest tests\test_m4_golden_pack.py
+  tests\test_m4_evaluation.py tests\test_m4_quality.py -q -p no:cacheprovider
+  --basetemp D:\project\reviewlens-data-platform\.tmp\pytest-m4-012-evaluator-focused`
+  → **14 passed**. A real prediction/report remains pending owner authorization
+  for the separate bounded provider pilot.

@@ -12,7 +12,7 @@ import csv
 import hashlib
 import json
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -20,12 +20,14 @@ from typing import TextIO
 
 from reviewlens.ai.evaluation import (
     EnrichmentEvaluationError,
+    EnrichmentEvaluationReport,
     GoldenDeliveryOutcome,
     GoldenEnrichmentLabel,
     GoldenLengthBucket,
+    evaluate_holdout_enrichment,
     stratified_golden_holdout_split,
 )
-from reviewlens.ai.validation import AspectSentiment
+from reviewlens.ai.validation import AspectSentiment, ValidatedEnrichment
 
 ANNOTATION_PACK_VERSION = "reviewlens-m4-enrichment-annotation-pack-v1"
 MINIMUM_GOLDEN_LABELS = 200
@@ -290,6 +292,58 @@ def write_machine_assisted_suggestions(
     return len(queue)
 
 
+def evaluate_private_holdout(
+    *,
+    labels_path: Path,
+    split_seed: str,
+    predictions_path: Path,
+    enrichment_version: str,
+) -> EnrichmentEvaluationReport:
+    """Evaluate a private prediction JSONL file against exactly the blind holdout.
+
+    Prediction records may contain restricted model output, so they are read only
+    from a caller-provided private path.  Errors are stable codes and the returned
+    report is aggregate-only.
+    """
+
+    try:
+        labels = load_completed_golden_labels(labels_path=labels_path)
+        split = stratified_golden_holdout_split(labels=labels, split_seed=split_seed)
+        return evaluate_holdout_enrichment(
+            labels=labels,
+            split=split,
+            enrichment_version=enrichment_version,
+            predictions=_load_private_predictions(predictions_path),
+        )
+    except EnrichmentEvaluationError as error:
+        raise GoldenAnnotationPackError(str(error)) from error
+
+
+def write_aggregate_evaluation_report(
+    *, report: EnrichmentEvaluationReport, output_path: Path
+) -> None:
+    """Persist an immutable aggregate-only report without prediction content."""
+
+    if output_path.exists():
+        raise GoldenAnnotationPackError("AI_EVALUATION_ANNOTATION_OUTPUT_EXISTS")
+    payload = {
+        "dataset_sha256": report.dataset_sha256,
+        "enrichment_version": report.enrichment_version,
+        "evaluated_count": report.evaluated_count,
+        "macro_aspect_sentiment_f1": str(report.macro_aspect_sentiment_f1),
+        "macro_sentiment_f1": str(report.macro_sentiment_f1),
+        "micro_topic_f1": str(report.micro_topic_f1),
+        "passes_initial_gate": report.passes_initial_gate,
+        "schema_pass_rate": str(report.schema_pass_rate),
+        "split_sha256": report.split_sha256,
+    }
+    try:
+        with output_path.open("x", encoding="utf-8", newline="") as handle:
+            handle.write(json.dumps(payload, sort_keys=True) + "\n")
+    except OSError as error:
+        raise GoldenAnnotationPackError("AI_EVALUATION_ANNOTATION_OUTPUT_UNAVAILABLE") from error
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Create or validate private annotation material with aggregate-only output."""
 
@@ -306,6 +360,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     suggest.add_argument("--annotation-queue-path", type=Path, required=True)
     suggest.add_argument("--labels-path", type=Path, required=True)
     suggest.add_argument("--output-path", type=Path, required=True)
+    evaluate = commands.add_parser("evaluate")
+    evaluate.add_argument("--labels-path", type=Path, required=True)
+    evaluate.add_argument("--split-seed", required=True)
+    evaluate.add_argument("--predictions-path", type=Path, required=True)
+    evaluate.add_argument("--enrichment-version", required=True)
+    evaluate.add_argument("--report-path", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "generate":
@@ -340,6 +400,25 @@ def main(argv: Sequence[str] | None = None) -> int:
                     {
                         "candidate_count": count,
                         "status": "machine_assisted_review_required",
+                    },
+                    sort_keys=True,
+                )
+            )
+            return 0
+        if args.command == "evaluate":
+            report = evaluate_private_holdout(
+                labels_path=args.labels_path,
+                split_seed=args.split_seed,
+                predictions_path=args.predictions_path,
+                enrichment_version=args.enrichment_version,
+            )
+            write_aggregate_evaluation_report(report=report, output_path=args.report_path)
+            print(
+                json.dumps(
+                    {
+                        "evaluated_count": report.evaluated_count,
+                        "passes_initial_gate": report.passes_initial_gate,
+                        "status": "private_evaluation_complete",
                     },
                     sort_keys=True,
                 )
@@ -501,6 +580,22 @@ def _load_label_templates(path: Path) -> dict[str, dict[str, object]]:
             raise GoldenAnnotationPackError("AI_EVALUATION_ANNOTATION_LABEL_INVALID")
         templates[example_id] = record
     return templates
+
+
+def _load_private_predictions(path: Path) -> Mapping[str, ValidatedEnrichment]:
+    """Load exact-ID prediction records without exposing their bodies in errors."""
+
+    predictions: dict[str, ValidatedEnrichment] = {}
+    for record in _read_jsonl(path):
+        example_id = record.get("opaque_example_id")
+        if not isinstance(example_id, str) or not _is_hash(example_id) or example_id in predictions:
+            raise GoldenAnnotationPackError("AI_EVALUATION_PREDICTION_INVALID")
+        payload = {key: value for key, value in record.items() if key != "opaque_example_id"}
+        try:
+            predictions[example_id] = ValidatedEnrichment.model_validate(payload)
+        except (TypeError, ValueError):
+            raise GoldenAnnotationPackError("AI_EVALUATION_PREDICTION_INVALID") from None
+    return predictions
 
 
 def _machine_assisted_label_record(

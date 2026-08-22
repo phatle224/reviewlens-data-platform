@@ -13,8 +13,10 @@ from reviewlens.ai.golden_pack import (
     GoldenAnnotationCandidate,
     GoldenAnnotationPackError,
     build_olist_annotation_candidates,
+    evaluate_private_holdout,
     load_completed_golden_labels,
     select_stratified_annotation_candidates,
+    write_aggregate_evaluation_report,
     write_annotation_pack,
     write_machine_assisted_suggestions,
 )
@@ -41,6 +43,32 @@ def _write_csv(path: Path, rows: list[dict[str, str]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
+
+
+def _write_approved_labels(path: Path) -> None:
+    records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    for record in records:
+        record["annotation_status"] = "approved"
+        record["sentiment"] = "positive"
+        record["aspect_sentiments"] = [
+            {"aspect": "delivery", "confidence": 1.0, "sentiment": "positive"}
+        ]
+        record["topics"] = ["delivery_speed"]
+    path.write_text(
+        "".join(json.dumps(record, sort_keys=True) + "\n" for record in records), encoding="utf-8"
+    )
+
+
+def _prediction_record(example_id: str) -> dict[str, object]:
+    return {
+        "aspect_sentiments": [{"aspect": "delivery", "confidence": 0.9, "sentiment": "positive"}],
+        "confidence": 0.9,
+        "highlights": ["Synthetic highlight."],
+        "opaque_example_id": example_id,
+        "sentiment": "positive",
+        "summary": "Synthetic summary.",
+        "topics": ["delivery_speed"],
+    }
 
 
 def test_m4_annotation_selection_is_deterministic_and_stratified_without_text_in_identity() -> None:
@@ -148,6 +176,72 @@ def test_m4_machine_assisted_suggestions_are_private_and_cannot_be_human_golden(
         GoldenAnnotationPackError, match="AI_EVALUATION_ANNOTATION_LABELS_INCOMPLETE"
     ):
         load_completed_golden_labels(labels_path=suggestion_path)
+
+
+def test_m4_private_holdout_evaluation_writes_aggregate_only_report(tmp_path: Path) -> None:
+    selected = tuple(_candidate(index) for index in range(MINIMUM_GOLDEN_LABELS))
+    paths = write_annotation_pack(
+        candidates=selected, output_dir=tmp_path / "private", seed="m4-v1"
+    )
+    _write_approved_labels(paths.labels_path)
+    labels = load_completed_golden_labels(labels_path=paths.labels_path)
+    from reviewlens.ai.evaluation import stratified_golden_holdout_split
+
+    split = stratified_golden_holdout_split(labels=labels, split_seed="m4-eval-v1")
+    predictions_path = tmp_path / "private" / "predictions.jsonl"
+    predictions_path.write_text(
+        "".join(
+            json.dumps(_prediction_record(example_id), sort_keys=True) + "\n"
+            for example_id in split.holdout_ids
+        ),
+        encoding="utf-8",
+    )
+
+    report = evaluate_private_holdout(
+        labels_path=paths.labels_path,
+        split_seed="m4-eval-v1",
+        predictions_path=predictions_path,
+        enrichment_version="a" * 64,
+    )
+    report_path = tmp_path / "private" / "report.json"
+    write_aggregate_evaluation_report(report=report, output_path=report_path)
+    persisted = report_path.read_text(encoding="utf-8")
+
+    assert report.evaluated_count == 40
+    assert report.passes_initial_gate
+    assert "Synthetic private review" not in persisted
+    assert "Synthetic summary." not in persisted
+    assert '"evaluated_count": 40' in persisted
+
+
+def test_m4_private_holdout_evaluation_rejects_train_or_duplicate_prediction_ids(
+    tmp_path: Path,
+) -> None:
+    selected = tuple(_candidate(index) for index in range(MINIMUM_GOLDEN_LABELS))
+    paths = write_annotation_pack(
+        candidates=selected, output_dir=tmp_path / "private", seed="m4-v1"
+    )
+    _write_approved_labels(paths.labels_path)
+    labels = load_completed_golden_labels(labels_path=paths.labels_path)
+    from reviewlens.ai.evaluation import stratified_golden_holdout_split
+
+    split = stratified_golden_holdout_split(labels=labels, split_seed="m4-eval-v1")
+    predictions_path = tmp_path / "private" / "invalid-predictions.jsonl"
+    predictions_path.write_text(
+        "".join(
+            json.dumps(_prediction_record(example_id), sort_keys=True) + "\n"
+            for example_id in (*split.holdout_ids, split.train_ids[0])
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(GoldenAnnotationPackError, match="AI_EVALUATION_HOLDOUT_INVALID"):
+        evaluate_private_holdout(
+            labels_path=paths.labels_path,
+            split_seed="m4-eval-v1",
+            predictions_path=predictions_path,
+            enrichment_version="a" * 64,
+        )
 
 
 def test_m4_annotation_runbook_keeps_the_pack_private_and_requires_human_review() -> None:

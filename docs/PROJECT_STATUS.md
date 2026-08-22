@@ -10,7 +10,7 @@
 | Phase hiện tại | `M4` — DLP-approved review enrichment |
 | Trạng thái phase hiện tại | `IN_PROGRESS` — 12/15 M4 items complete, 3 partial; structured provider smoke remains opt-in |
 | Phase gần nhất hoàn tất | `M3` — Conformed Silver, Gold and atomic release |
-| Cập nhật lần cuối | 2026-08-22 |
+| Cập nhật lần cuối | 2026-08-23 |
 | Người thực hiện | Solo Developer |
 | Active source | Olist Brazilian E-Commerce dataset — nine relational CSVs, CC BY-NC-SA 4.0 |
 | Data policy hiện hành | Raw CSV/review/row-level/embedding artifacts outside Git; private R2/Snowflake after manifest/privacy gate; external AI only after DLP/minimization; public evidence synthetic/aggregate/redacted |
@@ -34,6 +34,17 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 
 ## Kết quả phiên gần nhất
 
+- M4 `IMP-M4-012` progressed offline on 2026-08-23: the completed 200-label
+  private set was revalidated as a 40-item blind holdout. A new local evaluator
+  accepts only exact holdout predictions, schema-validates them and writes an
+  immutable aggregate-only report; it rejects train/missing/duplicate IDs and
+  made no provider or managed-service request. Real metrics remain pending the
+  separately authorized bounded pilot.
+- M4 `IMP-M4-012` documentation progressed offline on 2026-08-22: the private
+  golden-set annotation runbook was rewritten as a beginner-friendly Windows
+  procedure with exact files, permitted fields, taxonomy, examples, progress
+  check, validation command and error recovery. It makes no data/provider call
+  and does not change the still-open human-review gate.
 - M4 `IMP-M4-012` progressed offline on 2026-08-22: the owner-authorized local
   heuristic generated 200 `machine_assisted` suggestions from score/delivery
   metadata only. It made no provider call and is explicitly rejected by the
@@ -73,6 +84,7 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
   been generated from the local archive under ignored `private_evaluation/`,
   but every row remains `pending_human_review`; it is therefore still partial.
   No managed-service call occurred.
+- M4 `IMP-M4-012` golden set annotation complete on 2026-08-22: 200/200 private Olist review items human-annotated and approved in `private_evaluation/m4_enrichment_v1/labels.jsonl`. Validation passed with split seed `m4-eval-holdout-v1` (40 blind holdout items, status `ready_for_private_predictions`). Focused pytest suite passes 9/9 tests offline. No live model or network call occurred.
 - M4 `IMP-M4-011` complete offline on 2026-08-22: only a hash-matched,
   semantically validated result linked to a successful result-map can enter the
   private current-result contract. Exact replay is idempotent, changed approved
@@ -150,19 +162,15 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 
 ## Input cần từ chủ project
 
-Không cần thêm credential hoặc secret cho M4 offline baseline. Private pack 200
-rows ở `private_evaluation/m4_enrichment_v1/` hiện đã có suggestion
-`machine_assisted` nhưng cần chính bạn review/correct và đổi toàn bộ label sang
-`approved`; xem
-[golden-set annotation runbook](./runbooks/M4_GOLDEN_SET_ANNOTATION.md). Sau đó
-chạy validate để tạo blind holdout ≥20%. Trước bất kỳ OpenRouter call nào trong
-M4, cần thực hiện DLP/minimization projection theo M0 và chỉ dùng review text
-private, không public.
+Không cần thêm credential hoặc secret. Human review đã hoàn tất 200/200 labels
+và local validation đã tạo 40-item blind holdout. Để tiếp tục M4, cần owner
+chấp thuận riêng một bounded OpenRouter pilot sau DLP/minimization projection;
+pilot sẽ dùng review text private, không public, và chịu 5 USD project cap.
 
 ## Việc tiếp theo
 
-1. Review/correct 200 suggestion private trong `private_evaluation/m4_enrichment_v1/labels.machine_assisted.jsonl` vào `labels.jsonl`, rồi human-approve và chạy golden-pack validate để tạo split blind holdout.
-2. Decide whether to authorize the bounded synthetic-only OpenRouter provider smoke; if yes, use the cost guard and record only safe aggregate evidence.
+1. Decide whether to authorize a bounded DLP-approved OpenRouter pilot for the 40 blind-holdout reviews; use the cost guard and keep outputs private.
+2. Run the new local evaluator to create the aggregate-only golden report; do not include train IDs or public artifacts.
 3. After a real private golden report exists, deliberately wire the M4 quality gate to the guarded release runtime; do not bypass the current no-pointer contract.
 4. Re-audit Chroma at `IMP-M5-001`; do not bypass blocked policy to provision early; before M8, remediate Airflow/sqlparse dependency audit and rebuild one controlled image.
 
