@@ -58,3 +58,6 @@ evidence until each row is reviewed and explicitly approved.
 The owner-authorized 40-item prediction run on 2026-08-23 stopped fail-closed
 with `AI_ENRICHMENT_SCHEMA_INVALID`. It created neither private predictions nor
 an aggregate report; a recovery dispatch is a new cost-bearing owner decision.
+The offline recovery path now uses prompt v2 and permits exactly one schema-only
+repair per invalid DLP-approved item; a second invalid response still stops the
+batch without a partial report or public artifact.

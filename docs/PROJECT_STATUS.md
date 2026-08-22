@@ -34,7 +34,7 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 
 ## Kết quả phiên gần nhất
 
-- M4 `IMP-M4-012` owner-authorized full private 40-item holdout run on 2026-08-23 stopped fail-closed with `AI_ENRICHMENT_SCHEMA_INVALID`. A fresh DLP preflight passed 40/40; no prediction file or aggregate evaluation report was created and no automatic retry occurred. The aggregate-only OpenRouter ledger is 0.0011500 USD with no pending reservation. A recovery strategy and a separately approved retry remain required before metrics or quality-gate activation can proceed.
+- M4 `IMP-M4-007/008/012` offline recovery hardening completed on 2026-08-23: prompt v2 requests compact JSON; the full private runner makes at most one schema-only repair per DLP-approved invalid item, and retains strict validation/DLP/budget boundaries. Focused fake tests pass 34/34; no managed-service request occurred. The earlier owner-authorized 40-item run stopped fail-closed with `AI_ENRICHMENT_SCHEMA_INVALID`, leaving no prediction/report; a repair-enabled recovery batch still requires separate owner approval.
 - M4 `IMP-M4-007` completed with owner-authorized private evidence on 2026-08-23: 40/40 DLP holdout preflight and exactly one real diagnostic dispatch succeeded with schema-valid structured output. No row-level output was persisted. The aggregate budget ledger is 0.0006900 USD with no pending reservation; full 40-item prediction/evaluation remains separately gated.
 - M4 `IMP-M4-007/012` owner-authorized private pilot on 2026-08-23: DLP preflight approved all 40 blind-holdout items. The first bounded provider dispatch failed closed, so no prediction/report was written and no retry was made. Aggregate budget ledger records 0.0004600 USD only. Offline code now preserves a sanitized provider HTTP status for any future separately approved diagnostic retry; no review, prompt or response body was logged.
 - M4 `IMP-M4-012` progressed offline on 2026-08-23: the completed 200-label
@@ -171,10 +171,9 @@ chấp thuận riêng batch prediction đủ 40 holdout trước khi gửi revie
 
 ## Việc tiếp theo
 
-1. Choose a recovery approach for the schema-invalid full holdout run: retain strict no-retry behaviour or permit one bounded repair request per invalid item.
-2. After separately approving a recovery run, create exactly 40 private predictions without train IDs or public artifacts.
-3. Run the local evaluator to create the aggregate-only golden report only after exactly 40 predictions exist.
-4. After a real private golden report exists, deliberately wire the M4 quality gate to the guarded release runtime; do not bypass the current no-pointer contract.
+1. If acceptable, authorize one repair-enabled 40-item private holdout batch: one original request plus at most one schema-only repair per item, never train IDs or public artifacts.
+2. After the recovery batch produces exactly 40 private predictions, run the local evaluator to create the aggregate-only golden report.
+3. After a real private golden report exists, deliberately wire the M4 quality gate to the guarded release runtime; do not bypass the current no-pointer contract.
 4. Re-audit Chroma at `IMP-M5-001`; do not bypass blocked policy to provision early; before M8, remediate Airflow/sqlparse dependency audit and rebuild one controlled image.
 
 ## Dự báo hoàn thành (solo portfolio)

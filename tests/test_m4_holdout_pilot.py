@@ -9,6 +9,7 @@ import pytest
 
 from reviewlens.ai.enrichment import EnrichmentVersionInput
 from reviewlens.ai.evaluation import GoldenDeliveryOutcome, GoldenLengthBucket
+from reviewlens.ai.execution import EnrichmentWork, EnrichmentWorkState
 from reviewlens.ai.golden_pack import (
     MINIMUM_GOLDEN_LABELS,
     GoldenAnnotationCandidate,
@@ -17,7 +18,13 @@ from reviewlens.ai.golden_pack import (
 )
 from reviewlens.ai.holdout_pilot import (
     HoldoutPilotError,
+    _batch_executor,
     preflight_private_holdout,
+)
+from reviewlens.ai.prompt import (
+    PORTUGUESE_ENRICHMENT_PROMPT_VERSION,
+    EnrichmentPrompt,
+    build_portuguese_enrichment_prompt,
 )
 
 
@@ -62,7 +69,7 @@ def _version() -> EnrichmentVersionInput:
     return EnrichmentVersionInput(
         model_slug="google/gemini-2.5-flash-lite",
         provider_policy_version="openrouter-data-collection-deny-v1",
-        prompt_version="pt-br-enrichment-untrusted-evidence-v1",
+        prompt_version=PORTUGUESE_ENRICHMENT_PROMPT_VERSION,
     )
 
 
@@ -106,4 +113,75 @@ def test_m4_holdout_pilot_preflight_blocks_every_provider_call_when_dlp_fails(
             annotation_queue_path=queue_path,
             split_seed="m4-eval-v1",
             version_input=_version(),
+        )
+
+
+class _RepairingTransport:
+    def __init__(self) -> None:
+        self.repairs: list[bool] = []
+
+    def complete(self, *, prompt: EnrichmentPrompt, repair: bool) -> str:
+        del prompt
+        self.repairs.append(repair)
+        if not repair:
+            return "not-json"
+        return json.dumps(
+            {
+                "sentiment": "neutral",
+                "confidence": 0.5,
+                "aspect_sentiments": [],
+                "topics": [],
+                "summary": "Resumo válido.",
+                "highlights": [],
+            }
+        )
+
+
+def test_m4_holdout_batch_executor_repairs_one_schema_invalid_result(tmp_path: Path) -> None:
+    labels_path, queue_path = _approved_pack(tmp_path)
+    version = _version()
+    _, items = preflight_private_holdout(
+        labels_path=labels_path,
+        annotation_queue_path=queue_path,
+        split_seed="m4-eval-v1",
+        version_input=version,
+    )
+    transport = _RepairingTransport()
+
+    execution = _batch_executor().execute(
+        work=EnrichmentWork(
+            work_id=items[0].opaque_example_id,
+            prompt=build_portuguese_enrichment_prompt(
+                projection=items[0].projection,
+                version_input=version,
+            ),
+            version_input=version,
+        ),
+        transport=transport,
+    )
+
+    assert execution.state is EnrichmentWorkState.SUCCEEDED
+    assert execution.attempt_count == 2
+    assert execution.repair_count == 1
+    assert transport.repairs == [False, True]
+
+
+def test_m4_prompt_refuses_a_version_that_does_not_match_its_controls(tmp_path: Path) -> None:
+    labels_path, queue_path = _approved_pack(tmp_path)
+    _, items = preflight_private_holdout(
+        labels_path=labels_path,
+        annotation_queue_path=queue_path,
+        split_seed="m4-eval-v1",
+        version_input=_version(),
+    )
+    mismatched = EnrichmentVersionInput(
+        model_slug="google/gemini-2.5-flash-lite",
+        provider_policy_version="openrouter-data-collection-deny-v1",
+        prompt_version="pt-br-enrichment-untrusted-evidence-v1",
+    )
+
+    with pytest.raises(ValueError, match="prompt version"):
+        build_portuguese_enrichment_prompt(
+            projection=items[0].projection,
+            version_input=mismatched,
         )

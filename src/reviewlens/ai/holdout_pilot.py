@@ -37,12 +37,16 @@ from reviewlens.ai.golden_pack import (
     GoldenAnnotationPackError,
     load_completed_golden_labels,
 )
-from reviewlens.ai.prompt import build_portuguese_enrichment_prompt
+from reviewlens.ai.prompt import (
+    PORTUGUESE_ENRICHMENT_PROMPT_VERSION,
+    build_portuguese_enrichment_prompt,
+)
 from reviewlens.ai.rate_limit import EnrichmentRateLimiter
 from reviewlens.config import load_settings, project_root
 from reviewlens.providers.openrouter import OpenRouterClient
 
-_MAX_COMPLETION_TOKENS = 200
+_MAX_COMPLETION_TOKENS = 256
+_MAX_PILOT_ATTEMPTS = 2
 _CONTROL_OVERHEAD_TOKENS = 1_000
 _PROMPT_PRICE_USD = Decimal("0.0000001")
 _COMPLETION_PRICE_USD = Decimal("0.0000004")
@@ -134,7 +138,7 @@ def run_private_holdout_pilot(
     version_input = EnrichmentVersionInput(
         model_slug=settings.openrouter.enrichment_model,
         provider_policy_version="openrouter-data-collection-deny-v1",
-        prompt_version="pt-br-enrichment-untrusted-evidence-v1",
+        prompt_version=PORTUGUESE_ENRICHMENT_PROMPT_VERSION,
     )
     preflight, items = preflight_private_holdout(
         labels_path=labels_path,
@@ -172,7 +176,7 @@ def run_private_holdout_pilot(
             pricing=pricing,
             estimate=estimate,
         )
-        executor = InMemoryEnrichmentExecutor(max_attempts=1)
+        executor = _batch_executor()
         for item in items:
             execution = executor.execute(
                 work=EnrichmentWork(
@@ -216,7 +220,7 @@ def run_private_holdout_diagnostic(
     version_input = EnrichmentVersionInput(
         model_slug=settings.openrouter.enrichment_model,
         provider_policy_version="openrouter-data-collection-deny-v1",
-        prompt_version="pt-br-enrichment-untrusted-evidence-v1",
+        prompt_version=PORTUGUESE_ENRICHMENT_PROMPT_VERSION,
     )
     preflight, items = preflight_private_holdout(
         labels_path=labels_path,
@@ -271,6 +275,12 @@ def run_private_holdout_diagnostic(
         )
 
 
+def _batch_executor() -> InMemoryEnrichmentExecutor:
+    """Create the single-repair executor used only by an approved full batch."""
+
+    return InMemoryEnrichmentExecutor(max_attempts=_MAX_PILOT_ATTEMPTS)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run aggregate-safe preflight or the explicitly authorized private pilot."""
 
@@ -293,7 +303,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             version_input = EnrichmentVersionInput(
                 model_slug=settings.openrouter.enrichment_model,
                 provider_policy_version="openrouter-data-collection-deny-v1",
-                prompt_version="pt-br-enrichment-untrusted-evidence-v1",
+                prompt_version=PORTUGUESE_ENRICHMENT_PROMPT_VERSION,
             )
             preflight_result, _ = preflight_private_holdout(
                 labels_path=args.labels_path,
@@ -329,6 +339,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(
             json.dumps(
                 {
+                    "enrichment_version": pilot_result.enrichment_version,
                     "prediction_count": pilot_result.prediction_count,
                     "status": "private_pilot_complete",
                 },

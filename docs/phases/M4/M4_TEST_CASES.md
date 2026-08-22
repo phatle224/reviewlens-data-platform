@@ -281,3 +281,25 @@
   reservation. TC-M4-017 remains `PENDING`: the expected 40-prediction
   aggregate report was not produced. Any recovery dispatch requires fresh
   owner approval.
+
+## Execution log — 2026-08-23 (`IMP-M4-007/008/012`, offline recovery hardening)
+
+- The full private-pilot runner now uses prompt v2, a 256-token completion
+  envelope and exactly one schema-only repair after an invalid first response.
+  A failed repair still fails closed; no transient or second-batch retry is
+  automatic. The diagnostic command remains a single request with no output.
+- New fake test proves the full-batch executor calls initial then repair exactly
+  once, while a prompt-version mismatch is denied before a provider boundary.
+  `uv run pytest tests\test_m4_catalog_selection_prompt.py
+  tests\test_m4_execution.py tests\test_m4_holdout_pilot.py
+  tests\test_openrouter.py tests\test_m4_budget.py -q -p no:cacheprovider
+  --basetemp .tmp\pytest-m4-repair-final` → **34 passed**.
+- `ruff` and strict `mypy` pass. This was offline-only and made no provider,
+  R2, Snowflake or Chroma request. TC-M4-017 remains `PENDING` until a new
+  owner-authorized repair-enabled private batch produces exactly 40 predictions.
+- Closing verification after regenerating the immutable artifact lock:
+  `uv run pytest tests\test_m4_catalog_selection_prompt.py
+  tests\test_m4_execution.py tests\test_m4_holdout_pilot.py
+  tests\test_openrouter.py tests\test_m4_budget.py tests\test_deploy.py -q
+  -p no:cacheprovider --basetemp .tmp\pytest-m4-repair-close-after-lock` →
+  **43 passed**. Repository policy and the project-status validator also pass.

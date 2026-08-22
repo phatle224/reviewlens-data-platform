@@ -19,7 +19,10 @@ from reviewlens.ai.execution import (
     InMemoryEnrichmentExecutor,
     RateLimitedOpenRouterEnrichmentTransport,
 )
-from reviewlens.ai.prompt import build_portuguese_enrichment_prompt
+from reviewlens.ai.prompt import (
+    PORTUGUESE_ENRICHMENT_PROMPT_VERSION,
+    build_portuguese_enrichment_prompt,
+)
 from reviewlens.ai.rate_limit import EnrichmentRateLimiter, EnrichmentRateLimitExceeded
 from reviewlens.ai.validation import EnrichmentValidationError, validate_enrichment_response
 from reviewlens.config import load_settings
@@ -43,7 +46,7 @@ def _work() -> EnrichmentWork:
     version = EnrichmentVersionInput(
         model_slug="google/gemini-2.5-flash-lite",
         provider_policy_version="openrouter-data-collection-deny-v1",
-        prompt_version="pt-br-enrichment-untrusted-evidence-v1",
+        prompt_version=PORTUGUESE_ENRICHMENT_PROMPT_VERSION,
     )
     projection = project_review_for_ai(
         source_record_hash="a" * 64,

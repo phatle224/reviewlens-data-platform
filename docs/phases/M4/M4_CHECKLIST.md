@@ -45,3 +45,8 @@ base review facts remain available when AI enrichment is absent or quarantined.
 - `IMP-M4-012` remains `PARTIAL`: real aggregate metrics cannot be claimed
   until a separately authorized recovery run completes. The aggregate-only
   budget ledger is 0.0011500 USD with no pending reservation.
+- Offline recovery hardening is complete: prompt v2 requests compact JSON, the
+  full-batch runner permits one schema-only repair per DLP-approved item, and
+  the diagnostic remains a single request. Strict schema/semantic validation,
+  DLP and the 5 USD budget guard remain unchanged; no new provider call was
+  made while implementing this change.

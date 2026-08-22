@@ -26,7 +26,10 @@ from reviewlens.ai.execution import (
     InMemoryEnrichmentExecutor,
     RateLimitedOpenRouterEnrichmentTransport,
 )
-from reviewlens.ai.prompt import build_portuguese_enrichment_prompt
+from reviewlens.ai.prompt import (
+    PORTUGUESE_ENRICHMENT_PROMPT_VERSION,
+    build_portuguese_enrichment_prompt,
+)
 from reviewlens.ai.rate_limit import EnrichmentRateLimiter
 from reviewlens.config import load_settings, project_root
 from reviewlens.providers.openrouter import OpenRouterClient
@@ -44,7 +47,7 @@ def test_synthetic_structured_enrichment_smoke() -> None:
     settings = load_settings()
     # Pinned to the safe public catalog snapshot captured on 2026-08-21.  This
     # guard is intentionally conservative: 2,000 approved evidence characters,
-    # 1,000 control/schema tokens and the provider's 200-token response limit.
+    # 1,000 control/schema tokens and the provider's 256-token response limit.
     pricing = EnrichmentPricing(
         prompt_usd_per_token=Decimal("0.0000001"),
         completion_usd_per_token=Decimal("0.0000004"),
@@ -57,7 +60,7 @@ def test_synthetic_structured_enrichment_smoke() -> None:
     version = EnrichmentVersionInput(
         model_slug=settings.openrouter.enrichment_model,
         provider_policy_version="openrouter-data-collection-deny-v1",
-        prompt_version="pt-br-enrichment-untrusted-evidence-v1",
+        prompt_version=PORTUGUESE_ENRICHMENT_PROMPT_VERSION,
     )
     projection = project_review_for_ai(
         source_record_hash="f" * 64,
@@ -66,7 +69,7 @@ def test_synthetic_structured_enrichment_smoke() -> None:
     )
     client = OpenRouterClient.from_config(settings.openrouter)
     try:
-        result = InMemoryEnrichmentExecutor(max_attempts=1).execute(
+        result = InMemoryEnrichmentExecutor(max_attempts=2).execute(
             work=EnrichmentWork(
                 work_id="e" * 64,
                 prompt=build_portuguese_enrichment_prompt(
@@ -79,13 +82,13 @@ def test_synthetic_structured_enrichment_smoke() -> None:
                 delegate=RateLimitedOpenRouterEnrichmentTransport(
                     client=client,
                     limiter=EnrichmentRateLimiter(max_requests=1, monotonic=time.monotonic),
-                    max_tokens=200,
+                    max_tokens=256,
                 ),
                 budget=budget,
                 pricing=pricing,
                 estimate=estimate_tokens_from_char_count(
                     approved_text_characters=MAX_REVIEW_TEXT_CHARACTERS,
-                    max_completion_tokens=200,
+                    max_completion_tokens=256,
                     control_overhead_tokens=1_000,
                 ),
             ),
@@ -94,5 +97,5 @@ def test_synthetic_structured_enrichment_smoke() -> None:
         client.close()
 
     assert result.state is EnrichmentWorkState.SUCCEEDED
-    assert result.attempt_count == 1
+    assert 1 <= result.attempt_count <= 2
     assert result.result is not None
