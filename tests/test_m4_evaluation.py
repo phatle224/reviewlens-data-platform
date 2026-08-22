@@ -17,6 +17,8 @@ from reviewlens.ai.evaluation import (
 )
 from reviewlens.ai.validation import AspectSentiment, ValidatedEnrichment
 
+VERSION = "a" * 64
+
 
 def _labels() -> tuple[GoldenEnrichmentLabel, ...]:
     return tuple(
@@ -82,9 +84,17 @@ def test_m4_holdout_evaluation_is_aggregate_reproducible_and_passes_initial_gate
     split = stratified_golden_holdout_split(labels=labels, split_seed="m4-eval-v1")
     predictions = {example_id: _prediction() for example_id in split.holdout_ids}
 
-    report = evaluate_holdout_enrichment(labels=labels, split=split, predictions=predictions)
+    report = evaluate_holdout_enrichment(
+        labels=labels,
+        split=split,
+        enrichment_version=VERSION,
+        predictions=predictions,
+    )
     replay = evaluate_holdout_enrichment(
-        labels=tuple(reversed(labels)), split=split, predictions=dict(reversed(predictions.items()))
+        labels=tuple(reversed(labels)),
+        split=split,
+        enrichment_version=VERSION,
+        predictions=dict(reversed(predictions.items())),
     )
 
     assert report == replay
@@ -106,15 +116,26 @@ def test_m4_holdout_rejects_training_or_missing_predictions_and_failing_quality(
     with_training = {**predictions, split.train_ids[0]: _prediction()}
 
     with pytest.raises(EnrichmentEvaluationError, match="AI_EVALUATION_HOLDOUT_INVALID"):
-        evaluate_holdout_enrichment(labels=labels, split=split, predictions=with_training)
+        evaluate_holdout_enrichment(
+            labels=labels,
+            split=split,
+            enrichment_version=VERSION,
+            predictions=with_training,
+        )
     with pytest.raises(EnrichmentEvaluationError, match="AI_EVALUATION_HOLDOUT_INVALID"):
         evaluate_holdout_enrichment(
             labels=labels,
             split=split,
+            enrichment_version=VERSION,
             predictions={split.holdout_ids[0]: _prediction()},
         )
 
-    report = evaluate_holdout_enrichment(labels=labels, split=split, predictions=predictions)
+    report = evaluate_holdout_enrichment(
+        labels=labels,
+        split=split,
+        enrichment_version=VERSION,
+        predictions=predictions,
+    )
     assert not report.passes_initial_gate
 
 

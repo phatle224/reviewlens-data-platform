@@ -96,11 +96,27 @@ class GoldenHoldoutSplit:
 class EnrichmentEvaluationReport:
     dataset_sha256: str
     split_sha256: str
+    enrichment_version: str
     evaluated_count: int
     macro_sentiment_f1: Decimal
     macro_aspect_sentiment_f1: Decimal
     micro_topic_f1: Decimal
     schema_pass_rate: Decimal
+
+    def __post_init__(self) -> None:
+        _require_hash(self.dataset_sha256)
+        _require_hash(self.split_sha256)
+        _require_hash(self.enrichment_version)
+        if self.evaluated_count < 1 or any(
+            not value.is_finite() or value < _ZERO or value > _ONE
+            for value in (
+                self.macro_sentiment_f1,
+                self.macro_aspect_sentiment_f1,
+                self.micro_topic_f1,
+                self.schema_pass_rate,
+            )
+        ):
+            raise EnrichmentEvaluationError("AI_EVALUATION_REPORT_INVALID")
 
     @property
     def passes_initial_gate(self) -> bool:
@@ -183,10 +199,12 @@ def evaluate_holdout_enrichment(
     *,
     labels: tuple[GoldenEnrichmentLabel, ...],
     split: GoldenHoldoutSplit,
+    enrichment_version: str,
     predictions: Mapping[str, ValidatedEnrichment],
 ) -> EnrichmentEvaluationReport:
     """Evaluate only the declared blind holdout and return aggregate metrics."""
 
+    _require_hash(enrichment_version)
     by_id = _unique_labels(labels)
     dataset_sha256 = _dataset_sha256(tuple(by_id.values()))
     if dataset_sha256 != split.dataset_sha256 or not split.holdout_ids:
@@ -218,6 +236,7 @@ def evaluate_holdout_enrichment(
     return EnrichmentEvaluationReport(
         dataset_sha256=dataset_sha256,
         split_sha256=_split_sha256(split),
+        enrichment_version=enrichment_version,
         evaluated_count=len(holdout),
         macro_sentiment_f1=_macro_single_label_f1(sentiment_pairs),
         macro_aspect_sentiment_f1=_macro_set_label_f1(aspect_pairs),

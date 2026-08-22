@@ -14,7 +14,7 @@ evidence, or an audit ledger.
 | [ADR-016](../../ADR/ADR-016-m4-enrichment-contract-and-dlp-projection.md) | Frozen output and transfer contract |
 | [M0 security/privacy baseline](../M0/M0_SECURITY_PRIVACY.md) | DLP-before-AI and retention boundary |
 
-Phase status: `IN_PROGRESS` with 10/15 work items complete and two partial. The first three bundles
+Phase status: `IN_PROGRESS` with 10/15 work items complete and three partial. The first three bundles
 freeze the schema/taxonomy/version-key contract, append-only enrichment ledgers,
 a minimized review-text projection, catalog evidence, deterministic selection and
 a Portuguese prompt that isolates untrusted evidence, schema/semantic validation,
@@ -32,3 +32,7 @@ The corresponding Snowflake DDL is offline-validated only and is not applied.
 The evaluator contract is also complete offline, but its real private
 human-reviewed golden set is intentionally absent from Git; therefore the
 evaluation work item and real quality gate remain partial.
+The quality-gate contract already rejects a bad, missing-evaluation or
+version-mismatched AI candidate before any publish callback runs; the actual
+Snowflake release transition will not be wired until a private golden report
+exists.

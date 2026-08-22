@@ -8,7 +8,7 @@
 |---|---|
 | Trạng thái tổng thể | `ON_TRACK` |
 | Phase hiện tại | `M4` — DLP-approved review enrichment |
-| Trạng thái phase hiện tại | `IN_PROGRESS` — 10/15 M4 items complete, 2 partial; structured provider smoke remains opt-in |
+| Trạng thái phase hiện tại | `IN_PROGRESS` — 10/15 M4 items complete, 3 partial; structured provider smoke remains opt-in |
 | Phase gần nhất hoàn tất | `M3` — Conformed Silver, Gold and atomic release |
 | Cập nhật lần cuối | 2026-08-22 |
 | Người thực hiện | Solo Developer |
@@ -24,7 +24,7 @@
 | M1 | `COMPLETE` | Config, identities, provider/dbt/Airflow boundaries, audit/logging, authenticated app shell and fail-closed CI/live rotation gates | [Overview](./phases/M1/README.md) · [Checklist](./phases/M1/M1_CHECKLIST.md) · [Tests](./phases/M1/M1_TEST_CASES.md) |
 | M2 | `COMPLETE` | 18 implementation items and owner-approved full nine-file private DAG + immutable replay reconcile with empty alerts and warehouse suspended | [Overview](./phases/M2/README.md) · [Checklist](./phases/M2/M2_CHECKLIST.md) · [Tests](./phases/M2/M2_TEST_CASES.md) |
 | M3 | `COMPLETE` | Silver/DQ, conformed facts/dimensions, review allocation, marts, semantic views, Gold candidate target, private full-refresh/deterministic-replay equivalence, immutable releases, guarded activation and live two-release rollback are complete | [Overview](./phases/M3/README.md) · [Checklist](./phases/M3/M3_CHECKLIST.md) · [Tests](./phases/M3/M3_TEST_CASES.md) |
-| M4 | `IN_PROGRESS` | DLP through retry/quarantine, durable cost guard, validated commit/coverage and a private evaluator contract complete; provider smoke and real golden evaluation remain gated | [Overview](./phases/M4/README.md) · [Checklist](./phases/M4/M4_CHECKLIST.md) · [Tests](./phases/M4/M4_TEST_CASES.md) |
+| M4 | `IN_PROGRESS` | DLP through retry/quarantine, durable cost guard, validated commit/coverage, evaluator and quality-gate contracts complete; provider, real golden and release wiring remain gated | [Overview](./phases/M4/README.md) · [Checklist](./phases/M4/M4_CHECKLIST.md) · [Tests](./phases/M4/M4_TEST_CASES.md) |
 | M5 | `NOT_STARTED` | Embeddings, ChromaDB and grounded RAG | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M6 | `NOT_STARTED` | Guarded Text-to-SQL | [Plan](./IMPLEMENTATION_PLAN.md) |
 | M7 | `NOT_STARTED` | Streamlit analytics and integrated consumption | [Plan](./IMPLEMENTATION_PLAN.md) |
@@ -34,6 +34,12 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 
 ## Kết quả phiên gần nhất
 
+- M4 `IMP-M4-013` progressed offline on 2026-08-22: a candidate can publish
+  only if its exact enrichment version has an aggregate report that clears the
+  initial M0 sentiment/aspect/topic/schema thresholds. Low, missing or
+  mismatched reports block before the publish callback, with no Snowflake
+  pointer operation. It remains partial pending a real private report and
+  deliberate integration with the guarded release runtime.
 - M4 `IMP-M4-012` progressed offline on 2026-08-22: deterministic splitting
   stratifies private structured labels and reserves a blind ≥20% holdout; the
   evaluator reports only aggregate F1/schema metrics and rejects train or
@@ -81,7 +87,7 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 - Owner-confirmed initial activation pass live ngày 2026-08-20: executor gọi đúng một owner procedure qua `CALL` với CAS v0, đọc lại pointer v1 và aggregate post-check xác nhận đúng một `ACTIVATED` event; warehouse `SUSPENDED`. Hai runtime gaps đã được sửa: Snowflake procedure phải dùng `CALL` (không phải `SELECT`) và migration `008` re-grant exact `USAGE` sau `CREATE OR REPLACE PROCEDURE`. Không có direct `UPDATE`, retry CAS version mới hay public/raw output.
 - Owner-approved rollback proof pass live ngày 2026-08-20: revision lineage private tạo một candidate pair thứ hai nhưng giữ nguyên Olist inputs, batch, dbt selectors và semantic contract. Full-refresh/replay trả `equivalent=true`; release 2 activate v1→v2 và guarded rollback về release 1 v2→v3. Aggregate check: 2 definitions, 56 refs, 2 `CREATED`, 2 `ACTIVATED`, 1 `ROLLED_BACK`, 2 ready releases; warehouse `SUSPENDED`. M3 exit gate đóng.
 - dbt profile vẫn là một local target nhưng Gold command nay phải override tạm thời sang `GOLD_BUILDER_ROLE`; planner chỉ tạo đúng 10 object-level Silver `SELECT` grants cho Gold, không thêm schema/future privilege. Safe credential-presence check cho transform/Gold key path pass; không đọc hay in secret, không gọi provider.
-- Gate local sau M4-012 contract: Ruff format/lint cho `src`/`tests`, strict mypy, dbt parse `--warn-error`, 541 offline tests (9 opt-in live skips, 86.03% coverage), artifact lock, repository policy và status validator pass. Full suite dùng workspace-local pytest temp do Windows user-temp bị access-denied.
+- Gate local sau M4-013 contract: Ruff format/lint cho `src`/`tests`, strict mypy, dbt parse `--warn-error`, 544 offline tests (9 opt-in live skips, 86.08% coverage), artifact lock, repository policy và status validator pass. Full suite dùng workspace-local pytest temp do Windows user-temp bị access-denied.
 
 ## Kiểm thử
 
@@ -91,8 +97,8 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 | M1 | 41 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M1 test cases](./phases/M1/M1_TEST_CASES.md); offline 193 pass/6 live skip plus owner-approved live rotation 1 pass; Chroma quarantine + clean-path/container/Compose/artifact/metrics + CI policy/dependency/AppTest/logging/audit/Airflow/dbt/provider/R2/stage/RBAC/JWT evidence |
 | M2 | 25 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M2 test cases](./phases/M2/M2_TEST_CASES.md); offline, synthetic live and full private nine-file DAG/replay evidence pass |
 | M3 | 31 `PASS`, 0 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M3 test cases](./phases/M3/M3_TEST_CASES.md); private same-candidate-pair full/replay, guarded activation and real two-release rollback pass live |
-| M4 | 15 `PASS`, 5 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M4 test cases](./phases/M4/M4_TEST_CASES.md); provider smoke is intentionally pending explicit cost opt-in |
-| Quality | `PARTIAL` | Ruff, strict mypy, dbt parse, 541 offline tests (9 opt-in live skips, 86.03% coverage), artifact lock, repository policy and status validator pass. Dependency audit flags 12 known CVEs in Airflow 3.3.0/sqlparse 0.5.5; remediation is tracked before M8/container release. |
+| M4 | 16 `PASS`, 4 `PENDING`, 0 `FAIL`, 0 `DEFERRED` | [M4 test cases](./phases/M4/M4_TEST_CASES.md); provider smoke is intentionally pending explicit cost opt-in |
+| Quality | `PARTIAL` | Ruff, strict mypy, dbt parse, 544 offline tests (9 opt-in live skips, 86.08% coverage), artifact lock, repository policy and status validator pass. Dependency audit flags 12 known CVEs in Airflow 3.3.0/sqlparse 0.5.5; remediation is tracked before M8/container release. |
 | Status validator | `PASS` — 0 errors, 0 warnings | M0–M3 complete; M3 synchronized at 20/20 done and 31/31 pass |
 
 ## Blocker và rủi ro
@@ -103,7 +109,7 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 - Local dependency audit ngày 2026-08-20 báo 12 known CVEs: Airflow 3.3.0 có fix 3.3.1 và sqlparse 0.5.5 có fix 0.6.0. Chưa update trong M3 để tránh một Docker/runtime migration ngoài scope; phải re-audit/upgrade có kiểm soát trước M8 portfolio release.
 - Product/seller review insights remain allocations, not item-level evidence; semantic views expose the policy label and mark order counts as nonadditive.
 - Gold candidate build must read a tested Silver candidate and write a different candidate namespace. Owner-approved preflight/migrations are complete, but a candidate build must first persist its processing lineage and pass DQ/reconciliation before any release definition or pointer action.
-- M3 release definition/CAS, request pinning and guarded two-release rollback have complete live evidence. `008` is applied/re-applied idempotently; active pointer is v3 on the restored first release. M4 now has DLP, catalog, selector, prompt, validation, retry, budget, private commit/coverage and evaluator controls, but no real review can be sent externally until a bounded pilot is explicitly authorized and a private human-reviewed golden set is available.
+- M3 release definition/CAS, request pinning and guarded two-release rollback have complete live evidence. `008` is applied/re-applied idempotently; active pointer is v3 on the restored first release. M4 now has DLP, catalog, selector, prompt, validation, retry, budget, private commit/coverage, evaluator and quality-gate controls, but no real review can be sent externally until a bounded pilot is explicitly authorized and a private human-reviewed golden set is available. The quality gate is not wired to the live release runtime yet.
 - Chroma adapter M1 vẫn là lazy/fake-tested boundary. Machine-readable quarantine chặn package/server 1.5.9 và mọi addition chưa được review; `IMP-M5-001` phải thay policy có chủ đích chỉ sau khi một patched release qua dependency/image audit và negative access smoke.
 
 ## Chi phí và tài nguyên
@@ -125,8 +131,8 @@ DLP/minimization projection theo M0 và chỉ dùng review text private, không 
 
 ## Việc tiếp theo
 
-1. Add the release quality gate (`IMP-M4-013`) against the evaluator's explicit initial thresholds; keep it fake-tested until a private golden set exists.
-2. Create and label the private enrichment golden set (minimum 200, ≥20% blind holdout) outside Git to close TC-M4-017.
+1. Implement aggregate-only tokens/cost/latency/error/coverage observability (`IMP-M4-014`) without raw text or prompts.
+2. Create and label the private enrichment golden set (minimum 200, ≥20% blind holdout) outside Git to close `IMP-M4-012` and wire the quality gate safely later.
 3. Keep review text private and `ai_eligible=false`; only the DLP-approved projection may later cross the external provider boundary.
 4. Re-audit Chroma at `IMP-M5-001`; do not bypass blocked policy to provision early; before M8, remediate Airflow/sqlparse dependency audit and rebuild one controlled image.
 

@@ -21,7 +21,7 @@
 | TC-M4-015 | Budget | Estimated/actual spend reaches warning and hard cap | Warning at 0.50 USD/day; new calls stop at 5 USD | `PASS` | Offline deterministic estimator, durable aggregate-only reservation/settlement and pre-delegate hard-stop tests pass; live smoke is wrapped but remains opt-in/unexecuted |
 | TC-M4-016 | Commit/coverage | Partial valid/invalid result batch | Only validated result commits; coverage/base fact reconcile | `PASS` | Synthetic commit contract rejects result-map/hash mismatch before write; exact replay is reused, changed approved input replaces atomically, and aggregate coverage keeps missing/ineligible base reviews in its denominator |
 | TC-M4-017 | Evaluation | Stratified private golden/holdout is re-run | Reproducible semantic report; holdout remains blind | `PENDING` | Splitter/evaluator contract passes with synthetic labels, but the required private human-reviewed golden set (minimum 200, ≥20% blind holdout) has not yet been created or run |
-| TC-M4-018 | Release gate | AI candidate below quality threshold | Candidate cannot publish or alter active data release | `PENDING` | IMP-M4-013 |
+| TC-M4-018 | Release gate | AI candidate below quality threshold | Candidate cannot publish or alter active data release | `PASS` | Synthetic version-bound gate blocks low metrics, missing evaluation and version mismatch before the publish callback; no Snowflake pointer mutation exists in this offline contract |
 | TC-M4-019 | Observability | Aggregate dashboard/reconciliation query | Tokens, cost, latency, errors and coverage reconcile with ledgers | `PENDING` | IMP-M4-014 |
 | TC-M4-020 | Recovery | Pause/resume/model-change/purge tabletop | Bounded recovery preserves base facts and auditability | `PENDING` | IMP-M4-015 |
 
@@ -127,3 +127,22 @@
   D:\project\reviewlens-data-platform\.tmp\pytest-m4-012-full
   --cov=reviewlens --cov-report=term-missing` → **541 passed, 9 opt-in live
   skipped, 86.03% coverage**.
+
+## Execution log — 2026-08-22 (`IMP-M4-013`, partial)
+
+- Offline quality-gate suite: `uv run pytest tests\test_m4_evaluation.py
+  tests\test_m4_quality.py tests\test_m4_commit.py tests\test_m4_enrichment.py
+  tests\test_m4_enrichment_migration.py tests\test_m4_catalog_selection_prompt.py
+  tests\test_m4_execution.py tests\test_m4_budget.py tests\test_openrouter.py -q
+  -p no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-013-focused-2` → **61 passed**.
+- A candidate must bind to the same `enrichment_version` as its aggregate-only
+  evaluation report and meet initial M0 sentiment/aspect/topic/schema gates;
+  otherwise the publish callback is not invoked. This is a fake-tested contract
+  only: it calls neither a Snowflake owner procedure nor an active pointer, and
+  remains partial until a private human-reviewed report and real AI candidate exist.
+- Full local regression after artifact-lock refresh: `uv run pytest -q -p
+  no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-013-full
+  --cov=reviewlens --cov-report=term-missing` → **544 passed, 9 opt-in live
+  skipped, 86.08% coverage**.
