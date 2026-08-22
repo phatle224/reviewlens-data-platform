@@ -154,6 +154,7 @@ def test_openrouter_errors_are_sanitized(
 
     message = str(captured.value)
     assert message == "OpenRouter embedding failed"
+    assert captured.value.status_code == status_code
     assert seeded_response not in message
     assert "seeded-prompt-secret" not in message
     assert "seeded-openrouter-secret" not in message

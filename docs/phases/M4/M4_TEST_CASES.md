@@ -16,7 +16,7 @@
 | TC-M4-010 | Catalog/cost | Snapshot pinned OpenRouter model catalog | Slug/context/price/provider-policy evidence is stored without key or prompt | `PASS` | Public read-only `/models` request through `OpenRouterCatalogClient` on 2026-08-21; [safe snapshot](../../evidence/M4_OPENROUTER_ENRICHMENT_CATALOG_2026-08-21.json) validates slug/context/prices/structured output, no API key or content payload |
 | TC-M4-011 | Selector | New, changed, reused, ineligible and quarantined reviews | Deterministic selection counts and no duplicate dispatch | `PASS` | Synthetic hashes cover all five dispositions, reverse-order determinism and conflicting-lineage denial |
 | TC-M4-012 | Prompt/security | Portuguese instruction-injection review fixture | Evidence remains delimited data; no tool/instruction escalation | `PASS` | Synthetic injection stays solely inside `REVIEW_UNTRUSTED`; trusted system prompt explicitly denies evidence instructions/tools/schema changes |
-| TC-M4-013 | Provider | Structured output fake plus opt-in synthetic live smoke | Pinned model, schema and rate controls respected | `PENDING` | Fake contract passes; `tests/live/test_openrouter_enrichment_live.py` is synthetic-only and awaits explicit token-cost opt-in |
+| TC-M4-013 | Provider | Structured output fake plus opt-in synthetic live smoke | Pinned model, schema and rate controls respected | `PENDING` | Fake contract passes. The owner-authorized 40-item real private pilot passed DLP preflight but its first dispatch failed closed, wrote no predictions and was not retried; sanitized HTTP-status diagnostics are now implemented. |
 | TC-M4-014 | Validation/retry | Invalid enum/range/ID and transient/permanent provider failures | At most one repair, bounded retry, quarantine/resume safely | `PASS` | Synthetic malformed/unknown/duplicate/restricted outputs fail closed; exact one repair, transient resume/max-attempt quarantine and permanent-error quarantine pass |
 | TC-M4-015 | Budget | Estimated/actual spend reaches warning and hard cap | Warning at 0.50 USD/day; new calls stop at 5 USD | `PASS` | Offline deterministic estimator, durable aggregate-only reservation/settlement and pre-delegate hard-stop tests pass; live smoke is wrapped but remains opt-in/unexecuted |
 | TC-M4-016 | Commit/coverage | Partial valid/invalid result batch | Only validated result commits; coverage/base fact reconcile | `PASS` | Synthetic commit contract rejects result-map/hash mismatch before write; exact replay is reused, changed approved input replaces atomically, and aggregate coverage keeps missing/ineligible base reviews in its denominator |
@@ -241,6 +241,12 @@
   Output: `{"dataset_sha256": "0443fcbf381ba2b94ff69a72b29c9adeb814587815b151625a64038ed86217c6", "holdout_count": 40, "label_count": 200, "split_seed_sha256": "fa56914938ea13a121b8439623d44d91a9cf140aacf413601b005ae76201fecd", "status": "ready_for_private_predictions"}`
 - Focused golden set & evaluation test suite: `uv run pytest tests/test_m4_golden_pack.py tests/test_m4_evaluation.py -q -p no:cacheprovider --basetemp D:\project\reviewlens-data-platform\.tmp\pytest-m4-012-annotation` → **9 passed**.
 - Project status validator: `python .agents/skills/reviewlens-dev-workflow/scripts/validate_project_status.py --root .` → **PASS: 0 errors, 0 warning(s)**.
+
+## Execution log — 2026-08-23 (`IMP-M4-007/012`, owner-authorized private pilot)
+
+- DLP preflight approved **40/40** blind-holdout items with no provider request.
+- One bounded real dispatch (200 completion tokens maximum, no retry) failed closed on the first item. No prediction/report was written; the aggregate-only budget ledger records **0.0004600 USD** and no pending reservation. No review, prompt or response body was logged.
+- Offline diagnostics now retain only a sanitized provider HTTP status for a separately approved retry. `tests/test_openrouter.py tests/test_m4_execution.py tests/test_m4_holdout_pilot.py` → **22 passed**.
 
 ## Execution log — 2026-08-23 (`IMP-M4-012`, private prediction evaluator)
 

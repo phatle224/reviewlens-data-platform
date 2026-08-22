@@ -63,8 +63,15 @@ class RateLimitedOpenRouterEnrichmentTransport:
                 response_schema=structured_output_schema(),
                 max_tokens=self._max_tokens,
             )
-        except OpenRouterProviderError:
-            raise EnrichmentTransportError(code="OPENROUTER_TRANSIENT", transient=True) from None
+        except OpenRouterProviderError as error:
+            status_code = error.status_code
+            if status_code is None:
+                code = "OPENROUTER_RESPONSE_INVALID"
+                transient = False
+            else:
+                code = f"OPENROUTER_HTTP_{status_code}"
+                transient = status_code in {408, 429} or status_code >= 500
+            raise EnrichmentTransportError(code=code, transient=transient) from None
         return completion.content
 
 

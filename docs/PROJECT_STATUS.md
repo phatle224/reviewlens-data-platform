@@ -34,6 +34,7 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 
 ## Kết quả phiên gần nhất
 
+- M4 `IMP-M4-007/012` owner-authorized private pilot on 2026-08-23: DLP preflight approved all 40 blind-holdout items. The first bounded provider dispatch failed closed, so no prediction/report was written and no retry was made. Aggregate budget ledger records 0.0004600 USD only. Offline code now preserves a sanitized provider HTTP status for any future separately approved diagnostic retry; no review, prompt or response body was logged.
 - M4 `IMP-M4-012` progressed offline on 2026-08-23: the completed 200-label
   private set was revalidated as a 40-item blind holdout. A new local evaluator
   accepts only exact holdout predictions, schema-validates them and writes an
@@ -155,22 +156,22 @@ Milestone completion: **4/9**. Đây là số gate đã đóng, không phải ph
 
 | Dịch vụ | Budget/gate hiện tại | Usage đã xác minh |
 |---|---|---|
-| OpenRouter | 5 USD/project; warning 0.50 USD/day | Không gọi trong phiên CI; 0 USD phát sinh từ code path project |
+| OpenRouter | 5 USD/project; warning 0.50 USD/day | One owner-authorized private holdout dispatch attempted on 2026-08-23; aggregate budget reservation committed at 0.0004600 USD, no prediction/result persisted |
 | Snowflake | ≤10 credits/month; X-Small, auto-suspend 60s | Nine Bronze tables contain 1,289,091 reconciled accepted rows; M3 full/replay, two private registrations, guarded activation and rollback passed; pointer is v3 and warehouse is suspended |
 | Cloudflare R2 | Standard; target ≤15 GB; private/lifecycle | 9 approved CSV (~126.19 MB), source manifest and immutable raw/quarantine artifacts retained privately; replay verified create-only objects |
 | ChromaDB | ≤5 GB local | Typed/in-memory adapter tests only; chưa provision/index và 0 byte project data được ghi |
 
 ## Input cần từ chủ project
 
-Không cần thêm credential hoặc secret. Human review đã hoàn tất 200/200 labels
-và local validation đã tạo 40-item blind holdout. Để tiếp tục M4, cần owner
-chấp thuận riêng một bounded OpenRouter pilot sau DLP/minimization projection;
-pilot sẽ dùng review text private, không public, và chịu 5 USD project cap.
+Không cần credential hoặc secret. Human review 200/200, local holdout split và
+DLP preflight 40/40 đã pass. Một real dispatch đã fail closed after incurring
+aggregate 0.0004600 USD and was not retried. Cần owner chấp thuận riêng một
+diagnostic retry trước bất kỳ review nào được gửi lại.
 
 ## Việc tiếp theo
 
-1. Decide whether to authorize a bounded DLP-approved OpenRouter pilot for the 40 blind-holdout reviews; use the cost guard and keep outputs private.
-2. Run the new local evaluator to create the aggregate-only golden report; do not include train IDs or public artifacts.
+1. Inspect the sanitized provider status from exactly one owner-authorized diagnostic retry; do not retry automatically or use train IDs.
+2. If the retry succeeds with all 40 predictions, run the local evaluator to create the aggregate-only golden report; do not include public artifacts.
 3. After a real private golden report exists, deliberately wire the M4 quality gate to the guarded release runtime; do not bypass the current no-pointer contract.
 4. Re-audit Chroma at `IMP-M5-001`; do not bypass blocked policy to provision early; before M8, remediate Airflow/sqlparse dependency audit and rebuild one controlled image.
 

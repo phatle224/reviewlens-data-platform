@@ -116,6 +116,10 @@ class EmbeddingBatch:
 class OpenRouterProviderError(RuntimeError):
     """Sanitized failure that excludes prompts, responses and credentials."""
 
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
 
 class _UsagePayload(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -322,6 +326,11 @@ class OpenRouterClient:
             response = self._client.post(url, headers=self._headers, json=payload)
             response.raise_for_status()
             return response.json()
+        except httpx.HTTPStatusError as error:
+            raise OpenRouterProviderError(
+                f"OpenRouter {operation} failed",
+                status_code=error.response.status_code,
+            ) from None
         except (httpx.HTTPError, ValueError):
             raise OpenRouterProviderError(f"OpenRouter {operation} failed") from None
 
