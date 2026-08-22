@@ -22,7 +22,7 @@
 | TC-M4-016 | Commit/coverage | Partial valid/invalid result batch | Only validated result commits; coverage/base fact reconcile | `PASS` | Synthetic commit contract rejects result-map/hash mismatch before write; exact replay is reused, changed approved input replaces atomically, and aggregate coverage keeps missing/ineligible base reviews in its denominator |
 | TC-M4-017 | Evaluation | Stratified private golden/holdout is re-run | Reproducible semantic report; holdout remains blind | `PENDING` | Splitter/evaluator contract passes with synthetic labels, but the required private human-reviewed golden set (minimum 200, ≥20% blind holdout) has not yet been created or run |
 | TC-M4-018 | Release gate | AI candidate below quality threshold | Candidate cannot publish or alter active data release | `PASS` | Synthetic version-bound gate blocks low metrics, missing evaluation and version mismatch before the publish callback; no Snowflake pointer mutation exists in this offline contract |
-| TC-M4-019 | Observability | Aggregate dashboard/reconciliation query | Tokens, cost, latency, errors and coverage reconcile with ledgers | `PENDING` | IMP-M4-014 |
+| TC-M4-019 | Observability | Aggregate dashboard/reconciliation query | Tokens, cost, latency, errors and coverage reconcile with ledgers | `PASS` | Synthetic terminal telemetry is deterministic and reconciles exact committed USD and current valid coverage; duplicate opaque IDs plus budget/version/coverage drift are denied before snapshot creation, 2026-08-22 |
 | TC-M4-020 | Recovery | Pause/resume/model-change/purge tabletop | Bounded recovery preserves base facts and auditability | `PENDING` | IMP-M4-015 |
 
 ## Execution log — 2026-08-21 (`IMP-M4-001…003`)
@@ -146,3 +146,22 @@
   D:\project\reviewlens-data-platform\.tmp\pytest-m4-013-full
   --cov=reviewlens --cov-report=term-missing` → **544 passed, 9 opt-in live
   skipped, 86.08% coverage**.
+
+## Execution log — 2026-08-22 (`IMP-M4-014`)
+
+- Offline observability contract suite: `uv run pytest tests\test_m4_observability.py
+  tests\test_m4_commit.py tests\test_m4_budget.py tests\test_m4_enrichment.py
+  tests\test_m4_execution.py tests\test_m4_quality.py -q -p no:cacheprovider
+  --basetemp D:\project\reviewlens-data-platform\.tmp\pytest-m4-014-focused`
+  → **41 passed**. The snapshot contains aggregate input/output token counts,
+  exact committed USD, total/p95 latency, sanitized error-code counters and
+  coverage only; it does not retain telemetry input references.
+- Ruff format/lint, strict mypy and `dbt parse --warn-error` pass. The
+  declared artifact lock was regenerated after the source change; deploy
+  contract `tests\test_deploy.py` → **9 passed**. No OpenRouter, R2,
+  Snowflake, Chroma or Docker call occurred.
+- Full local regression after the lock refresh: `uv run pytest -q -p
+  no:cacheprovider --basetemp
+  D:\project\reviewlens-data-platform\.tmp\pytest-m4-014-full-rerun
+  --cov=reviewlens --cov-report=term-missing` → **547 passed, 9 opt-in live
+  skipped, 86.13% coverage**.

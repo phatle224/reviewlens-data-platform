@@ -3,10 +3,10 @@
 | Attribute | Value |
 |---|---|
 | Phase status | `IN_PROGRESS` |
-| Completed | 10/15 work items |
+| Completed | 11/15 work items |
 | Partial | 3/15 work items |
 | Blocked | 0/15 work items |
-| Not started | 2/15 work items |
+| Not started | 1/15 work items |
 | Last updated | 2026-08-22 |
 
 ## Implementation-plan checklist
@@ -26,7 +26,7 @@
 | IMP-M4-011 | `DONE` | Build committed `AI_REVIEW_ENRICHED` and coverage projection | Private `AI_REVIEW_ENRICHED` DDL (`010`) and an atomic in-memory contract accept only hash-matched `ValidatedEnrichment` linked to a successful result-map; exact replay reuses, changed approved input replaces the current valid result, and coverage is aggregate-only. The base-review count is independent of valid/missing/ineligible AI coverage. Migration is deliberately not applied live; TC-M4-016 passes offline. |
 | IMP-M4-012 | `PARTIAL` | Create stratified golden/holdout and semantic evaluator | Deterministic private-label splitter stratifies score/aspect/length/opaque-category/delivery outcome, reserves ≥20% blind holdout, evaluates only declared holdout IDs, and reports macro sentiment/aspect F1, topic micro F1 and schema pass rate. Synthetic regression passes; a real private human-reviewed set of at least 200 rows has not been created, so the real evaluation gate remains open. |
 | IMP-M4-013 | `PARTIAL` | Add AI quality gate to release process | Version-bound fake-tested gate requires initial M0 metric thresholds and calls the publish callback only for the exact passing candidate; below-threshold, missing-evaluation and version-mismatch candidates are denied before publish. It is deliberately not yet wired to the live guarded Snowflake release transition because no private human-reviewed golden report or real AI candidate exists. |
-| IMP-M4-014 | `NOT_STARTED` | Add tokens/cost/latency/error/coverage dashboards | Ledger aggregates reconcile without raw content |
+| IMP-M4-014 | `DONE` | Add tokens/cost/latency/error/coverage dashboards | Aggregate-only terminal telemetry creates a reproducible dashboard payload for input/output tokens, exact committed USD, total/p95 latency, sanitized error-code counts and base/eligible/valid/missing coverage. It rejects duplicate opaque invocations, version/coverage drift and committed-budget mismatch; no raw content or row-level output is retained. TC-M4-019 passes offline. |
 | IMP-M4-015 | `NOT_STARTED` | Write pause/resume/model-change/purge runbook | Recovery drill required |
 
 ## Exit gate
